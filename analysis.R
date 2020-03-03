@@ -1,8 +1,14 @@
+#http://environmentalcomputing.net/interpreting-coefficients-in-glms/
+#https://stats.idre.ucla.edu/r/dae/probit-regression/
+
+
+
 library(raster)
 library(rgdal)
 library(GISTools)
 library(plotly)
 library(BAMMtools)
+
 
 #function for z score
 zscore<-function(data){
@@ -111,9 +117,9 @@ d<-sort(mGetDistri(data,cname))
 zs<-zscore(d)
 ds<-d[abs(zs)<3.1 & d<=30]
 h<-hist(ds,breaks=c(min(d)-1,unique(ds)),right=T)
-View(data.frame(h$breaks[-1],h$counts))
+#View(data.frame(h$breaks[-1],h$counts))
 print(getJenksBreaks(ds,5))
-cats<-c(0,3,9,18,30,60,90)
+cats<-c(0,18,30,60,90) # 3 9 removed after corr matrix 
 tdf<-recat(data,cname,cats)
 colnames(tdf)<-paste0(cname,"C_",cats[-1])
 tdf<-sweep(tdf, 1, data$electricityLostDays_t, "/")
@@ -144,12 +150,18 @@ df<-cbind(df,tdf)
 #indesB<- c("flooded","electricity","otherHomesFlood","skinContact")
 #depnsB<-c('illness','injury','leftHome',"hospitalized")
 
-dependent<-depnsB[1]
-print(dependent)
+#corellation analysis
+cor_mat<-cor(df[,indes],use="complete.obs")
+
+dependent<-depnsB[4]
+#print(dependent)
 #glm binomial with probit link
 frmla=paste0("cbind(",dependent,"_1,",dependent,"_0)", " ~ ",paste(indes,collapse = ' + ')) #incase of using fractions
 print(frmla)
 model <- glm (frmla, data = df,family=binomial(link="logit"))
+summary(model)
+
+model <- glm (frmla, data = df,family=binomial(link="probit"))
 summary(model)
 
 

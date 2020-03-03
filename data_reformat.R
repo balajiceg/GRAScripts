@@ -9,7 +9,7 @@ library(plotly)
 
 
 #census tracts
-tracts<-readOGR('./flood_aggregates',layer='flood_ratio_200')
+tracts<-readOGR('D:\\texas\\HHR_R\\flood_aggregates',layer='flood_ratio_200')
 inun_data<-tracts@data[,c("GEOID","floodRatio","geom_area")]
 colnames(inun_data)[1]<-"tractId"
 
@@ -88,8 +88,8 @@ tot_cols<-joined[,grep("_t",names(joined))]
 joined$max_t_counts<-apply(tot_cols,1,max,na.rm=T)
 
 #joining SVI
-svi_s<-readOGR('D:/texas/spatial/Texas_SVI_tracts',layer='TEXAS')
-svi<-svi_s@data[,c("FIPS","RPL_THEMES")]
+svi_s<-readOGR('\\\\vetmed2.vetmed.w2k.vt.edu\\Blitzer\\NASA project\\Balaji\\HHR_20191001_CT\\SVI4countis.gpkg',layer='SVI_4counties')
+svi<-svi_s@data[,c("FIPS","RPL_THEMES_HC")]
 names(svi)<-c("tractId","SVI")
 filterd_svi<-svi[svi$tractId %in% joined$tractId,]
 joined<-merge(joined,filterd_svi,by="tractId",all.x=T)
