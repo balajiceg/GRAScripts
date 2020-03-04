@@ -94,6 +94,13 @@ names(svi)<-c("tractId","SVI")
 filterd_svi<-svi[svi$tractId %in% joined$tractId,]
 joined<-merge(joined,filterd_svi,by="tractId",all.x=T)
 
+#joining impermisable
+impervi_s<-readOGR('D:\\texas\\spatial\\impervisou_means',layer='impervious_census_tract')
+impervi<-impervi_s@data[,c("GEOID","imperInd")]
+names(impervi)<-c("tractId","imperInd")
+filterd_impervi<-impervi[impervi$tractId %in% joined$tractId,]
+joined<-merge(joined,filterd_impervi,by="tractId",all.x=T)
+
 #merge the inundation data
 merged<-merge(joined,inun_data,by='tractId',all.x=T)
 
