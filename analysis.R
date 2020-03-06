@@ -106,7 +106,7 @@ df<-cbind(df,tdf)
 
 #waterLevel
 cname<-"waterLevel"
-cats<-c(0,2,4,8) #c(0,2,4,6,8)
+cats<-c(0,2,4,6,8) #c(0,2,4,6,8) 4 removed because is always singlular
 tdf<-recat(data,cname,cats)
 colnames(tdf)<-paste0(cname,"C_",cats[-1])
 tdf<-sweep(tdf, 1, data[[paste0(cname,'_t')]], "/")
@@ -168,11 +168,11 @@ df$imperInd<-df$imperInd/5.0
 
 print(indes)
 indes <- c(
-              'flooded','electricity','otherHomesFlood','skinContact',
-             # 'leftHome',
+            'flooded','electricity','otherHomesFlood','skinContact',
+            # 'leftHome',
             'SVI','floodRatio','imperInd',
             'waterLevelC_2','waterLevelC_4','waterLevelC_8',
-            'electricityLostDaysC_18','electricityLostDaysC_30','electricityLostDaysC_90',
+             'electricityLostDaysC_18','electricityLostDaysC_30','electricityLostDaysC_90',
             'floodedDaysC_2','floodedDaysC_5','floodedDaysC_90',
             "whereLived_someHome" ,"whereLived_NoNMobileHome","whereLived_temporaryShelter"
             )
