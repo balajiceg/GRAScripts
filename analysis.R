@@ -170,9 +170,9 @@ print(indes)
 indes <- c(
             'flooded','electricity','otherHomesFlood','skinContact',
             'leftHome',
-            #'SVI','floodRatio','imperInd'
+            'SVI','floodRatio','imperInd'
             # 'waterLevelC_2','waterLevelC_4','waterLevelC_8',
-             'electricityLostDaysC_18','electricityLostDaysC_30','electricityLostDaysC_90'
+             # 'electricityLostDaysC_18','electricityLostDaysC_30','electricityLostDaysC_90'
             # 'floodedDaysC_2','floodedDaysC_5','floodedDaysC_90'
             # "whereLived_someHome" ,"whereLived_NoNMobileHome","whereLived_temporaryShelter"
             )
