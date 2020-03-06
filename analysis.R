@@ -162,7 +162,7 @@ df<-cbind(df,tdf)
 # )
 
 #recoding values
-#df$floodRatio<-cut(df$floodRatio,breaks=c(0,0.01,0.05,0.1,0.25,0.8),right=F,labels=c('<1%','<5%','<10%','<25%','<80%'))
+df$floodRatio<-cut(df$floodRatio,breaks=c(0,0.01,0.05,0.1,0.25,0.8),right=F,labels=c('<1%','<5%','<10%','<25%','<80%'))
 df$SVI<-cut(df$SVI,breaks=c(0.00,1e-1,0.25,0.5,0.75,1.0),include.lowest=T,labels=c('==0','<=25%','<=50%','<=75%','<=100%'))
 df$imperInd<-df$imperInd/5.0
 
@@ -176,7 +176,6 @@ indes <- c(
             # 'floodedDaysC_10','floodedDaysC_90',
             "whereLived_someHome" ,"whereLived_NoNMobileHome","whereLived_temporaryShelter"
             )
-
 
 
 #depnsB<-c('illness','injury',"hospitalized")
