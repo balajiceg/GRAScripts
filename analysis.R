@@ -106,7 +106,7 @@ df<-cbind(df,tdf)
 
 #waterLevel
 cname<-"waterLevel"
-cats<-c(0,2,4,6,8) #c(0,2,4,6,8) 4 removed because is always singlular
+cats<-c(0,3,6) #c(0,2,4,6,8) 4 removed because is always singlular
 tdf<-recat(data,cname,cats)
 colnames(tdf)<-paste0(cname,"C_",cats[-1])
 tdf<-sweep(tdf, 1, data[[paste0(cname,'_t')]], "/")
@@ -121,7 +121,7 @@ ds<-d[abs(zs)<3.1 & d<=30]
 #h<-hist(ds,breaks=c(min(d)-1,unique(ds)),right=T)
 #View(data.frame(h$breaks[-1],h$counts))
 #print(getJenksBreaks(ds,5))
-cats<-c(0,18,30,90) # 3 9 removed after corr matrix c(0,18,30,60,90)
+cats<-c(0,15,30) # 3 9 removed after corr matrix c(0,18,30,60,90)
 tdf<-recat(data,cname,cats) 
 colnames(tdf)<-paste0(cname,"C_",cats[-1])
 tdf<-sweep(tdf, 1, data$electricityLostDays_t, "/")
@@ -137,7 +137,7 @@ ds<-d[d<=30]
 #h<-hist(ds,breaks=c(min(d)-1,unique(ds)),right=T)
 #View(data.frame(h$breaks[-1],h$counts))
 #print(getJenksBreaks(ds,6))
-cats<-c(0,2,5,90) # 60 remove after cor -c(0,2,5,10,18,30,90)
+cats<-c(0,10,90) # 60 remove after cor -c(0,2,5,10,18,30,90)
 tdf<-recat(data,cname,cats)
 colnames(tdf)<-paste0(cname,"C_",cats[-1])
 tdf<-sweep(tdf, 1, data$floodedDays_t, "/")
@@ -171,12 +171,11 @@ indes <- c(
             'flooded','electricity','otherHomesFlood','skinContact',
             # 'leftHome',
             'SVI','floodRatio','imperInd',
-            'waterLevelC_2','waterLevelC_4','waterLevelC_8',
-             'electricityLostDaysC_18','electricityLostDaysC_30','electricityLostDaysC_90',
-            'floodedDaysC_2','floodedDaysC_5','floodedDaysC_90',
+            'waterLevelC_3','waterLevelC_6',
+            'electricityLostDaysC_15','electricityLostDaysC_30',
+            'floodedDaysC_10','floodedDaysC_90',
             "whereLived_someHome" ,"whereLived_NoNMobileHome","whereLived_temporaryShelter"
             )
-
 
 #depnsB<-c('illness','injury',"hospitalized")
 #corellation analysis
