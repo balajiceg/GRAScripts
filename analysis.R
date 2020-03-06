@@ -173,6 +173,7 @@ df$floodRatio<-cut(df$floodRatio,breaks=c(0,0.01,0.05,0.1,0.25,0.8),right=F,labe
 df$SVI<-cut(df$SVI,breaks=c(0.00,1e-1,0.25,0.5,0.75,1.0),include.lowest=T,labels=c('==0','<=25%','<=50%','<=75%','<=100%'))
 df$imperInd<-df$imperInd/5.0
 
+
 print(indes)
 indes <- c(
              'flooded','electricity','otherHomesFlood','skinContact',
