@@ -178,7 +178,6 @@ indes <- c(
             )
 
 
-
 #depnsB<-c('illness','injury',"hospitalized")
 #corellation analysis
 #cor_mat<-cor(df[,indes],use="complete.obs")
