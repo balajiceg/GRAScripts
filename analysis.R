@@ -177,6 +177,7 @@ indes <- c(
             # "whereLived_someHome" ,"whereLived_NoNMobileHome","whereLived_temporaryShelter"
             )
 
+
 #depnsB<-c('illness','injury',"hospitalized")
 #corellation analysis
 #cor_mat<-cor(df[,indes],use="complete.obs")
