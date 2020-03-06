@@ -160,15 +160,21 @@ df<-cbind(df,tdf)
 #   'electricityLostDaysC_18','electricityLostDaysC_30','electricityLostDaysC_90',
 #   'floodedDaysC_2','floodedDaysC_5','floodedDaysC_90'
 # )
+
+#recoding values
+#df$floodRatio<-cut(df$floodRatio,breaks=c(0,0.01,0.05,0.1,0.25,0.8),right=F,labels=c('<1%','<5%','<10%','<25%','<80%'))
+df$SVI<-cut(df$SVI,breaks=c(0.00,1e-1,0.25,0.5,0.75,1.0),include.lowest=T,labels=c('==0','<=25%','<=50%','<=75%','<=100%'))
+df$imperInd<-df$imperInd/5.0
+
 print(indes)
 indes <- c(
-            'flooded','electricity','otherHomesFlood','skinContact',
-            'leftHome',
-            'SVI','floodRatio','imperInd',
-            'waterLevelC_2','waterLevelC_4','waterLevelC_8',
-            'electricityLostDaysC_18','electricityLostDaysC_30','electricityLostDaysC_90',
-            'floodedDaysC_2','floodedDaysC_5','floodedDaysC_90',
-            "whereLived_someHome" ,"whereLived_NoNMobileHome","whereLived_temporaryShelter"
+             'flooded','electricity','otherHomesFlood','skinContact'
+            # 'leftHome',
+            #'SVI','floodRatio','imperInd'
+          #  'waterLevelC_2','waterLevelC_4','waterLevelC_8',
+            # 'electricityLostDaysC_18','electricityLostDaysC_30','electricityLostDaysC_90',
+            # 'floodedDaysC_2','floodedDaysC_5','floodedDaysC_90'
+            # "whereLived_someHome" ,"whereLived_NoNMobileHome","whereLived_temporaryShelter"
             )
 
 
@@ -176,28 +182,28 @@ indes <- c(
 
 #depnsB<-c('illness','injury',"hospitalized")
 #corellation analysis
-cor_mat<-cor(df[,indes],use="complete.obs")
-
+#cor_mat<-cor(df[,indes],use="complete.obs")
+cat("\014")
 for (dependent in depnsB){
-print(strrep('_',100))
-#print(dependent)
-#glm binomial with probit link
-
-frmla=as.formula(paste0("cbind(",dependent,"_1,",dependent,"_0)", " ~ ",paste(indes,collapse = ' + '))) #incase of using fractions
-print(frmla)
-#model <- glm (frmla, data = df,family=binomial(link="probit"))
-#summary(model)
-
-#glm binomial with logit
-print(strrep('BINOMIAL----------- ',5))
-model <- glm (frmla, data = df,family=binomial(link="logit"))
-print(summary(model))
-
-print(strrep('POISSON----------- ',5))
-#glm poisson
-frmla_poi=paste0(dependent,"_1 ~ ",
-             paste(indes,collapse = ' + ')) #incase of using fractions
-w=data[[paste0(dependent,"_0")]]+data[[paste0(dependent,"_1")]]
-model <- glm (frmla_poi, data = df,family=poisson,offset  = log(w))
-print(summary(model))
+  print(strrep('_',200),quote=F)
+  print(dependent)
+  #glm binomial with probit link
+  
+  frmla=as.formula(paste0("cbind(",dependent,"_1,",dependent,"_0)", " ~ ",paste(indes,collapse = ' + '))) #incase of using fractions
+  #print(frmla)
+  #model <- glm (frmla, data = df,family=binomial(link="probit"))
+  #summary(model)
+  
+  #glm binomial with logit
+  print(strrep('BINOMIAL----------- ',5))
+  model <- glm (frmla, data = df,family=binomial(link="logit"))
+  print(summary(model))
+  
+  print(strrep('POISSON----------- ',5))
+  #glm poisson
+  frmla_poi=paste0(dependent,"_1 ~ ",
+               paste(indes,collapse = ' + ')) #incase of using fractions
+  w=data[[paste0(dependent,"_0")]]+data[[paste0(dependent,"_1")]]
+  model <- glm (frmla_poi, data = df,family=poisson,offset  = log(w))
+  print(summary(model))
 }
