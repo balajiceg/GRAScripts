@@ -168,8 +168,8 @@ df$imperInd<-df$imperInd/5.0
 
 print(indes)
 indes <- c(
-             # 'flooded','electricity','otherHomesFlood','skinContact',
-            # 'leftHome',
+             'flooded','electricity','otherHomesFlood','skinContact',
+             'leftHome',
              'SVI','floodRatio','imperInd'
             # 'waterLevelC_3','waterLevelC_6',
             # 'electricityLostDaysC_15','electricityLostDaysC_30',
