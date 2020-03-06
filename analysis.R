@@ -5,7 +5,7 @@ library(rgdal)
 library(GISTools)
 library(plotly)
 library(BAMMtools)
-
+library(stringi)
 #function make quantiles
 
 
@@ -72,9 +72,16 @@ questions_short<-c('waterLevel',
 
 
 #read from the joined table
-#data<-read.csv('\\\\vetmed2.vetmed.w2k.vt.edu\\Blitzer\\NASA project\\Balaji\\HHR_20191001_CT\\joined_table_nondemos.csv')
+#data_copy<-read.csv('\\\\vetmed2.vetmed.w2k.vt.edu\\Blitzer\\NASA project\\Balaji\\HHR_20191001_CT\\joined_table_nondemos.csv')
 
+data<-data_copy
 
+min_limit=1
+for(n in names(data))
+  if(stri_sub(n,-2,-1)=="_t")
+  {
+    data[is.na(data[[n]]) | data[[n]]<min_limit ,n]<-NA
+  }
 
 
 ### data preparation for logis regression ---------------------
@@ -169,11 +176,12 @@ df$imperInd<-df$imperInd/5.0
 print(indes)
 indes <- c(
              'flooded','electricity','otherHomesFlood','skinContact',
-             # 'leftHome'
-             #'SVI','floodRatio','imperInd'
-            'waterLevelC_3','waterLevelC_6',
-            'electricityLostDaysC_15','electricityLostDaysC_30',
-            'floodedDaysC_10','floodedDaysC_90',
+             #'leftHome',
+             'SVI',
+            'floodRatio','imperInd',
+            # 'waterLevelC_3','waterLevelC_6',
+            # 'electricityLostDaysC_15','electricityLostDaysC_30',
+            # 'floodedDaysC_10','floodedDaysC_90',
             "whereLived_someHome" ,"whereLived_NoNMobileHome","whereLived_temporaryShelter"
             )
 
