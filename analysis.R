@@ -1,13 +1,12 @@
 #http://environmentalcomputing.net/interpreting-coefficients-in-glms/
 #https://stats.idre.ucla.edu/r/dae/probit-regression/
-
-
-
 library(raster)
 library(rgdal)
 library(GISTools)
 library(plotly)
 library(BAMMtools)
+
+#function make quantiles
 
 
 #function for z score
@@ -73,13 +72,14 @@ questions_short<-c('waterLevel',
 
 
 #read from the joined table
-data<-read.csv('\\\\vetmed2.vetmed.w2k.vt.edu\\Blitzer\\NASA project\\Balaji\\HHR_20191001_CT\\joined_table_nondemos.csv')
+#data<-read.csv('\\\\vetmed2.vetmed.w2k.vt.edu\\Blitzer\\NASA project\\Balaji\\HHR_20191001_CT\\joined_table_nondemos.csv')
+
 
 
 
 ### data preparation for logis regression ---------------------
-indes<- c("flooded","electricity","otherHomesFlood","skinContact")
-depnsB<-c('illness','injury','leftHome',"hospitalized")
+indes<- c("flooded","electricity","otherHomesFlood","skinContact",'leftHome')
+depnsB<-c('illness','injury',"hospitalized")
 #percentage responses for yes or no questions
 df<-data.frame(tractId=data$tractId,floodRatio=data$floodRatio,SVI=data$SVI,imperInd=data$imperInd)
 for( field in c(indes) ){
@@ -96,15 +96,17 @@ indes<-c(indes,'SVI','floodRatio','imperInd')
 
 #wherelived
 tdf<-data[,grep('whereLived',colnames(data))]
+tdf$whereLived_someHome<-tdf$whereLived_apartment+tdf$whereLived_hotel+tdf$whereLived_liveFamily+tdf$whereLived_singleFamily
+tdf$whereLived_NoNMobileHome<-tdf$whereLived_mobileHome+tdf$whereLived_homeless
 tdf<- sweep(tdf, 1, tdf$whereLived_t, "/")
-tdf<-subset(tdf, select = -c(whereLived_t))
+tdf<-subset(tdf, select =c(whereLived_someHome,whereLived_NoNMobileHome,whereLived_temporaryShelter))
 indes<-c(indes,names(tdf))
 df<-cbind(df,tdf)
 
 
 #waterLevel
 cname<-"waterLevel"
-cats<-c(0,2,4,6,8)
+cats<-c(0,2,4,8) #c(0,2,4,6,8)
 tdf<-recat(data,cname,cats)
 colnames(tdf)<-paste0(cname,"C_",cats[-1])
 tdf<-sweep(tdf, 1, data[[paste0(cname,'_t')]], "/")
@@ -116,11 +118,11 @@ cname<-"electricityLostDays"
 d<-sort(mGetDistri(data,cname))
 zs<-zscore(d)
 ds<-d[abs(zs)<3.1 & d<=30]
-h<-hist(ds,breaks=c(min(d)-1,unique(ds)),right=T)
+#h<-hist(ds,breaks=c(min(d)-1,unique(ds)),right=T)
 #View(data.frame(h$breaks[-1],h$counts))
-print(getJenksBreaks(ds,5))
-cats<-c(0,18,30,60,90) # 3 9 removed after corr matrix 
-tdf<-recat(data,cname,cats)
+#print(getJenksBreaks(ds,5))
+cats<-c(0,18,30,90) # 3 9 removed after corr matrix c(0,18,30,60,90)
+tdf<-recat(data,cname,cats) 
 colnames(tdf)<-paste0(cname,"C_",cats[-1])
 tdf<-sweep(tdf, 1, data$electricityLostDays_t, "/")
 indes<-c(indes,names(tdf))
@@ -132,10 +134,10 @@ cname<-"floodedDays"
 d<-sort(mGetDistri(data,cname))
 zs<-zscore(d)
 ds<-d[d<=30]
-h<-hist(ds,breaks=c(min(d)-1,unique(ds)),right=T)
+#h<-hist(ds,breaks=c(min(d)-1,unique(ds)),right=T)
 #View(data.frame(h$breaks[-1],h$counts))
-print(getJenksBreaks(ds,6))
-cats<-c(0,2,5,10,18,30,90) # 60 remove after cor
+#print(getJenksBreaks(ds,6))
+cats<-c(0,2,5,90) # 60 remove after cor -c(0,2,5,10,18,30,90)
 tdf<-recat(data,cname,cats)
 colnames(tdf)<-paste0(cname,"C_",cats[-1])
 tdf<-sweep(tdf, 1, data$floodedDays_t, "/")
@@ -147,14 +149,37 @@ df<-cbind(df,tdf)
 
 ## logistic regression
 
-#indesB<- c("flooded","electricity","otherHomesFlood","skinContact")
-#depnsB<-c('illness','injury','leftHome',"hospitalized")
 
+
+# indes <- c( 
+#   'flooded','electricity','otherHomesFlood','skinContact',
+#   'leftHome',
+#   'SVI','floodRatio','imperInd',
+#   'whereLived_liveFamily','whereLived_apartment','whereLived_other','whereLived_singleFamily','whereLived_hotel','whereLived_homeless','whereLived_mobileHome','whereLived_temporaryShelter',
+#   'waterLevelC_2','waterLevelC_8',
+#   'electricityLostDaysC_18','electricityLostDaysC_30','electricityLostDaysC_90',
+#   'floodedDaysC_2','floodedDaysC_5','floodedDaysC_90'
+# )
+print(indes)
+indes <- c(
+            'flooded','electricity','otherHomesFlood','skinContact',
+            'leftHome',
+            'SVI','floodRatio','imperInd',
+            'waterLevelC_2','waterLevelC_4','waterLevelC_8',
+            'electricityLostDaysC_18','electricityLostDaysC_30','electricityLostDaysC_90',
+            'floodedDaysC_2','floodedDaysC_5','floodedDaysC_90',
+            "whereLived_someHome" ,"whereLived_NoNMobileHome","whereLived_temporaryShelter"
+            )
+
+
+
+
+#depnsB<-c('illness','injury',"hospitalized")
 #corellation analysis
 cor_mat<-cor(df[,indes],use="complete.obs")
 
-
-dependent<-depnsB[1]
+for (dependent in depnsB){
+print(strrep('_',100))
 #print(dependent)
 #glm binomial with probit link
 
@@ -164,154 +189,15 @@ print(frmla)
 #summary(model)
 
 #glm binomial with logit
+print(strrep('BINOMIAL----------- ',5))
 model <- glm (frmla, data = df,family=binomial(link="logit"))
-summary(model)
+print(summary(model))
 
-
+print(strrep('POISSON----------- ',5))
 #glm poisson
 frmla_poi=paste0(dependent,"_1 ~ ",
              paste(indes,collapse = ' + ')) #incase of using fractions
 w=data[[paste0(dependent,"_0")]]+data[[paste0(dependent,"_1")]]
-model <- glm (frmla_poi, data = df,family=quasipoisson,offset  = log(w))
-summary(model)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 
-# 
-# 
-# 
-# 
-# 
-# 
-# 
-# #----------------------------------------------------------------------------
-# # junk code trials---------------
-# 
-# 
-# #check missinginsess of data
-# for (i in names(df)){
-# print(paste0(i,": ",sum(df[[i]]==0,na.rm=T )),quote=F)
-# }
-# 
-# for (i in names(df)){
-#   print(paste0(i,": ",sum(is.na(df[[i]]),na.rm=T)),quote=F)
-# }
-# 
-# # finding min max responses in each category
-# c<-"electricityLostDays"
-# x<- paste0(c,'_', sprintf("%#.1f", as.numeric(mGetValues(data,c)) %>% sort))
-# x<-data[,x]
-# View(colSums(x))
-# 
-# 
-# df$percent_postive=df[,paste0(questionss_short[selected_ques],'_',1)]/df[,paste0(questionss_short[selected_ques],'_t')]
-# merged<-merge(df, inun_data,by = "tract_id",all.x=T)
-# # png(paste0(questionss_short[selected_ques],'_c.png'))
-# # print(ggplot(merged,aes(x=flooded_percent_c,y=percent_postive))+geom_point()+ggtitle(questionss[selected_ques]))
-# # dev.off()
-# print(questions[selected_ques])
-# print(summary(lm(flooded_percent_c~percent_postive,data=merged)))
-# 
-# #max repondents
-# tot_cols<-data[,grep("_t",names(data))]
-# tot_cols$max<-apply(tot_cols,1,max,na.rm=T)
-# 
-# #plot histograms
-# ggplot(data, aes(x=floodRatio)) + 
-#   geom_histogram(bins=100)
-# ggplot(data, aes(x=max_t_counts)) + 
-#   geom_histogram(bins=50)
-# 
-# #flood ratio vs total res
-# ggplot(data, aes(x=floodRatio,y=log(max_t_counts))) + 
-#   geom_point()
-# 
-# ggplot(data, aes(x=floodRatio,y=(max_t_counts))) + 
-#   geom_qq_line()
-# 
-# #calcualting quantile
-# quantile(data$floodRatio,probs=seq(0,1,0.1))
-# 
-# 
-# 
-# #jenks break
-# #install.packages("BAMMtools")
-# library(BAMMtools)
-# getJenksBreaks(mGetDistri(data,cname),5)
-# 
-# #unique histogram
-# hist(data$max_t_counts,nclass=length(unique(data$max_t_counts)))
-# 
-# 
-# cname<-"waterLevel"
-# cname<-"floodedDays"
-# cname<-"electricityLostDays"
-# d<-sort(mGetDistri(data,cname))
-# h<-hist(d,breaks=c(min(d)-1,unique(d)),right=T)
-# View(data.frame(h$breaks[-1],h$counts))
-# plot_ly(x=d,type='histogram')
-# ggplot(data.frame(d),aes(x=d))+geom_histogram(bins=length(unique(d)))+geom_density()
-# ggplot(data.frame(d),aes(x=d))+geom_density()
-# qplot(sample=d) #quantile range
-# zs<-zscore(d)
-# View(data.frame(unique(zs),unique(d)))
-# ds<-d[abs(zs)<3.1]
-# 
-# plot_ly(x=ds,type='histogram')
-# h<-hist(ds,breaks=c(min(d)-1,unique(ds)),right=T)
-# View(data.frame(h$breaks[-1],h$counts))
-# 
-# quan<-quantile(d)
-# iqr<-quan[4]-quan[2]
-# 
-# library(dbscan)
-# dbscan(as.matrix(d))
-# 
-# 
-# l=5
-# a<-kmeans(ds,l)
-# for (i in 1:l) unique(ds[a$cluster==i]) %>% print
-# 
-# 
-# 
-# 
+model <- glm (frmla_poi, data = df,family=poisson,offset  = log(w))
+print(summary(model))
+}
