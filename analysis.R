@@ -194,11 +194,11 @@ indes <- c(
 cat("\014")
 for (dependent in depnsB[1:1]){
   print(strrep('_',200),quote=F)
-  print(dependent)
+  #print(dependent)
   #glm binomial with probit link
   
   frmla=as.formula(paste0("cbind(",dependent,"_1,",dependent,"_0)", " ~ ",paste(indes,collapse = ' * '))) #incase of using fractions
-  #print(frmla)
+  print(frmla)
   #model <- glm (frmla, data = df,family=binomial(link="probit"))
   #summary(model)
   
@@ -216,3 +216,4 @@ for (dependent in depnsB[1:1]){
   model <- glm (frmla_poi, data = df,family=poisson,offset  = log(w))
   print(summary(model))
 }
+
