@@ -211,7 +211,7 @@ for (dependent in depnsB[1:1]){
   #glm poisson
   frmla_poi=paste0(dependent,"_1 ~ ",
                paste(indes,collapse = ' * ')) #incase of using fractions
-  #frmla_poi=paste0("leftHome","_1 ~ ","floodRatio")
+  frmla_poi=paste0("leftHome","_1 ~ ","floodRatio")
   w=data[[paste0(dependent,"_0")]]+data[[paste0(dependent,"_1")]]
   model <- glm (frmla_poi, data = df,family=poisson,offset  = log(w))
   print(summary(model))
