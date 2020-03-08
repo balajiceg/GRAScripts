@@ -84,11 +84,12 @@ for(n in names(data))
   }
 
 
+
 ### data preparation for logis regression ---------------------
-indes<- c("flooded","electricity","otherHomesFlood","skinContact",'leftHome')
-depnsB<-c('illness','injury',"hospitalized")
+indes<- c("flooded","electricity","otherHomesFlood","skinContact")
+depnsB<-c('illness','injury',"hospitalized","leftHome")
 #percentage responses for yes or no questions
-df<-data.frame(tractId=data$tractId,floodRatio=data$floodRatio,SVI=data$SVI,imperInd=data$imperInd)
+df<-data.frame(tractId=data$tractId,floodRatio=data$floodR100,SVI=data$SVI,imperInd=data$imperInd)
 for( field in c(indes) ){
   df[[field]] <- data[[paste0(field,"_1")]]/data[[paste0(field,"_t")]]
 }
@@ -169,21 +170,21 @@ df<-cbind(df,tdf)
 # )
 
 #recoding values
-df$floodRatio<-cut(df$floodRatio,breaks=c(0,0.01,0.05,0.1,0.25,0.8),right=F,labels=c('<1%','<5%','<10%','<25%','<80%'))
+df$floodRatio<-cut(df$floodRatio,breaks=c(0,1e-9,0.065,0.56),right=F,labels=c("0"," <6.5%"," <58%"))
 df$SVI<-cut(df$SVI,breaks=c(0.00,1e-1,0.25,0.5,0.75,1.0),include.lowest=T,labels=c('==0','<=25%','<=50%','<=75%','<=100%'))
-df$imperInd<-df$imperInd/5.0
+df$imperInd<-df$imperInd
 
 
 print(indes)
 indes <- c(
-             'flooded','electricity','otherHomesFlood','skinContact',
-             #'leftHome',
+            #'  'flooded','electricity','otherHomesFlood','skinContact',
+            #'  #'leftHome',
              'SVI',
-            'floodRatio','imperInd',
+            'floodRatio'#,'imperInd',
             # 'waterLevelC_3','waterLevelC_6',
             # 'electricityLostDaysC_15','electricityLostDaysC_30',
             # 'floodedDaysC_10','floodedDaysC_90',
-            "whereLived_someHome" ,"whereLived_NoNMobileHome","whereLived_temporaryShelter"
+            # "whereLived_someHome" ,"whereLived_NoNMobileHome","whereLived_temporaryShelter"
             )
 
 
@@ -191,25 +192,26 @@ indes <- c(
 #corellation analysis
 #cor_mat<-cor(df[,indes],use="complete.obs")
 cat("\014")
-for (dependent in depnsB){
+for (dependent in depnsB[1:1]){
   print(strrep('_',200),quote=F)
   print(dependent)
   #glm binomial with probit link
   
-  frmla=as.formula(paste0("cbind(",dependent,"_1,",dependent,"_0)", " ~ ",paste(indes,collapse = ' + '))) #incase of using fractions
+  frmla=as.formula(paste0("cbind(",dependent,"_1,",dependent,"_0)", " ~ ",paste(indes,collapse = ' * '))) #incase of using fractions
   #print(frmla)
   #model <- glm (frmla, data = df,family=binomial(link="probit"))
   #summary(model)
   
   #glm binomial with logit
-  print(strrep('BINOMIAL----------- ',5))
-  model <- glm (frmla, data = df,family=binomial(link="logit"))
-  print(summary(model))
-  
+  # print(strrep('BINOMIAL----------- ',5))
+  # model <- glm (frmla, data = df,family=binomial(link="logit"))
+  # print(summary(model))
+  # 
   print(strrep('POISSON----------- ',5))
   #glm poisson
   frmla_poi=paste0(dependent,"_1 ~ ",
-               paste(indes,collapse = ' + ')) #incase of using fractions
+               paste(indes,collapse = ' * ')) #incase of using fractions
+  #frmla_poi=paste0("leftHome","_1 ~ ","floodRatio")
   w=data[[paste0(dependent,"_0")]]+data[[paste0(dependent,"_1")]]
   model <- glm (frmla_poi, data = df,family=poisson,offset  = log(w))
   print(summary(model))

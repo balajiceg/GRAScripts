@@ -10,7 +10,7 @@ library(plotly)
 
 #census tracts
 tracts<-readOGR('D:\\texas\\HHR_R\\flood_aggregates',layer='flood_ratio_200')
-inun_data<-tracts@data[,c("GEOID","floodRatio","geom_area")]
+inun_data<-tracts@data[,c("GEOID","floodRatio","geom_area","floodR100")]
 colnames(inun_data)[1]<-"tractId"
 
 #histogram table for flood ratio
