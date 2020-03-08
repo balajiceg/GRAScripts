@@ -201,7 +201,6 @@ for (dependent in depnsB[1:1]){
   print(frmla)
   #model <- glm (frmla, data = df,family=binomial(link="probit"))
   #summary(model)
-  
   #glm binomial with logit
   # print(strrep('BINOMIAL----------- ',5))
   # model <- glm (frmla, data = df,family=binomial(link="logit"))
