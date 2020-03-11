@@ -76,14 +76,19 @@ questions_short<-c('waterLevel',
 
 data<-data_copy
 
-min_limit=1
+min_limit=5
 for(n in names(data))
   if(stri_sub(n,-2,-1)=="_t")
   {
     data[is.na(data[[n]]) | data[[n]]<min_limit ,n]<-NA
+    data[is.na(data[[n]]) | data[[n]]<min_limit ,paste0(stri_sub(n,1,-3),'_1')]<-NA
+    print(paste0(stri_sub(n,1,-3),'_1'))
+    
   }
 
 
+#removeing the 3 tracts - 
+data<-data[!(data$tractId %in% c(48339694700,48339694201,48339694101)),]
 
 ### data preparation for logis regression ---------------------
 indes<- c("flooded","electricity","otherHomesFlood","skinContact")
@@ -122,35 +127,35 @@ indes<-c(indes,names(tdf))
 df<-cbind(df,tdf)
 
 #electricityLostDays
-cname<-"electricityLostDays"
-d<-sort(mGetDistri(data,cname))
-zs<-zscore(d)
-ds<-d[abs(zs)<3.1 & d<=30]
-#h<-hist(ds,breaks=c(min(d)-1,unique(ds)),right=T)
-#View(data.frame(h$breaks[-1],h$counts))
-#print(getJenksBreaks(ds,5))
-cats<-c(0,15,30) # 3 9 removed after corr matrix c(0,18,30,60,90)
-tdf<-recat(data,cname,cats) 
-colnames(tdf)<-paste0(cname,"C_",cats[-1])
-tdf<-sweep(tdf, 1, data$electricityLostDays_t, "/")
-indes<-c(indes,names(tdf))
-df<-cbind(df,tdf)
+# cname<-"electricityLostDays"
+# d<-sort(mGetDistri(data,cname))
+# zs<-zscore(d)
+# ds<-d[abs(zs)<3.1 & d<=30]
+# #h<-hist(ds,breaks=c(min(d)-1,unique(ds)),right=T)
+# #View(data.frame(h$breaks[-1],h$counts))
+# #print(getJenksBreaks(ds,5))
+# cats<-c(0,15,30) # 3 9 removed after corr matrix c(0,18,30,60,90)
+# tdf<-recat(data,cname,cats) 
+# colnames(tdf)<-paste0(cname,"C_",cats[-1])
+# tdf<-sweep(tdf, 1, data$electricityLostDays_t, "/")
+# indes<-c(indes,names(tdf))
+# df<-cbind(df,tdf)
 
 
 #floodedDays
-cname<-"floodedDays"
-d<-sort(mGetDistri(data,cname))
-zs<-zscore(d)
-ds<-d[d<=30]
-#h<-hist(ds,breaks=c(min(d)-1,unique(ds)),right=T)
-#View(data.frame(h$breaks[-1],h$counts))
-#print(getJenksBreaks(ds,6))
-cats<-c(0,10,90) # 60 remove after cor -c(0,2,5,10,18,30,90)
-tdf<-recat(data,cname,cats)
-colnames(tdf)<-paste0(cname,"C_",cats[-1])
-tdf<-sweep(tdf, 1, data$floodedDays_t, "/")
-indes<-c(indes,names(tdf))
-df<-cbind(df,tdf)
+# cname<-"floodedDays"
+# d<-sort(mGetDistri(data,cname))
+# zs<-zscore(d)
+# ds<-d[d<=30]
+# #h<-hist(ds,breaks=c(min(d)-1,unique(ds)),right=T)
+# #View(data.frame(h$breaks[-1],h$counts))
+# #print(getJenksBreaks(ds,6))
+# cats<-c(0,10,90) # 60 remove after cor -c(0,2,5,10,18,30,90)
+# tdf<-recat(data,cname,cats)
+# colnames(tdf)<-paste0(cname,"C_",cats[-1])
+# tdf<-sweep(tdf, 1, data$floodedDays_t, "/")
+# indes<-c(indes,names(tdf))
+# df<-cbind(df,tdf)
 #qplot(sample=mGetDistri(data,cname))
 
 
@@ -170,17 +175,25 @@ df<-cbind(df,tdf)
 # )
 
 #recoding values
-df$floodRatio<-cut(df$floodRatio,breaks=c(0,1e-9,0.065,0.56),right=F,labels=c("0"," <6.5%"," <58%"))
-df$SVI<-cut(df$SVI,breaks=c(0.00,1e-1,0.25,0.5,0.75,1.0),include.lowest=T,labels=c('==0','<=25%','<=50%','<=75%','<=100%'))
+#df$floodRatio<-cut(df$floodRatio,e,right=F,labels=c("0"," <6.5%"," <50%"))
+s<-df$floodRatio[df$floodRatio>0]
+df$floodRatio<-cut(df$floodRatio,breaks=c(quantile(df$floodRatio,prob=seq(0,1,1/2))),right=F)
+df$SVI<-cut(df$SVI,breaks=c(0.00,0.25,.5,.75,1.0),include.lowest=T)#,labels=c('<=25%','<=100%'))
+#df$SVI<-cut(df$SVI,breaks=c(quantile(df$SVI,na.rm=T,probs=seq(0,1,1/4))),include.lowest=T,labels=c('<=25%','<=50%','<=75%','<=100%'))
+
+# inds<-df$SVI>0.25 & df$SVI<1
+# df<-df[inds,]
+# data<-data[inds,]
+
 df$imperInd<-df$imperInd
 
 
 print(indes)
 indes <- c(
-            #'  'flooded','electricity','otherHomesFlood','skinContact',
+            # 'flooded',
+            # 'electricity','otherHomesFlood','skinContact',
             #'  #'leftHome',
-             'SVI',
-            'floodRatio'#,'imperInd',
+             'floodRatio','SVI'#,'imperInd',
             # 'waterLevelC_3','waterLevelC_6',
             # 'electricityLostDaysC_15','electricityLostDaysC_30',
             # 'floodedDaysC_10','floodedDaysC_90',
@@ -191,28 +204,36 @@ indes <- c(
 #depnsB<-c('illness','injury',"hospitalized")
 #corellation analysis
 #cor_mat<-cor(df[,indes],use="complete.obs")
-cat("\014")
+#cat("\014")
 for (dependent in depnsB[1:1]){
   print(strrep('_',200),quote=F)
   #print(dependent)
   #glm binomial with probit link
   
-  frmla=as.formula(paste0("cbind(",dependent,"_1,",dependent,"_0)", " ~ ",paste(indes,collapse = ' * '))) #incase of using fractions
-  print(frmla)
-  #model <- glm (frmla, data = df,family=binomial(link="probit"))
-  #summary(model)
+  #frmla=as.formula(paste0("cbind(",dependent,"_1,",dependent,"_0)", " ~ ",paste(indes,collapse = ' * '))) #incase of using fractions
+  
+  # model <- glm (frmla, data = df,family=binomial(link="probit"))
+  # summary(model)
   #glm binomial with logit
   # print(strrep('BINOMIAL----------- ',5))
-  # model <- glm (frmla, data = df,family=binomial(link="logit"))
-  # print(summary(model))
+  # df1=df[,c("illness_0","illness_1",indes)]
+  # df1=na.omit(df1, cols = names(df1))
+  # frmla=paste0('c(',dependent,"_1, ",dependent,"_0 )"," ~ ",
+  #                        paste(indes,collapse = ' + '))
+  #model <- glm (frmla, data = df1,family=binomial(link="logit"))
+  #print(summary(model))
   # 
   print(strrep('POISSON----------- ',5))
   #glm poisson
   frmla_poi=paste0(dependent,"_1 ~ ",
-               paste(indes,collapse = ' * ')) #incase of using fractions
-  frmla_poi=paste0("leftHome","_1 ~ ","floodRatio")
+               paste(indes,collapse = ' + ')) #incase of using fractions
+  frmla_poi=paste0(frmla_poi)
+  
+  #dependent='leftHome';  frmla_poi=paste0("leftHome","_1 ~ ","floodRatio")
+  print(frmla_poi)
   w=data[[paste0(dependent,"_0")]]+data[[paste0(dependent,"_1")]]
   model <- glm (frmla_poi, data = df,family=poisson,offset  = log(w))
   print(summary(model))
+  #print(confint(model,level=0.95))
 }
 
