@@ -76,7 +76,7 @@ questions_short<-c('waterLevel',
 
 data<-data_copy
 
-min_limit=5
+min_limit=0
 for(n in names(data))
   if(stri_sub(n,-2,-1)=="_t")
   {
@@ -190,14 +190,15 @@ df$imperInd<-df$imperInd
 
 print(indes)
 indes <- c(
-            # 'flooded',
-            # 'electricity','otherHomesFlood','skinContact',
-            #'  #'leftHome',
-             'floodRatio','SVI'#,'imperInd',
+             'flooded',
+             'electricity',
+             'otherHomesFlood', #,'skinContact',
+            ##'leftHome',
+             #'floodRatio','SVI'#,'imperInd',
             # 'waterLevelC_3','waterLevelC_6',
             # 'electricityLostDaysC_15','electricityLostDaysC_30',
             # 'floodedDaysC_10','floodedDaysC_90',
-            # "whereLived_someHome" ,"whereLived_NoNMobileHome","whereLived_temporaryShelter"
+             "whereLived_someHome" ,"whereLived_NoNMobileHome","whereLived_temporaryShelter"
             )
 
 
