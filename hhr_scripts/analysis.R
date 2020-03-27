@@ -226,7 +226,7 @@ for (dependent in depnsB[1:1]){
   print(strrep('POISSON----------- ',5))
   #glm poisson
   frmla_poi=paste0(dependent,"_1 ~ ",
-               paste(indes,collapse = ' + ')) #incase of using fractions
+               paste(indes,collapse = ' + ')) 
   frmla_poi=paste0(frmla_poi)
   
   #dependent='leftHome';  frmla_poi=paste0("leftHome","_1 ~ ","floodRatio")
