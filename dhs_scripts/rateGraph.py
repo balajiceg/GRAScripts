@@ -15,22 +15,23 @@ pio.renderers.default = "browser"
 #%%read ip op data
 INPUT_IPOP_DIR=r'\\vetmed2.vetmed.w2k.vt.edu\Blitzer\NASA project\Balaji\DSHS ED visit data\CleanedMergedJoined'
 INPUT_IPOP_DIR=r'Z:'
-ip=pd.read_pickle(INPUT_IPOP_DIR+r'\ip')
-#op=pd.read_pickle(INPUT_IPOP_DIR+r'\op')
-
+sp=pd.read_pickle(INPUT_IPOP_DIR+r'\ip')
+#sp=pd.read_pickle(INPUT_IPOP_DIR+r'\op')
+svi_floodr=geopandas.read_file(r'D:/texas/spatial/SVI2016Rerank_floodRatio/SVI2016Rerank_floodRatio.shp')
+demos=pd.read_csv(r'D:/texas/Census_data_texas/ACS_17_5YR_DP05_with_ann.csv',low_memory=False,skiprows=1)
 
 #%%spatial dataframe
-svi_floodr=geopandas.read_file(r'D:/texas/spatial/SVI2016Rerank_floodRatio/SVI2016Rerank_floodRatio.shp')
+
 svi_floodr.GEOID=pd.to_numeric(svi_floodr.GEOID).astype("Int64")
 svi_floodr=svi_floodr.loc[:,['GEOID','floodR200','SVI_StudyA']]
 
 #%%read population data
-demos=pd.read_csv(r'D:/texas/Census_data_texas/ACS_17_5YR_DP05_with_ann.csv',low_memory=False,skiprows=1)
+
 demos.Id2=demos.Id2.astype("Int64")
 
 
 #%%keep only the required fields
-df=ip.loc[:,['RECORD_ID','LCODE','STMT_PERIOD_FROM','PAT_ADDR_CENSUS_BLOCK_GROUP']].copy()
+df=sp.loc[:,['RECORD_ID','LCODE','STMT_PERIOD_FROM','PAT_ADDR_CENSUS_BLOCK_GROUP']].copy()
 df_cp=df.copy(deep=True)
 #cnesus block group to census tract
 df.loc[:,'PAT_ADDR_CENSUS_TRACT']=(df.PAT_ADDR_CENSUS_BLOCK_GROUP//10)
