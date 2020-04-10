@@ -57,12 +57,14 @@ questions_short=('waterLevel',
                    'hospitalDays')
 
 
-#data_copy=pd.read_csv(r"//vetmed2.vetmed.w2k.vt.edu/Blitzer/NASA project/Balaji/HHR_20191001_CT/joined_table_nondemos.csv")
+data_copy=pd.read_csv(r"//vetmed2.vetmed.w2k.vt.edu/Blitzer/NASA project/Balaji/HHR_20191001_CT/joined_table_nondemos.csv")
+flood_ratio_20m=pd.read_csv(r'D:/texas/hhr_dhs/qgis_files/floodRatio20m.csv')
+data_copy=data_copy.merge(flood_ratio_20m.loc[:,['tractId','floodR20m']],on='tractId',how='left')
 
 data=data_copy.copy()
 
 #filtering less than n total responses
-min_limit=0
+min_limit=5
 for n in data.keys():
     if n[-2:]=="_t":
         data.loc[np.isnan(data[n]) | (data[n]<min_limit),n]=np.nan
@@ -143,12 +145,12 @@ df.loc[:,'SVI']=pd.cut(df.SVI,bins=np.arange(0,1.1,1/4),include_lowest=True) #,l
 
 #%%run model
 indes = [
-            'flooded',
+            #'flooded',
              #'electricity',
 
-             'otherHomesFlood',#'skinContact',
+             #'otherHomesFlood',#'skinContact',
             #'  #'leftHome',
-             'floodRatio'#,'SVI',#,'imperInd',
+             'floodRatio','SVI',#,'imperInd',
             # 'waterLevelC_3','waterLevelC_6',
             # 'electricityLostDaysC_15','electricityLostDaysC_30',
             # 'floodedDaysC_10','floodedDaysC_90',

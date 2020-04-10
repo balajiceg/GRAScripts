@@ -31,6 +31,7 @@ demos.Id2=demos.Id2.astype("Int64")
 
 #%%keep only the required fields
 df=ip.loc[:,['RECORD_ID','LCODE','STMT_PERIOD_FROM','PAT_ADDR_CENSUS_BLOCK_GROUP']].copy()
+df_cp=df.copy(deep=True)
 #cnesus block group to census tract
 df.loc[:,'PAT_ADDR_CENSUS_TRACT']=(df.PAT_ADDR_CENSUS_BLOCK_GROUP//10)
 # state ment period to 10 days
@@ -40,10 +41,11 @@ df.loc[:,'STMT_PERIOD_FROM_GROUPED']=df.STMT_PERIOD_FROM#(df.STMT_PERIOD_FROM//1
 df=df.merge(svi_floodr,left_on="PAT_ADDR_CENSUS_TRACT",right_on='GEOID',how='left')
 
 #%%categorize floods as per quantiles
-s=svi_floodr.loc[svi_floodr.floodR200>0,'floodR200']
+s=svi_floodr.loc[svi_floodr.floodR200>-1,'floodR200']
 flood_bins=s.quantile(np.arange(0,1.1,1/2)).to_numpy()
-flood_bins=np.insert(flood_bins,0,0)
-df.loc[:,'floodR200']=pd.cut(df.floodR200,bins=flood_bins,right=False,labels=['no_flood','min_flood','high_flood'])
+flood_bins[1]=1e-5 if flood_bins[1]==0.0 else flood_bins[1]
+#flood_bins=np.insert(flood_bins,0,0)
+df.loc[:,'floodR200']=pd.cut(df.floodR200,bins=flood_bins,right=False,labels=['min_flood','high_flood'])
 
 #%%group by date floodR200 and censustract
 grouped_tracts=df.groupby(['STMT_PERIOD_FROM_GROUPED', 'PAT_ADDR_CENSUS_TRACT','floodR200']).size().reset_index()
@@ -84,7 +86,10 @@ def mDateGroupby(fdf):
 no_flood_tracts,min_flood_tracts,high_flood_tracts=map(mDateGroupby,[no_flood_tracts,min_flood_tracts,high_flood_tracts])
 
 flooded_counts=no_flood_tracts.merge(min_flood_tracts,on='STMT_PERIOD_FROM_GROUPED',suffixes=('_no', '_min')).merge(high_flood_tracts,on='STMT_PERIOD_FROM_GROUPED')
-flooded_counts.columns=["Date","No","Min","High"]
+#remove no flood
+flooded_counts=min_flood_tracts.merge(high_flood_tracts,on='STMT_PERIOD_FROM_GROUPED',suffixes=('_min', '_high'))
+#flooded_counts.columns=["Date","No","Min","High"]
+flooded_counts.columns=["Date","Min","High"]
 #%% sort the flooded counts and remove the unwanted quarters
 flooded_counts=flooded_counts.sort_values(by='High',ignore_index=True)
 flooded_counts_quarters=flooded_counts.iloc[:,:]
@@ -94,11 +99,12 @@ pop_normalized=pd.concat([flooded_counts_quarters.Date,pop_normalized],axis=1).r
 pop_normalized=pop_normalized.sort_values(by='Date',ignore_index=True)
 #%%plot
 pop_plot_df=pop_normalized.melt(id_vars=['Date'],value_vars=list(pop_normalized.columns[1:]))
+pop_plot_df['value'] = pop_plot_df.rolling(window=7).mean()
 fig = px.line(pop_plot_df, x='Date', y='value',color='variable')
 fig.show()
 
 #%%
-pop_normalized.to_csv(r'./Desktop/ip_daily_2cat.csv')
+pop_normalized.to_csv(r'./Desktop/op_daily_2cat.csv')
 
 
 
