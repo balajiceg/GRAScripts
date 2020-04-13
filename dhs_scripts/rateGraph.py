@@ -13,12 +13,12 @@ import plotly.io as pio
 pio.renderers.default = "browser"
 
 #%%read ip op data
-INPUT_IPOP_DIR=r'\\vetmed2.vetmed.w2k.vt.edu\Blitzer\NASA project\Balaji\DSHS ED visit data\CleanedMergedJoined'
-INPUT_IPOP_DIR=r'Z:'
+INPUT_IPOP_DIR=r'Z:\Balaji\DSHS ED visit data\CleanedMergedJoined'
 sp=pd.read_pickle(INPUT_IPOP_DIR+r'\ip')
 #sp=pd.read_pickle(INPUT_IPOP_DIR+r'\op')
-svi_floodr=geopandas.read_file(r'D:/texas/spatial/SVI2016Rerank_floodRatio/SVI2016Rerank_floodRatio.shp')
-demos=pd.read_csv(r'D:/texas/Census_data_texas/ACS_17_5YR_DP05_with_ann.csv',low_memory=False,skiprows=1)
+svi_floodr=geopandas.read_file(r'Z:/Balaji/SVI2016Rerank_floodRatio/SVI2016Rerank_floodRatio.shp')
+demos=pd.read_csv(r'Z:/Balaji/Census_data_texas/ACS_17_5YR_DP05_with_ann.csv',low_memory=False,skiprows=1)
+
 
 #%%spatial dataframe
 
