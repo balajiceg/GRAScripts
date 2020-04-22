@@ -37,4 +37,43 @@ def groupAndCat(df):
     #remove zero counts groups
     grouped_tracts=grouped_tracts.loc[grouped_tracts['Counts']>0,]
     
-    
+#%% chi square test
+from scipy import stats
+cols_to_check=["SEX_CODE","ETHNICITY","RACE","PAT_AGE_YEARS"]
+
+#using Zipcode
+sp.loc[:,"ZIP5"]=sp.PAT_ZIP.str.slice(stop=5)
+sp=sp.loc[~sp.ZIP5.isin(['0'*i for i in range(1,6)]),:]
+one_var="ZIP5"
+
+#using census tract
+sp.loc[:,"TRACT"]=(sp.PAT_ADDR_CENSUS_BLOCK_GROUP//10)
+one_var="TRACT"
+
+#for sex code
+mfilt=["F","M"]
+cros_tab=pd.crosstab(sp[one_var],sp.SEX_CODE)
+cros_tab=cros_tab.loc[:,mfilt]
+stats.chi2_contingency(cros_tab)
+
+#for Race
+df=sp.loc[:,[one_var,"RACE"]]
+df.RACE=pd.to_numeric(df.RACE,errors="coerce")
+df=df.loc[df.RACE.isin(range(1,6)),:]
+cros_tab=pd.crosstab(df[one_var],df.RACE)
+stats.chi2_contingency(cros_tab)
+
+
+#for Ethinicity
+df=sp.loc[:,[one_var,"ETHNICITY"]]
+df.ETHNICITY=pd.to_numeric(df.ETHNICITY,errors="coerce")
+df=df.loc[df.ETHNICITY.isin([1,2]),:]
+cros_tab=pd.crosstab(df[one_var],df.ETHNICITY)
+stats.chi2_contingency(cros_tab)
+
+#for Age
+df=sp.loc[:,[one_var,"PAT_AGE_YEARS"]]
+bins=df.PAT_AGE_YEARS.quantile(np.arange(0,1.01,1/10))
+df.PAT_AGE_YEARS=pd.cut(df.PAT_AGE_YEARS,bins=bins,include_lowest=True,labels=bins.iloc[:-1])
+cros_tab=pd.crosstab(df[one_var],df.PAT_AGE_YEARS)
+stats.chi2_contingency(cros_tab)
