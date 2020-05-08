@@ -5,11 +5,11 @@ library(ggplot2)
 library(ncdf4)
 
 #importing shapefile
-TXcent <- readOGR(dsn='D:\\texas\\spatial\\SVI_Study_Area',layer = "SVI_Study_Area")
+TXcent <- readOGR(dsn='D:\\texas\\spatial\\SVI_Raw',layer = "TEXAS")
 TXcent@data[TXcent@data == -999] <- NA
 
 #pulling out tracts from Harris County
-HarrisCtyCent <- TXcent#[TXcent@data$COUNTY %in% c('Harris','Montgomery',"Fort Bend","Galveston"),]
+HarrisCtyCent <- TXcent[TXcent@data$COUNTY %in% c('Harris'),]
 
 #following directions starting on page 16 of CDC SVI documentation
 #theme 1
@@ -48,7 +48,8 @@ SPL_THEMES_HC <- SP_THEME1_HC+SP_THEME2_HC+SP_THEME3_HC+SP_THEME4_HC
 #adding newly calculated SVIs to HarrisCtyCent shapefile
 HarrisCtyCent@data$RPL_THEMES_HC <- signif(dplyr::percent_rank(SPL_THEMES_HC),4)
 
-writeOGR(HarrisCtyCent,dsn = 'D:\\texas\\spatial\\SVI_Study_Area',layer='SVI_StudyAreaRerank',overwrite_layer = T,driver='ESRI Shapefile')
+writeOGR(HarrisCtyCent,dsn = 'D:\\texas\\spatial\\SVI_Study_Area\\SVI_Houston',layer='SVI_HoustonRerank',overwrite_layer = T,driver='ESRI Shapefile')
+write.csv(HarrisCtyCent@data,file="D:\\texas\\spatial\\SVI_Study_Area\\SVI_Houston\\SVI_HoustonRerank.csv")
 
 
 #data<-read.csv('\\\\vetmed2.vetmed.w2k.vt.edu\\Blitzer\\NASA project\\Balaji\\HHR_20191001_CT\\joined_table_nondemos.csv')
