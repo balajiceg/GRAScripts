@@ -30,18 +30,60 @@ def filter_mortality(df):
 
 def filter_all(df):
     return (~pd.isna(df.index)).astype('int')
+
+def filter_from_icds(sp,outcome_cats,Dis_cat):
+    icd_cols=['PRINC_DIAG_CODE', 'OTH_DIAG_CODE_1', 'OTH_DIAG_CODE_2',
+       'OTH_DIAG_CODE_3', 'OTH_DIAG_CODE_4', 'OTH_DIAG_CODE_5',
+       'OTH_DIAG_CODE_6', 'OTH_DIAG_CODE_7', 'OTH_DIAG_CODE_8',
+       'OTH_DIAG_CODE_9', 'E_CODE_1', 'E_CODE_2', 'E_CODE_3', 'E_CODE_4',
+       'E_CODE_5']
+    incl=outcome_cats.loc[outcome_cats.category==Dis_cat,'incl']
+    excl=outcome_cats.loc[outcome_cats.category==Dis_cat,'excl']
+    
+    def find_cats(x,incl,excl):
+        x=x.values.squeeze()
+        x=x[~pd.isna(x)]
+        incl=incl.to_list()[0].split(';')
+        excl=excl.to_list()[0].split(';')
+        ret=False
+        for i in range(len(x)):
+            for j in incl:
+                j=j.strip()
+                if j==x[i][:len(j)]:
+                    ret=True
+                    break
+                
+        if excl != ['']:
+            for i in range(len(x)):
+                for j in excl:
+                    j=j.strip()
+                    if j==x[i][:len(j)]:
+                        ret=False
+                        break
+        return ret
+
+    icd_data=sp.loc[:,icd_cols]
+    result=icd_data.apply(find_cats,axis=1,incl=incl,excl=excl)
+        
+    return result.astype('int')
+    
+
 #%%read ip op data
 INPUT_IPOP_DIR=r'Z:\Balaji\DSHS ED visit data\CleanedMergedJoined'
 sp_file='ip'
 sp=pd.read_pickle(INPUT_IPOP_DIR+'\\'+sp_file)
 #sp=pd.read_pickle(INPUT_IPOP_DIR+r'\op')
 flood_data=geopandas.read_file(r'Z:/Balaji/FloodRatioJoinedAll_v1/FloodInund_AllJoined_v1.gpkg')
+
+#read svi data
+SVI_df_raw=geopandas.read_file(r'Z:/Balaji/SVI_Study_Area/SVI_Houston/SVI_HoustonRerank.shp').drop('geometry',axis=1)
+
 demos=pd.read_csv(r'Z:/Balaji/Census_data_texas/ACS_17_5YR_DP05_with_ann.csv',low_memory=False,skiprows=1)
 flood_products=['DFO_R200','DFO_R100','LIST_R20','DFO_R20','DFOuLIST_R20']
 
-
+county_to_filter=48201
 #%%predefine variable if got getting from gui
-interven_date1,interven_date2=str(datetime(2017,8,25)),str(datetime(2017,11,25))
+interven_date1,interven_date2=str(datetime(2017,8,24)),str(datetime(2017,10,3))
 date_div=[{'props':{'date':i}} for i in [interven_date1,interven_date2]]
 avg_window=5
 flood_cats_in=1
@@ -50,8 +92,15 @@ nullAsZero="True"
 floodZeroSep="True"
 DATE_GROUP="DAILY"
 Dis_cats=["ALL","DEATH"]
-Dis_cat="ALL"
+Dis_cat="DEATH"
+
+#%%read the categories file
+outcome_cats=pd.read_csv('Z:/GRAScripts/dhs_scripts/categories.csv')
+outcome_cats.fillna('',inplace=True)
 #%%define app GUI
+
+
+first_load=True
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 app = dash.Dash('Rate Graph',external_stylesheets=external_stylesheets)
 
@@ -64,7 +113,7 @@ app.layout = html.Div([
     dcc.Dropdown(id='floodr_use',options=[{'label':i, 'value': i} for i in flood_products],value=floodr_use),
     html.Div(id="flood_bins"),
     dcc.Dropdown(id="group_date",options=[{'label':i, 'value': i} for i in ["DAILY","WEEKLY","MONTHLY"]],value=DATE_GROUP),
-    dcc.Dropdown(id="Dis_cat",options=[{'label':i, 'value': i} for i in Dis_cats],value=Dis_cat),
+    dcc.Dropdown(id="Dis_cat",options=[{'label':i, 'value': i} for i in Dis_cats+outcome_cats.category.to_list()],value=Dis_cat),
     dcc.RadioItems(id='nullAsZero',options=[{'label':i, 'value': i} for i in ['True','False']],value=nullAsZero,style={'display':'inline'},labelStyle={'display': 'inline-block'}),html.I(children=" nullAsZero"),html.Br(),
     dcc.RadioItems(id='floodZeroSep',options=[{'label':i, 'value': i} for i in ['True','False']],value=floodZeroSep ,style={'display':'inline'},labelStyle={'display': 'inline-block'}),html.I(children=" floodZeroSep"),html.Br(),
     
@@ -96,7 +145,10 @@ def update_dates(value):
      dash.dependencies.State('dates','children'),dash.dependencies.State('group_date','value')])
 
 def update_output(n_clicks, flood_cats_in,avg_window,nullAsZero,floodZeroSep,floodr_use,Dis_cat,date_div,DATE_GROUP):
-    global sp,flood_data,demos,rate_glob
+    global sp,flood_data,demos,first_load,outcome_cats
+    if first_load:
+        first_load=False
+        return
     #%%variables 
     interv_dates=[x['props']['date'] for x in date_div]
      
@@ -144,16 +196,23 @@ def update_output(n_clicks, flood_cats_in,avg_window,nullAsZero,floodZeroSep,flo
     #%%cnesus block group to census tract
     sp.loc[:,'PAT_ADDR_CENSUS_TRACT']=(sp.PAT_ADDR_CENSUS_BLOCK_GROUP//10)
     
+    #%%filter counties
+    if county_to_filter != -1:
+        sp_filtered=sp[sp.PAT_ADDR_CENSUS_TRACT//1000000==county_to_filter].copy()
+    else:
+        sp_filtered=sp
+        
     #%%splitting into all and specific
-    df_all=sp.loc[:,['RECORD_ID','STMT_PERIOD_FROM_GROUPED','PAT_ADDR_CENSUS_TRACT']].copy()
+    df_all=sp_filtered.loc[:,['RECORD_ID','STMT_PERIOD_FROM_GROUPED','PAT_ADDR_CENSUS_TRACT']].copy()
     
-    df=sp.loc[:,['RECORD_ID','STMT_PERIOD_FROM_GROUPED','PAT_ADDR_CENSUS_TRACT']]
+    df=sp_filtered.loc[:,['RECORD_ID','STMT_PERIOD_FROM_GROUPED','PAT_ADDR_CENSUS_TRACT']]
     
-    if Dis_cat=="DEATH":df.loc[:,'Counts']=filter_mortality(sp)
-    if Dis_cat=="ALL":df.loc[:,'Counts']=filter_all(sp)
+    if Dis_cat=="DEATH":df.loc[:,'Counts']=filter_mortality(sp_filtered)
+    if Dis_cat=="ALL":df.loc[:,'Counts']=filter_all(sp_filtered)
+    if Dis_cat in outcome_cats.category.to_list():df.loc[:,'Counts']=filter_from_icds(sp_filtered,outcome_cats,Dis_cat)
     
     #%%group by date and censustract
-    grouped_tracts=df.groupby(['STMT_PERIOD_FROM_GROUPED', 'PAT_ADDR_CENSUS_TRACT']).sum().reset_index()
+    grouped_tracts=df.drop("RECORD_ID",axis=1).groupby(['STMT_PERIOD_FROM_GROUPED', 'PAT_ADDR_CENSUS_TRACT']).sum().reset_index()
     #remove zero counts groups
     #grouped_tracts=grouped_tracts.loc[grouped_tracts['Counts']>0,]
     
@@ -167,6 +226,13 @@ def update_output(n_clicks, flood_cats_in,avg_window,nullAsZero,floodZeroSep,flo
     grouped_tracts=grouped_tracts.merge(floodr,left_on="PAT_ADDR_CENSUS_TRACT",right_on='GEOID',how='left')
     #make tracts with null as zero flooding
     if nullAsZero == "True": grouped_tracts.loc[pd.isna(grouped_tracts.floodr),'floodr']=0.0
+    
+    #%% merge SVI after recategorization
+    if county_to_filter !=-1:
+    
+    else:
+        
+    
     #%%categorize floods as per quantiles
     tractsfloodr=grouped_tracts.loc[~grouped_tracts.duplicated("PAT_ADDR_CENSUS_TRACT"),['PAT_ADDR_CENSUS_TRACT','floodr']]
     if floodZeroSep == "True":
@@ -206,18 +272,19 @@ def update_output(n_clicks, flood_cats_in,avg_window,nullAsZero,floodZeroSep,flo
     #%%running the model
     outcome='Counts'
     
-    if Dis_cat=="DEATH":offset=np.log(grouped_tracts.TotalVisits)
+    if Dis_cat!="ALL":offset=np.log(grouped_tracts.TotalVisits)
     if Dis_cat=="ALL":offset=np.log(grouped_tracts.Population)
     #offset=np.log(grouped_tracts.Counts)
     
     indes=['Time','floodr']
-    
     formula=outcome+' ~ '+' * '.join(indes) +'+ year'+'+month'
-    model = smf.glm(formula=formula,data=grouped_tracts,offset=offset,missing='drop',family=sm.families.Poisson(link=sm.families.links.log()))
+    model = smf.glm(formula=formula,data=grouped_tracts,missing='drop',offset=offset,family=sm.families.Poisson(link=sm.families.links.log()))
     results=model.fit()
-    print(results.summary())
+    #print(results.summary())
     print(np.exp(results.params))
     # print(np.exp(results.conf_int()))
+    
+    
     
     
     #%%plot the rate graph
@@ -254,6 +321,14 @@ def update_output(n_clicks, flood_cats_in,avg_window,nullAsZero,floodZeroSep,flo
     reg_table.loc[:,['[0.025', '0.975]']]=np.exp(reg_table.loc[:,['[0.025', '0.975]']])
     reg_table=reg_table.loc[~(reg_table['index'].str.contains('month') | reg_table['index'].str.contains('month')),]
     reg_table_dev=pd.read_html(results.summary().tables[0].as_html())[0]
+    
+    #reg_table.to_csv(Dis_cat+"_reg"+".csv")
+    #reg_table_dev.to_csv(Dis_cat+"_dev"+".csv")
+    print(Dis_cat)
+    print(flood_bins)
+    print(grouped_tracts.Counts.value_counts())
+    #return
+    
     
     inter_bars=pd.to_datetime( pd.Series(interv_dates,dtype='str'))
     inter_bars=inter_bars.to_frame().merge(rate_avg,left_on=0,right_on='Date')
