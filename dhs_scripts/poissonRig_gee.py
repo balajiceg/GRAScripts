@@ -91,7 +91,9 @@ SVI_df_raw.FIPS=pd.to_numeric(SVI_df_raw.FIPS)
 demos=pd.read_csv(r'Z:/Balaji/Census_data_texas/ACS_17_5YR_DP05_with_ann.csv',low_memory=False,skiprows=1)
 flood_products=['DFO_R200','DFO_R100','LIST_R20','DFO_R20','DFOuLIST_R20']
 
-county_to_filter=48201
+
+#read counties that are innundated
+county_to_filter=pd.read_csv('Z:/Balaji/counties_inun.csv').GEOID.to_list()
 #%%predefine variable if got getting from gui
 interven_date1,interven_date2=str(datetime(2017,8,24)),str(datetime(2017,10,2))
 date_div=[{'props':{'date':i}} for i in [interven_date1,interven_date2]]
@@ -228,7 +230,7 @@ def update_output(n_clicks, flood_cats_in,avg_window,nullAsZero,floodZeroSep,flo
     
     #%%filter counties
     if county_to_filter != -1:
-        sp_filtered=sp[sp.PAT_ADDR_CENSUS_TRACT//1000000==county_to_filter].copy()
+        sp_filtered=sp[(sp.PAT_ADDR_CENSUS_TRACT//1000000).isin(county_to_filter)].copy()
     else:
         sp_filtered=sp
     #sp_filtered=sp_filtered.loc[~pd.isna(sp[['PAT_AGE_YEARS','SEX_CODE','RACE']]).any(axis=1),:]
