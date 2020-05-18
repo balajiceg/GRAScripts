@@ -8,17 +8,18 @@ Created on Thu May  7 23:52:37 2020
 
 import pandas as pd
 import numpy as np
-import geopandas
-from scipy.stats import percentileofscore
+#import geopandas
 
-df=geopandas.read_file(r"Z:/Balaji/SVI_Raw/TEXAS.shp").drop('geometry',axis=1)
-df.FIPS=pd.to_numeric(df.FIPS)
-df=df[df.FIPS//1000000==48201]
+
+# df=geopandas.read_file(r"Z:/Balaji/SVI_Raw/TEXAS.shp").drop('geometry',axis=1)
+# df.FIPS=pd.to_numeric(df.FIPS)
+# df=df[df.FIPS//1000000==48201]
 
 #%%function start
 def recalculateSVI(df):
+    df=df.copy()
     def rerank(x):
-        ranks=x.rank()
+        ranks=x.rank().copy()
         return ((ranks - ranks.min())/(ranks.max() - ranks.min())).round(4)
     
     #remove no data as na
@@ -62,12 +63,11 @@ def recalculateSVI(df):
     #adding newly calculated SVIs to HarrisCtyCent shapefile
     RPL_THEMES_NEW = rerank(SPL_THEMES_NEW)
     
-    ret= pd.DataFrame({"FIPS":df.FIPS,"SVI":RPL_THEMES_NEW})
-    return ret
-   #%%
-vis=ret.merge(validate_data,on="FIPS")
-vis=ret.merge(subset_val,on="FIPS")
-vis["diff"]=vis.SVI- vis.RPL_THEMES_HC
+    return pd.DataFrame({"FIPS":df.FIPS,"SVI":RPL_THEMES_NEW})
+    #%%
+# vis=ret.merge(validate_data,on="FIPS")
+# vis=ret.merge(subset_val,on="FIPS")
+# vis["diff"]=vis.SVI- vis.RPL_THEMES_HC
 
-vis['rankSVI']=vis.SVI.rank()
-vis['rankR']=vis.RPL_THEMES_HC.rank()
+# vis['rankSVI']=vis.SVI.rank()
+# vis['rankR']=vis.RPL_THEMES_HC.rank()

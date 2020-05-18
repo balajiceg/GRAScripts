@@ -103,23 +103,24 @@ sp.loc[:,"ZIP5"]=sp.PAT_ZIP.str.slice(stop=5)
 sp=sp.loc[~sp.ZIP5.isin(['0'*i for i in range(1,6)]),:]
 one_var="ZIP5"
 #%%looping for automatic saving 
-interven_date1,interven_date2=str(datetime(2017,8,25)),str(datetime(2017,11,25))
-date_div=[{'props':{'date':i}} for i in [interven_date1]]
+interven_date1,interven_date2=str(datetime(2017,8,24)),str(datetime(2017,10,2))
+date_div=[{'props':{'date':i}} for i in [interven_date1,interven_date2]]
+
 avg_window=5
 flood_cats_in=1
 floodr_use="DFO_R200"
 nullAsZero="True"
 floodZeroSep="True"
 DATE_GROUP="DAILY"
-Dis_cats=["ALL","DEATH"]
+Dis_cats=["DEATH","Dehydration","Bite-Insect","Dialysis","Asthma_like","Respiratory_All","Infectious_and_parasitic"]
+Dis_cats=outcome_cats.category.to_list()
 first_load=False
 
-for Dis_cat in ["DEATH"]+outcome_cats.category.to_list():
+for Dis_cat in Dis_cats:
     try:
-        print(update_output(0, flood_cats_in,avg_window,nullAsZero,
-              floodZeroSep,floodr_use,Dis_cat,date_div,DATE_GROUP))
-    except :
-        pass
+        update_output(0, flood_cats_in,avg_window,nullAsZero,
+              floodZeroSep,floodr_use,Dis_cat,date_div,DATE_GROUP)
+    except Exception as e: print(e)
    
     
     
