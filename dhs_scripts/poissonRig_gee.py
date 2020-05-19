@@ -113,7 +113,9 @@ outcome_cats.fillna('',inplace=True)
 #%%cleaing for age, gender and race
     #age
 sp.loc[:,'PAT_AGE_YEARS']=pd.to_numeric(sp.PAT_AGE_YEARS,errors="coerce")
-sp.loc[:,'PAT_AGE_YEARS']=pd.cut(sp.PAT_AGE_YEARS,bins=[0,1,4,11,16,25,64,150],include_lowest=True,labels=(0,1,4,11,16,25,64)) 
+sp.loc[:,'PAT_AGE_YEARS']=sp.loc[:,'PAT_AGE_YEARS'].astype('float')
+
+#sp.loc[:,'PAT_AGE_YEARS']=pd.cut(sp.PAT_AGE_YEARS,bins=[0,1,4,11,16,25,64,150],include_lowest=True,labels=(0,1,4,11,16,25,64)) 
 
 #gender
 sp.loc[~sp.SEX_CODE.isin(["M","F"]),'SEX_CODE']=np.nan
@@ -126,55 +128,55 @@ sp.SEX_CODE=sp.SEX_CODE.astype('category')
 
 #race
 sp.loc[:,'RACE']=pd.to_numeric(sp.RACE,errors="coerce")
-sp.loc[(sp.RACE<0) | (sp.RACE>5),'RACE']=np.nan
+sp.loc[(sp.RACE<=0) | (sp.RACE>5),'RACE']=np.nan
 sp.RACE=sp.RACE.astype('category')
 
 
 #%%define app GUI
 
-first_load=True
-external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
-app = dash.Dash('Rate Graph',external_stylesheets=external_stylesheets)
+# first_load=True
+# external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
+# app = dash.Dash('Rate Graph',external_stylesheets=external_stylesheets)
 
-app.layout = html.Div([
-    dcc.Slider(min=0, max=3, marks={i: item for i,item in enumerate(["NO","FLood_1","FLOOD_2","FLOOD_3"])},
-        value=flood_cats_in,id='my-slider'),
-    dcc.RadioItems(id='ip-op',options=[{'label':i, 'value': i} for i in ['ip','op']],value=sp_file,labelStyle={'display': 'inline-block'},style={'display': 'inline'}),
-    dcc.Loading(children=html.Div(id='hidden-div', style={'display':'none'})),
-    dcc.Input(id="avg_window",type="number",placeholder="avg window",value=avg_window,style={'display':'inline'}),
-    dcc.Dropdown(id='floodr_use',options=[{'label':i, 'value': i} for i in flood_products],value=floodr_use),
-    html.Div(id="flood_bins"),
-    dcc.Dropdown(id="group_date",options=[{'label':i, 'value': i} for i in ["DAILY","WEEKLY","MONTHLY"]],value=DATE_GROUP),
-    dcc.Dropdown(id="Dis_cat",options=[{'label':i, 'value': i} for i in Dis_cats+outcome_cats.category.to_list()],value=Dis_cat),
-    dcc.RadioItems(id='nullAsZero',options=[{'label':i, 'value': i} for i in ['True','False']],value=nullAsZero,style={'display':'inline'},labelStyle={'display': 'inline-block'}),html.I(children=" nullAsZero"),html.Br(),
-    dcc.RadioItems(id='floodZeroSep',options=[{'label':i, 'value': i} for i in ['True','False']],value=floodZeroSep ,style={'display':'inline'},labelStyle={'display': 'inline-block'}),html.I(children=" floodZeroSep"),html.Br(),
+# app.layout = html.Div([
+#     dcc.Slider(min=0, max=3, marks={i: item for i,item in enumerate(["NO","FLood_1","FLOOD_2","FLOOD_3"])},
+#         value=flood_cats_in,id='my-slider'),
+#     dcc.RadioItems(id='ip-op',options=[{'label':i, 'value': i} for i in ['ip','op']],value=sp_file,labelStyle={'display': 'inline-block'},style={'display': 'inline'}),
+#     dcc.Loading(children=html.Div(id='hidden-div', style={'display':'none'})),
+#     dcc.Input(id="avg_window",type="number",placeholder="avg window",value=avg_window,style={'display':'inline'}),
+#     dcc.Dropdown(id='floodr_use',options=[{'label':i, 'value': i} for i in flood_products],value=floodr_use),
+#     html.Div(id="flood_bins"),
+#     dcc.Dropdown(id="group_date",options=[{'label':i, 'value': i} for i in ["DAILY","WEEKLY","MONTHLY"]],value=DATE_GROUP),
+#     dcc.Dropdown(id="Dis_cat",options=[{'label':i, 'value': i} for i in Dis_cats+outcome_cats.category.to_list()],value=Dis_cat),
+#     dcc.RadioItems(id='nullAsZero',options=[{'label':i, 'value': i} for i in ['True','False']],value=nullAsZero,style={'display':'inline'},labelStyle={'display': 'inline-block'}),html.I(children=" nullAsZero"),html.Br(),
+#     dcc.RadioItems(id='floodZeroSep',options=[{'label':i, 'value': i} for i in ['True','False']],value=floodZeroSep ,style={'display':'inline'},labelStyle={'display': 'inline-block'}),html.I(children=" floodZeroSep"),html.Br(),
     
-    dcc.Input(id="n_interv",type="number",value=2,style={'display':'inline','width':'50px'}),
-    html.Div(id="dates",style={'display':'inline'},children=[dcc.DatePickerSingle(date=interven_date1,id='date0'),dcc.DatePickerSingle(date=interven_date2,id='date1')]),
+#     dcc.Input(id="n_interv",type="number",value=2,style={'display':'inline','width':'50px'}),
+#     html.Div(id="dates",style={'display':'inline'},children=[dcc.DatePickerSingle(date=interven_date1,id='date0'),dcc.DatePickerSingle(date=interven_date2,id='date1')]),
     
-    html.Button('Run', id='button'),
-    dcc.Loading(children=[dcc.Graph(id='my-graph'),dash_table.DataTable(id='reg_table',columns='',data=''),html.Hr(),
-                          dash_table.DataTable(id='reg_table_dev',columns='',data='')])
+#     html.Button('Run', id='button'),
+#     dcc.Loading(children=[dcc.Graph(id='my-graph'),dash_table.DataTable(id='reg_table',columns='',data=''),html.Hr(),
+#                           dash_table.DataTable(id='reg_table_dev',columns='',data='')])
     
-], style={'width': '500'})
+# ], style={'width': '500'})
 
 
 # app.run_server()
 #%%
-@app.callback(Output("dates", "children"),[Input("n_interv", "value")])
-def update_dates(value):
-    return [dcc.DatePickerSingle(id='date'+str(i),date=interven_date1) for i in range(value)]
+# @app.callback(Output("dates", "children"),[Input("n_interv", "value")])
+# def update_dates(value):
+#     return [dcc.DatePickerSingle(id='date'+str(i),date=interven_date1) for i in range(value)]
 
-@app.callback(
-    [Output('reg_table', 'data'),Output('reg_table','columns'),
-     Output('reg_table_dev', 'data'),Output('reg_table_dev','columns'),
-     Output('my-graph', 'figure'),Output('flood_bins','children')],
-    [dash.dependencies.Input('button', 'n_clicks')],
-    [dash.dependencies.State('my-slider', 'value'),dash.dependencies.State('avg_window', 'value'),
-     dash.dependencies.State('nullAsZero','value'),dash.dependencies.State('floodZeroSep','value'),
-     dash.dependencies.State('floodr_use','value'),
-     dash.dependencies.State('Dis_cat','value'),
-     dash.dependencies.State('dates','children'),dash.dependencies.State('group_date','value')])
+# @app.callback(
+#     [Output('reg_table', 'data'),Output('reg_table','columns'),
+#      Output('reg_table_dev', 'data'),Output('reg_table_dev','columns'),
+#      Output('my-graph', 'figure'),Output('flood_bins','children')],
+#     [dash.dependencies.Input('button', 'n_clicks')],
+#     [dash.dependencies.State('my-slider', 'value'),dash.dependencies.State('avg_window', 'value'),
+#      dash.dependencies.State('nullAsZero','value'),dash.dependencies.State('floodZeroSep','value'),
+#      dash.dependencies.State('floodr_use','value'),
+#      dash.dependencies.State('Dis_cat','value'),
+#      dash.dependencies.State('dates','children'),dash.dependencies.State('group_date','value')])
 
 def update_output(n_clicks, flood_cats_in,avg_window,nullAsZero,floodZeroSep,floodr_use,Dis_cat,date_div,DATE_GROUP):
     global sp,flood_data,demos,first_load,outcome_cats
@@ -279,10 +281,10 @@ def update_output(n_clicks, flood_cats_in,avg_window,nullAsZero,floodZeroSep,flo
     df=df.drop("GEOID",axis=1)
    
     #%% run grouping for dinominator and join them
-    grouped_tracts_all=df_all.groupby(['STMT_PERIOD_FROM_GROUPED', 'PAT_ADDR_CENSUS_TRACT']).size().reset_index()
-    grouped_tracts_all.columns=[*grouped_tracts_all.columns[:-1], 'TotalVisits']
+    #grouped_tracts_all=df_all.groupby(['STMT_PERIOD_FROM_GROUPED', 'PAT_ADDR_CENSUS_TRACT']).size().reset_index()
+    #grouped_tracts_all.columns=[*grouped_tracts_all.columns[:-1], 'TotalVisits']
     
-    df=df.merge(grouped_tracts_all,on=['STMT_PERIOD_FROM_GROUPED', 'PAT_ADDR_CENSUS_TRACT'],how='left')
+    #df=df.merge(grouped_tracts_all,on=['STMT_PERIOD_FROM_GROUPED', 'PAT_ADDR_CENSUS_TRACT'],how='left')
     
     #filter only >0 tracts
     #df=df.loc[df.TotalVisits>0,:]
@@ -313,14 +315,11 @@ def update_output(n_clicks, flood_cats_in,avg_window,nullAsZero,floodZeroSep,flo
     #%%running the model
     outcome='Counts'
     
-    if Dis_cat!="ALL":offset=np.log(df.TotalVisits)
+    #if Dis_cat!="ALL":offset=np.log(df.TotalVisits)
     if Dis_cat=="ALL":offset=np.log(df.Population)
     
-    ind = sm.cov_struct.Exchangeable()
-    gor = sm.cov_struct.GlobalOddsRatio("ordinal")
     
-    
-    formula='Counts'+' ~ '+' floodr * Time + SVI * Time'+'+ year'+'+month'+'+weekday' + '+PAT_AGE_YEARS + SEX_CODE + RACE'
+    formula='Counts'+' ~ '+' floodr * Time + SVI '+'+ year'+'+month'+'+weekday' + '+PAT_AGE_YEARS + SEX_CODE + RACE'
     #model = smf.gee(formula=formula,groups="group",cov_struct=ind, data=df,missing='drop',offset=offset,family=sm.families.Poisson(link=sm.families.links.log()))
     #model = smf.logit(formula=formula, data=df,missing='drop')
     model = smf.glm(formula=formula, data=df,missing='drop',family=sm.families.Binomial(sm.families.links.logit()))
@@ -394,18 +393,18 @@ def update_output(n_clicks, flood_cats_in,avg_window,nullAsZero,floodZeroSep,flo
     #     'bin intervals:'+str(flood_bins)
 
 #%% ip op dropdown
-@app.callback(Output('hidden-div', 'title'),[dash.dependencies.Input('ip-op','value')])
-def update_data(value):
-    global sp,sp_file
-    if sp_file!=value:
-        sp=pd.read_pickle(INPUT_IPOP_DIR+'\\'+value) 
-    sp_file=value
-    return None
+# @app.callback(Output('hidden-div', 'title'),[dash.dependencies.Input('ip-op','value')])
+# def update_data(value):
+#     global sp,sp_file
+#     if sp_file!=value:
+#         sp=pd.read_pickle(INPUT_IPOP_DIR+'\\'+value) 
+#     sp_file=value
+#     return None
     
      
 
-#%%run the server
-app.run_server(debug=False)
+# #%%run the server
+# app.run_server(debug=False)
 
 
 
