@@ -104,7 +104,7 @@ nullAsZero="True"
 floodZeroSep="True"
 DATE_GROUP="DAILY"
 Dis_cats=["ALL","DEATH"]
-Dis_cat="Respiratory_All"
+Dis_cat="ALL"
 
 #%%read the categories file
 outcome_cats=pd.read_csv('Z:/GRAScripts/dhs_scripts/categories.csv')
@@ -129,7 +129,9 @@ sp.SEX_CODE=sp.SEX_CODE.astype('category')
 #race
 sp.loc[:,'RACE']=pd.to_numeric(sp.RACE,errors="coerce")
 sp.loc[(sp.RACE<=0) | (sp.RACE>5),'RACE']=np.nan
+sp.loc[sp.RACE<=2,'RACE']=5
 sp.RACE=sp.RACE.astype('category')
+sp.RACE.cat.rename_categories({3:'black',4:'white',5:'other'},inplace=True)
 
 
 #%%define app GUI
@@ -320,9 +322,9 @@ def update_output(n_clicks, flood_cats_in,avg_window,nullAsZero,floodZeroSep,flo
     
     
     formula='Counts'+' ~ '+' floodr * Time + SVI '+'+ year'+'+month'+'+weekday' + '+PAT_AGE_YEARS + SEX_CODE + RACE'
-    #model = smf.gee(formula=formula,groups="group",cov_struct=ind, data=df,missing='drop',offset=offset,family=sm.families.Poisson(link=sm.families.links.log()))
+    model = smf.gee(formula=formula,groups=df.index, data=df,missing='drop',offset=offset,family=sm.families.Poisson(link=sm.families.links.log()))
     #model = smf.logit(formula=formula, data=df,missing='drop')
-    model = smf.glm(formula=formula, data=df,missing='drop',family=sm.families.Binomial(sm.families.links.logit()))
+    #model = smf.glm(formula=formula, data=df,missing='drop',family=sm.families.Binomial(sm.families.links.logit()))
     
     results=model.fit()
     #print(results.summary())
