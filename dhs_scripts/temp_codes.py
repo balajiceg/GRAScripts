@@ -112,7 +112,7 @@ floodr_use="DFO_R200"
 nullAsZero="True"
 floodZeroSep="True"
 DATE_GROUP="DAILY"
-Dis_cats=["DEATH","Dehydration","Bite-Insect","Dialysis","Asthma_like","Respiratory_All","Infectious_and_parasitic"]
+#Dis_cats=["DEATH","Dehydration","Bite-Insect","Dialysis","Asthma_like","Respiratory_All","Infectious_and_parasitic"]
 Dis_cats=outcome_cats.category.to_list()
 first_load=False
 

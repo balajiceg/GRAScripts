@@ -133,7 +133,12 @@ sp.loc[sp.RACE<=2,'RACE']=5
 sp.RACE=sp.RACE.astype('category')
 sp.RACE.cat.rename_categories({3:'black',4:'white',5:'other'},inplace=True)
 
-
+#create tract id from block group id
+sp.loc[:,'PAT_ADDR_CENSUS_TRACT']=(sp.PAT_ADDR_CENSUS_BLOCK_GROUP//10)
+    
+#%%filter counties
+if county_to_filter != -1:
+    sp=sp[(sp.PAT_ADDR_CENSUS_TRACT//1000000).isin(county_to_filter)].copy()
 #%%define app GUI
 
 # first_load=True
@@ -229,24 +234,23 @@ def update_output(n_clicks, flood_cats_in,avg_window,nullAsZero,floodZeroSep,flo
         sp.loc[(sp.STMT_PERIOD_FROM==20170401) | (sp.STMT_PERIOD_FROM==20180630),'STMT_PERIOD_FROM_GROUPED']=None
         sp=sp.loc[~pd.isna(sp.STMT_PERIOD_FROM_GROUPED),]
            
-    #%%cnesus block group to census tract
-    sp.loc[:,'PAT_ADDR_CENSUS_TRACT']=(sp.PAT_ADDR_CENSUS_BLOCK_GROUP//10)
+
     
     #%%filter counties
     if county_to_filter != -1:
-        sp_filtered=sp[(sp.PAT_ADDR_CENSUS_TRACT//1000000).isin(county_to_filter)].copy()
+        sp_filtered=sp#sp[(sp.PAT_ADDR_CENSUS_TRACT//1000000).isin(county_to_filter)].copy()
     else:
         sp_filtered=sp
     #sp_filtered=sp_filtered.loc[~pd.isna(sp[['PAT_AGE_YEARS','SEX_CODE','RACE']]).any(axis=1),:]
         #%%splitting into all and specific
-    df_all=sp_filtered.loc[:,['STMT_PERIOD_FROM_GROUPED','PAT_ADDR_CENSUS_TRACT','PAT_AGE_YEARS','SEX_CODE','RACE']].copy()
+    #df_all=sp_filtered.loc[:,['STMT_PERIOD_FROM_GROUPED','PAT_ADDR_CENSUS_TRACT','PAT_AGE_YEARS','SEX_CODE','RACE']].copy()
     
     df=sp_filtered.loc[:,['STMT_PERIOD_FROM_GROUPED','PAT_ADDR_CENSUS_TRACT','PAT_AGE_YEARS','SEX_CODE','RACE']]
     
     if Dis_cat=="DEATH":df.loc[:,'Counts']=filter_mortality(sp_filtered)
     if Dis_cat=="ALL":df.loc[:,'Counts']=filter_all(sp_filtered)
     if Dis_cat in outcome_cats.category.to_list():df.loc[:,'Counts']=filter_from_icds(sp_filtered,outcome_cats,Dis_cat)
-    
+    del sp_filtered
     
     #%% merge population
     demos_subset=demos.iloc[:,[1,3]]
@@ -315,14 +319,12 @@ def update_output(n_clicks, flood_cats_in,avg_window,nullAsZero,floodZeroSep,flo
     # df['group']=df['group'].astype('category')
     # df['group']=df.group.cat.rename_categories(range(df.group.cat.categories.size))
     #%%running the model
-    outcome='Counts'
-    
     #if Dis_cat!="ALL":offset=np.log(df.TotalVisits)
-    if Dis_cat=="ALL":offset=np.log(df.Population)
+    #if Dis_cat=="ALL":offset=np.log(df.Population)
     
     
     formula='Counts'+' ~ '+' floodr * Time + SVI '+'+ year'+'+month'+'+weekday' + '+PAT_AGE_YEARS + SEX_CODE + RACE'
-    model = smf.gee(formula=formula,groups=df.index, data=df,missing='drop',offset=offset,family=sm.families.Poisson(link=sm.families.links.log()))
+    model = smf.gee(formula=formula,groups=df.index, data=df,offset=None,missing='drop',family=sm.families.Poisson(link=sm.families.links.log()))
     #model = smf.logit(formula=formula, data=df,missing='drop')
     #model = smf.glm(formula=formula, data=df,missing='drop',family=sm.families.Binomial(sm.families.links.logit()))
     
