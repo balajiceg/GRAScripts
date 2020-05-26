@@ -91,7 +91,6 @@ SVI_df_raw.FIPS=pd.to_numeric(SVI_df_raw.FIPS)
 demos=pd.read_csv(r'Z:/Balaji/Census_data_texas/ACS_17_5YR_DP05_with_ann.csv',low_memory=False,skiprows=1)
 flood_products=['DFO_R200','DFO_R100','LIST_R20','DFO_R20','DFOuLIST_R20']
 
-
 #read counties that are innundated
 county_to_filter=pd.read_csv('Z:/Balaji/counties_inun.csv').GEOID.to_list()
 #%%predefine variable if got getting from gui
