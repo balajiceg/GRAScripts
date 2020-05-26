@@ -95,9 +95,9 @@ flood_products=['DFO_R200','DFO_R100','LIST_R20','DFO_R20','DFOuLIST_R20']
 #read counties that are innundated
 county_to_filter=pd.read_csv('Z:/Balaji/counties_inun.csv').GEOID.to_list()
 #%%predefine variable if got getting from gui
-interven_date1,interven_date2=str(datetime(2017,8,24)),str(datetime(2017,10,2))
+interven_date1,interven_date2=str(datetime(2017,8,25)),str(datetime(2017,9,13))
 date_div=[{'props':{'date':i}} for i in [interven_date1,interven_date2]]
-avg_window=5
+avg_window=7
 flood_cats_in=1
 floodr_use="DFO_R200"
 nullAsZero="True"
@@ -119,7 +119,7 @@ sp.loc[:,'PAT_AGE_YEARS']=sp.loc[:,'PAT_AGE_YEARS'].astype('float')
 
 #gender
 sp.loc[~sp.SEX_CODE.isin(["M","F"]),'SEX_CODE']=np.nan
-sp.SEX_CODE=sp.SEX_CODE.astype('category')
+sp.SEX_CODE=sp.SEX_CODE.astype('category').cat.reorder_categories(['M','F'],ordered=False)
 
 #ethinicity
 # sp.loc[:,'RACE']=pd.to_numeric(sp.RACE,errors="coerce")
@@ -130,7 +130,7 @@ sp.SEX_CODE=sp.SEX_CODE.astype('category')
 sp.loc[:,'RACE']=pd.to_numeric(sp.RACE,errors="coerce")
 sp.loc[(sp.RACE<=0) | (sp.RACE>5),'RACE']=np.nan
 sp.loc[sp.RACE<=2,'RACE']=5
-sp.RACE=sp.RACE.astype('category')
+sp.RACE=sp.RACE.astype('category').cat.reorder_categories([4,3,5],ordered=False)
 sp.RACE.cat.rename_categories({3:'black',4:'white',5:'other'},inplace=True)
 
 #create tract id from block group id
@@ -176,17 +176,17 @@ if county_to_filter != -1:
 
 # @app.callback(
 #     [Output('reg_table', 'data'),Output('reg_table','columns'),
-#      Output('reg_table_dev', 'data'),Output('reg_table_dev','columns'),
-#      Output('my-graph', 'figure'),Output('flood_bins','children')],
+#       Output('reg_table_dev', 'data'),Output('reg_table_dev','columns'),
+#       Output('my-graph', 'figure'),Output('flood_bins','children')],
 #     [dash.dependencies.Input('button', 'n_clicks')],
 #     [dash.dependencies.State('my-slider', 'value'),dash.dependencies.State('avg_window', 'value'),
-#      dash.dependencies.State('nullAsZero','value'),dash.dependencies.State('floodZeroSep','value'),
-#      dash.dependencies.State('floodr_use','value'),
-#      dash.dependencies.State('Dis_cat','value'),
-#      dash.dependencies.State('dates','children'),dash.dependencies.State('group_date','value')])
+#       dash.dependencies.State('nullAsZero','value'),dash.dependencies.State('floodZeroSep','value'),
+#       dash.dependencies.State('floodr_use','value'),
+#       dash.dependencies.State('Dis_cat','value'),
+#       dash.dependencies.State('dates','children'),dash.dependencies.State('group_date','value')])
 
 def update_output(n_clicks, flood_cats_in,avg_window,nullAsZero,floodZeroSep,floodr_use,Dis_cat,date_div,DATE_GROUP):
-    global sp,flood_data,demos,first_load,outcome_cats
+    global sp,flood_data,demos,first_load,outcome_cats,county_to_filter
     if first_load:
         first_load=False
         return
@@ -320,11 +320,12 @@ def update_output(n_clicks, flood_cats_in,avg_window,nullAsZero,floodZeroSep,flo
     # df['group']=df.group.cat.rename_categories(range(df.group.cat.categories.size))
     #%%running the model
     #if Dis_cat!="ALL":offset=np.log(df.TotalVisits)
-    #if Dis_cat=="ALL":offset=np.log(df.Population)
+    offset=None
+    if Dis_cat=="ALL":offset=np.log(df.Population)
     
     
     formula='Counts'+' ~ '+' floodr * Time + SVI '+'+ year'+'+month'+'+weekday' + '+PAT_AGE_YEARS + SEX_CODE + RACE'
-    model = smf.gee(formula=formula,groups=df.index, data=df,offset=None,missing='drop',family=sm.families.Poisson(link=sm.families.links.log()))
+    model = smf.gee(formula=formula,groups=df.index, data=df,offset=offset,missing='drop',family=sm.families.Poisson(link=sm.families.links.log()))
     #model = smf.logit(formula=formula, data=df,missing='drop')
     #model = smf.glm(formula=formula, data=df,missing='drop',family=sm.families.Binomial(sm.families.links.logit()))
     
@@ -335,6 +336,7 @@ def update_output(n_clicks, flood_cats_in,avg_window,nullAsZero,floodZeroSep,flo
     
     
     #%%plot the rate graph
+    # df["TotalVisits"]=100
     # plot_data={}
     # for item in FLOOD_QUANTILES:
     #     plot_data[item]=df.loc[df.floodr==item,["STMT_PERIOD_FROM_GROUPED","Counts","TotalVisits"]]
@@ -389,8 +391,14 @@ def update_output(n_clicks, flood_cats_in,avg_window,nullAsZero,floodZeroSep,flo
     # inter_bars=inter_bars.to_frame().merge(rate_avg,left_on=0,right_on='Date')
     # inter_bars.loc[:,'maxi']=inter_bars.loc[:,FLOOD_QUANTILES].max(axis=1).copy()
     
-    # return reg_table.to_dict('r ecords'),[{"name": i, "id": i} for i in reg_table.columns],\
-    #     reg_table_dev.to_dict('records'),[{"name": i, "id": i} for i in reg_table_dev.columns],\
+    # # return reg_table.to_dict('r ecords'),[{"name": i, "id": i} for i in reg_table.columns],\
+    # #     reg_table_dev.to_dict('records'),[{"name": i, "id": i} for i in reg_table_dev.columns],\
+    # #     {'data': [{'x': rate_avg.Date,'y': rate_avg[cat],'name':cat} for cat in FLOOD_QUANTILES]+
+    # #     [{'x':inter_bars.Date,'y':inter_bars.maxi,'name':'intervention','type':'scatter','mode':'markers','marker':{'size':12}}],
+    # #     'layout': {'margin': {'l': 40, 'r': 0, 't': 20, 'b': 30}}},\
+    # #     'bin intervals:'+str(flood_bins)
+        
+    # return None,None,None,None,\
     #     {'data': [{'x': rate_avg.Date,'y': rate_avg[cat],'name':cat} for cat in FLOOD_QUANTILES]+
     #     [{'x':inter_bars.Date,'y':inter_bars.maxi,'name':'intervention','type':'scatter','mode':'markers','marker':{'size':12}}],
     #     'layout': {'margin': {'l': 40, 'r': 0, 't': 20, 'b': 30}}},\
@@ -402,6 +410,7 @@ def update_output(n_clicks, flood_cats_in,avg_window,nullAsZero,floodZeroSep,flo
 #     global sp,sp_file
 #     if sp_file!=value:
 #         sp=pd.read_pickle(INPUT_IPOP_DIR+'\\'+value) 
+#         sp.loc[:,'PAT_ADDR_CENSUS_TRACT']=(sp.PAT_ADDR_CENSUS_BLOCK_GROUP//10)
 #     sp_file=value
 #     return None
     

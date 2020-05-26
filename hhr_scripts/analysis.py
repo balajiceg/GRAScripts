@@ -6,7 +6,7 @@ import numpy as np
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
 import geopandas
-
+from recalculate_svi import recalculateSVI
 
 def mGetValues(df,colname):
     snames=[s1 for s1 in df.columns if colname+'_' in s1 ]
@@ -39,33 +39,23 @@ def recat(df,colname,cats):
         temp_df.iloc[:,i]=fil_col.sum(axis=1)
     return temp_df
     
-    
 
-questions_short=('waterLevel',
-                   'homeDamaged',
-                   'flooded',
-                   'floodedDays',
-                   'floodedHours',
-                   'hospitalized',
-                   'illness',
-                   'injury',
-                   'leftHome',
-                   'electricity',
-                   'electricityLostDays',
-                   'otherHomesFlood',
-                   'skinContact',
-                   'whereLived',
-                   'hospitalDays')
+#v1
+data_copy=pd.read_csv(r"Z:/Balaji/HHR/HHR_20191001_CT/joined_table_nondemos.csv")
 
-
-data_copy=pd.read_csv(r"//vetmed2.vetmed.w2k.vt.edu/Blitzer/NASA project/Balaji/HHR/HHR_20191001_CT/joined_table_nondemos.csv")
-data_copy.drop('SVI',axis=1,inplace=True)
+#v3
+#data_copy=pd.read_csv(r"Z:/Balaji/HHR/HHR_20191001_CT_Summary_V03/joined_table_nondemos.csv")
 
 #read svi file
-svi_df=pd.read_csv("D:\\texas\\spatial\\SVI_Study_Area\\SVI_Houston\\SVI_HoustonRerank.csv")
-data_copy=data_copy.merge(svi_df.loc[:,['FIPS',"RPL_THEMES_HC"]],left_on='tractId',right_on="FIPS",how='left')
+svi_df_raw=geopandas.read_file(r'Z:/Balaji/SVI_Raw/TEXAS.shp').drop('geometry',axis=1)
+svi_df_raw.FIPS=pd.to_numeric(svi_df_raw.FIPS)
+svi_df=recalculateSVI(svi_df_raw[svi_df_raw.FIPS.isin(data_copy.tractId.unique())])
+
+data_copy=data_copy.merge(svi_df,left_on='tractId',right_on="FIPS",how='left')
+#data_copy=data_copy.merge(svi_df_raw.loc[:,['FIPS','RPL_THEMES']],on="FIPS",how='left')
+
 data_copy=data_copy[~data_copy.FIPS.isna()]
-data_copy.drop('FIPS',axis=1)
+data_copy.drop('FIPS',axis=1,inplace=True)
 
 
 flood_ratio_data=geopandas.read_file(r'//vetmed2.vetmed.w2k.vt.edu/Blitzer/NASA project/Balaji/FloodRatioJoinedAll_v1/FloodInund_AllJoined_v1.gpkg')
@@ -85,11 +75,14 @@ for n in data.keys():
 #removing 3 tracts that doesn't cover 100m inundation
 #data=data[~data.tractId.isin([48339694700,48339694201,48339694101])]
 
+#rename if using v1 of the data
+    
+    
 ### data preparation poisson regression ---------------------
-indes=("flooded","electricity","otherHomesFlood","skinContact")
-depnsB=('illness','injury',"hospitalized","leftHome")
+indes=("HomeFlooded","LosePower","OtherHomesFlooded","Contact_Water")
+depnsB=('Illness','Injury',"Hospital","LeaveHome")
 
-df=pd.DataFrame({'tractId':data.tractId,'floodRatio':data.DFO_R200,'SVI':data.RPL_THEMES_HC,'imperInd':data.imperInd})
+df=pd.DataFrame({'tractId':data.tractId,'floodRatio':data.DFO_R200,'SVI':data.SVI})#,'imperInd':data.imperInd})
 df.floodRatio=df.floodRatio.fillna(0)
 
 for field in indes:
@@ -154,8 +147,8 @@ for field in depnsB:
 #recoding values
 s=df.loc[df.floodRatio>0,'floodRatio']
 
-#df.loc[:,'floodRatio']=pd.cut(df.floodRatio,bins=df.floodRatio.quantile(np.arange(0,1.1,1/2)),right=False)
-#df.loc[:,'floodRatio']=pd.cut(df.floodRatio,bins=[0]+s.quantile([0]+np.arange(0,1.1,1/1)).to_list(),right=False)
+#df.loc[:,'floodRatioCat']=pd.cut(df.floodRatio,bins=df.floodRatio.quantile(np.arange(0,1.1,1/2)),right=False)
+df.loc[:,'floodRatioCat']=pd.cut(df.floodRatio,bins=[0]+s.quantile([0]+np.arange(0,1.1,1/1)).to_list(),right=False)
 
 df.loc[:,'SVI']=pd.cut(df.SVI,bins=np.arange(0,1.1,1/4),include_lowest=True) #,labels=['<=25%','<=100%'])
 
@@ -166,25 +159,24 @@ indes = [
 
              #'otherHomesFlood',#'skinContact',
             #'  #'leftHome',
-             'floodRatio','SVI',#,'imperInd',
+             'floodRatioCat','SVI',#,'imperInd',
             # 'waterLevelC_3','waterLevelC_6',
             # 'electricityLostDaysC_15','electricityLostDaysC_30',
             # 'floodedDaysC_10','floodedDaysC_90',
             # "whereLived_someHome" ,"whereLived_NoNMobileHome","whereLived_temporaryShelter"
             ]
 
-depnsB=['illness','injury',"hospitalized"]
+depnsB=['Illness','Injury',"Hospital"]
 #corellation analysis
 #cor_mat=df.loc[:,indes].corr()
 
-df = sm.add_constant(df)
-for dependent in depnsB[0:1]:
+for dependent in depnsB[1:2]:
     print("_"*200)
     #print(dependent)
      
     print('POISSON----------- '*5)
     #glm poisson
-    formula=dependent+'_1 ~ '+' + '.join(indes)
+    formula=dependent+'_1 ~ '+' * '.join(indes)
     
     offset=np.log(df[dependent+'_1']+df[dependent+'_0'])
     
