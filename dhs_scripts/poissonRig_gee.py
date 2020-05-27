@@ -323,7 +323,7 @@ def update_output(n_clicks, flood_cats_in,avg_window,nullAsZero,floodZeroSep,flo
     if Dis_cat=="ALL":offset=np.log(df.Population)
     
     
-    formula='Counts'+' ~ '+' floodr * Time + SVI '+'+ year'+'+month'+'+weekday' + '+PAT_AGE_YEARS + SEX_CODE + RACE'
+    formula='Counts'+' ~ '+' floodr + Time * SVI '+'+ year'+'+month'+'+weekday' + '+PAT_AGE_YEARS + SEX_CODE + RACE'
     model = smf.gee(formula=formula,groups=df.index, data=df,offset=offset,missing='drop',family=sm.families.Poisson(link=sm.families.links.log()))
     #model = smf.logit(formula=formula, data=df,missing='drop')
     #model = smf.glm(formula=formula, data=df,missing='drop',family=sm.families.Binomial(sm.families.links.logit()))

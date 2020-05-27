@@ -41,7 +41,7 @@ def recat(df,colname,cats):
     
 
 #v1
-data_copy=pd.read_csv(r"Z:/Balaji/HHR/HHR_20191001_CT/joined_table_nondemos.csv")
+data_copy=pd.read_csv(r"Z:/Balaji/HHR/HHR_20191001_CT_Summary_V03/joined_table_nondemos.csv")
 
 #v3
 #data_copy=pd.read_csv(r"Z:/Balaji/HHR/HHR_20191001_CT_Summary_V03/joined_table_nondemos.csv")
@@ -170,7 +170,7 @@ depnsB=['Illness','Injury',"Hospital"]
 #corellation analysis
 #cor_mat=df.loc[:,indes].corr()
 
-for dependent in depnsB[1:2]:
+for dependent in depnsB[0:1]:
     print("_"*200)
     #print(dependent)
      
