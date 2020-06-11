@@ -319,16 +319,16 @@ def update_output(n_clicks, flood_cats_in,avg_window,nullAsZero,floodZeroSep,flo
     # df['group']=df.group.cat.rename_categories(range(df.group.cat.categories.size))
     #%%running the model
     #if Dis_cat!="ALL":offset=np.log(df.TotalVisits)
-    offset=None
-    if Dis_cat=="ALL":offset=np.log(df.Population)
+    # offset=None
+    # if Dis_cat=="ALL":offset=np.log(df.Population)
     
     
-    formula='Counts'+' ~ '+' floodr + Time * SVI '+'+ year'+'+month'+'+weekday' + '+PAT_AGE_YEARS + SEX_CODE + RACE'
-    model = smf.gee(formula=formula,groups=df.index, data=df,offset=offset,missing='drop',family=sm.families.Poisson(link=sm.families.links.log()))
-    #model = smf.logit(formula=formula, data=df,missing='drop')
-    #model = smf.glm(formula=formula, data=df,missing='drop',family=sm.families.Binomial(sm.families.links.logit()))
+    # formula='Counts'+' ~ '+' floodr + Time * SVI '+'+ year'+'+month'+'+weekday' + '+PAT_AGE_YEARS + SEX_CODE + RACE'
+    # model = smf.gee(formula=formula,groups=df.index, data=df,offset=offset,missing='drop',family=sm.families.Poisson(link=sm.families.links.log()))
+    # #model = smf.logit(formula=formula, data=df,missing='drop')
+    # #model = smf.glm(formula=formula, data=df,missing='drop',family=sm.families.Binomial(sm.families.links.logit()))
     
-    results=model.fit()
+    # results=model.fit()
     #print(results.summary())
     #print(np.exp(results.params))
     # print(np.exp(results.conf_int()))
@@ -363,24 +363,27 @@ def update_output(n_clicks, flood_cats_in,avg_window,nullAsZero,floodZeroSep,flo
     # rate_avg.iloc[:,1:]=rate_avg.iloc[:,1:].rolling(window=avg_window).mean()
     
 #%% return for listner
-    results_as_html = results.summary().tables[1].as_html()
-    reg_table=pd.read_html(results_as_html, header=0, index_col=0)[0].reset_index()
-    reg_table.loc[:,'coef']=np.exp(reg_table.coef)
-    reg_table.loc[:,['[0.025', '0.975]']]=np.exp(reg_table.loc[:,['[0.025', '0.975]']])
-    reg_table=reg_table.loc[~(reg_table['index'].str.contains('month') 
-                              | reg_table['index'].str.contains('month')
-                              | reg_table['index'].str.contains('weekday')
-                              #| reg_table['index'].str.contains('year')
-                              #| reg_table['index'].str.contains('PAT_AGE_YEARS')
+    # results_as_html = results.summary().tables[1].as_html()
+    # reg_table=pd.read_html(results_as_html, header=0, index_col=0)[0].reset_index()
+    # reg_table.loc[:,'coef']=np.exp(reg_table.coef)
+    # reg_table.loc[:,['[0.025', '0.975]']]=np.exp(reg_table.loc[:,['[0.025', '0.975]']])
+    # reg_table=reg_table.loc[~(reg_table['index'].str.contains('month') 
+    #                           | reg_table['index'].str.contains('month')
+    #                           | reg_table['index'].str.contains('weekday')
+    #                           #| reg_table['index'].str.contains('year')
+    #                           #| reg_table['index'].str.contains('PAT_AGE_YEARS')
                               
-                              ),]
-    reg_table_dev=pd.read_html(results.summary().tables[0].as_html())[0]
+    #                           ),]
+    # reg_table_dev=pd.read_html(results.summary().tables[0].as_html())[0]
     
-    counts_outcome=pd.DataFrame(df.Counts.value_counts())
-    counts_outcome.loc["flood_bins",'Counts']=str(flood_bins)
+    #counts_outcome=pd.DataFrame(df.Counts.value_counts())
+    outcomes_recs=df.loc[(df.Counts>0) & (df.Time!='control'),:]
+    counts_outcome=pd.DataFrame(outcomes_recs.floodr.value_counts())
     
-    reg_table.to_csv(Dis_cat+"_reg"+".csv")
-    reg_table_dev.to_csv(Dis_cat+"_dev"+".csv")
+    # counts_outcome.loc["flood_bins",'Counts']=str(flood_bins)
+    
+    # reg_table.to_csv(Dis_cat+"_reg"+".csv")
+    # reg_table_dev.to_csv(Dis_cat+"_dev"+".csv")
     counts_outcome.to_csv(Dis_cat+"_aux"+".csv")
     
     print(Dis_cat)

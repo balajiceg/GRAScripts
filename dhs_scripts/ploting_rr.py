@@ -28,6 +28,7 @@ for file in req_files:
     
 merge_df.columns=['covar', 'coef', 'P', 'conf25', 'conf95', 'outcome']
 #%%pull required betas 
+required=["Time[T.20170825]:SVI[T.4]","Time[T.20170913]:SVI[T.4]"]#,"Time[T.20170825]","Time[T.20170913]"]
 required=["floodr[T.FLood_1]:Time[T.20170825]","floodr[T.FLood_1]:Time[T.20170913]"]#,"Time[T.20170825]","Time[T.20170913]"]
 req_df=merge_df.loc[merge_df['covar'].isin(required),:].copy()
 req_df.covar.replace(required,["FloodPeriod","PostFlood"],inplace=True)
@@ -39,27 +40,42 @@ for i,outcome in enumerate(outcomes):
     df.conf25,df.conf95=df.coef-df.conf25 , df.conf95-df.coef
     
     #ax = plt.subplot(req_df.outcome.unique()[:5].size,1,i+1)
-    fig,ax=plt.subplots()
+    
+    fig=plt.figure(outcome,figsize=(bbox.width,bbox.height))
+    ax=plt.subplot(1,2,1)
     sub_df=df[df.outcome==outcome]
-    pl.errorbar(sub_df.covar, sub_df.coef, yerr=[sub_df.conf25,sub_df.conf95], color='red', ls='--', marker='o', capsize=5, capthick=1, ecolor='black')
-    for i in sub_df.index: ax.annotate(sub_df.loc[i,"P"], (sub_df.loc[i,"covar"],sub_df.loc[i,"coef"]+sub_df.loc[i,"conf95"]))
-    
-    
-    sub_df=df[~(df.outcome==outcome)]
-    ax.errorbar(sub_df.covar+" ", sub_df.coef, yerr=[sub_df.conf25,sub_df.conf95], color='red', ls='--', marker='o', capsize=5, capthick=1, ecolor='black')
-    for i in sub_df.index: ax.annotate(sub_df.loc[i,"P"], (sub_df.loc[i,"covar"]+" ",sub_df.loc[i,"coef"]+sub_df.loc[i,"conf95"]),xytext=(0, 2),  # 3 points vertical offset
-                    textcoords="offset pixels")
-     
-    #ax.get_xaxis().set_ticks([])
-    
-    ax.axhline(1, color='green', ls="--",lw=0.5)
-    ax.set_ylabel(outcome)
-    
+    pl.errorbar(sub_df.covar, sub_df.coef, yerr=[sub_df.conf25,sub_df.conf95], color='red', ls='--',lw=0.5, marker='.', capsize=5, capthick=1, ecolor='black')
+    for i in sub_df.index: ax.annotate(sub_df.loc[i,"P"], (sub_df.loc[i,"covar"],sub_df.loc[i,"coef"]+sub_df.loc[i,"conf95"]),color='red')
+    ax.axhline(1, color='green', ls="--",lw=0.6)
+    ax.set_ylabel(outcome,fontsize=14)
     ax.spines['bottom'].set_color('none')
     ax.spines['top'].set_color('none')
+    ax.tick_params(axis="y", labelsize=12)
+    ax.get_xaxis().set_ticks([])
+    
+    ax=plt.subplot(1,2,2)
+    sub_df=df[~(df.outcome==outcome)]
+    ax.errorbar(sub_df.covar+" ", sub_df.coef, yerr=[sub_df.conf25,sub_df.conf95], color='red', ls='--',lw=0.5, marker='.', capsize=5, capthick=1, ecolor='black')
+    for i in sub_df.index: ax.annotate(sub_df.loc[i,"P"], (sub_df.loc[i,"covar"]+" ",sub_df.loc[i,"coef"]+sub_df.loc[i,"conf95"]),color='red')  # 3 points vertical offsettextcoords="offset pixels")
+     
+    ax.get_xaxis().set_ticks([])
+    ax.axhline(1, color='green', ls="--",lw=0.6)
+    ax.spines['bottom'].set_color('none')
+    ax.spines['top'].set_color('none')
+    ax.tick_params(axis="y", labelsize=12)
+    fig.tight_layout()
+    plt.savefig(outcome+".png")
+    
 # ax.set_xlim(xlims)
 # ax.set_ylim(ylims)
+    
+#%% tables
+    
+flood_df= req_df.dropna().copy()
+flood_df=flood_df.loc[(flood_df.covar=="FloodPeriod")&(flood_df.P<=0.05),:]
 
+post_flood= req_df.dropna().copy()
+post_flood=post_flood.loc[(post_flood.covar=="PostFlood")&(post_flood.P<=0.05),:]
 
 
 
