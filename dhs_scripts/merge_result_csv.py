@@ -2,6 +2,8 @@
 """
 Created on Fri May 15 08:05:08 2020
 
+For merging the results csv that was created using glm/gee models
+
 @author: balajiramesh
 """
 

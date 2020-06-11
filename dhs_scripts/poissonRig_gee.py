@@ -318,20 +318,20 @@ def update_output(n_clicks, flood_cats_in,avg_window,nullAsZero,floodZeroSep,flo
     # df['group']=df['group'].astype('category')
     # df['group']=df.group.cat.rename_categories(range(df.group.cat.categories.size))
     #%%running the model
-    #if Dis_cat!="ALL":offset=np.log(df.TotalVisits)
-    # offset=None
-    # if Dis_cat=="ALL":offset=np.log(df.Population)
+    if Dis_cat!="ALL":offset=np.log(df.TotalVisits)
+    offset=None
+    if Dis_cat=="ALL":offset=np.log(df.Population)
     
     
-    # formula='Counts'+' ~ '+' floodr + Time * SVI '+'+ year'+'+month'+'+weekday' + '+PAT_AGE_YEARS + SEX_CODE + RACE'
-    # model = smf.gee(formula=formula,groups=df.index, data=df,offset=offset,missing='drop',family=sm.families.Poisson(link=sm.families.links.log()))
-    # #model = smf.logit(formula=formula, data=df,missing='drop')
-    # #model = smf.glm(formula=formula, data=df,missing='drop',family=sm.families.Binomial(sm.families.links.logit()))
+    formula='Counts'+' ~ '+' floodr + Time * SVI '+'+ year'+'+month'+'+weekday' + '+PAT_AGE_YEARS + SEX_CODE + RACE'
+    model = smf.gee(formula=formula,groups=df.index, data=df,offset=offset,missing='drop',family=sm.families.Poisson(link=sm.families.links.log()))
+    #model = smf.logit(formula=formula, data=df,missing='drop')
+    #model = smf.glm(formula=formula, data=df,missing='drop',family=sm.families.Binomial(sm.families.links.logit()))
     
-    # results=model.fit()
-    #print(results.summary())
-    #print(np.exp(results.params))
-    # print(np.exp(results.conf_int()))
+    results=model.fit()
+    print(results.summary())
+    print(np.exp(results.params))
+    print(np.exp(results.conf_int()))
     
     
     #%%plot the rate graph

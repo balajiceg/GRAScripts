@@ -1,6 +1,6 @@
 # @author Balaji Ramesh
 
-#to merge the 3 different year files to single file
+#to merge the 3 different year ED visit files to single file
 import pandas as pd
 import os
 import glob
