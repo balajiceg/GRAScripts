@@ -331,8 +331,7 @@ def update_output(n_clicks, flood_cats_in,avg_window,nullAsZero,floodZeroSep,flo
     results=model.fit()
     print(results.summary())
     print(np.exp(results.params))
-    print(np.exp(results.conf_int()))
-    
+    print(np.exp(results.conf_int())) 
     
     #%%plot the rate graph
     # df["TotalVisits"]=100
