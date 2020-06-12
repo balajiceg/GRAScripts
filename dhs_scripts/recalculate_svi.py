@@ -63,7 +63,13 @@ def recalculateSVI(df):
     #adding newly calculated SVIs to HarrisCtyCent shapefile
     RPL_THEMES_NEW = rerank(SPL_THEMES_NEW)
     
-    return pd.DataFrame({"FIPS":df.FIPS,"SVI":RPL_THEMES_NEW})
+    return pd.DataFrame({"FIPS":df.FIPS,
+                         "SVI":RPL_THEMES_NEW,
+                         "RPL_THEMES_1":RPL_THEMES_1_NEW,
+                         "RPL_THEMES_2":RPL_THEMES_2_NEW,
+                         "RPL_THEMES_3":RPL_THEMES_3_NEW,
+                         "RPL_THEMES_4":RPL_THEMES_4_NEW
+                        })
     #%%
 # vis=ret.merge(validate_data,on="FIPS")
 # vis=ret.merge(subset_val,on="FIPS")

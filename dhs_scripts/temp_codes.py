@@ -103,23 +103,19 @@ sp.loc[:,"ZIP5"]=sp.PAT_ZIP.str.slice(stop=5)
 sp=sp.loc[~sp.ZIP5.isin(['0'*i for i in range(1,6)]),:]
 one_var="ZIP5"
 #%%looping for automatic saving 
-interven_date1,interven_date2=str(datetime(2017,8,25)),str(datetime(2017,9,13))
-date_div=[{'props':{'date':i}} for i in [interven_date1,interven_date2]]
 
-avg_window=5
+
 flood_cats_in=1
-floodr_use="DFO_R200"
-nullAsZero="True"
-floodZeroSep="True"
-DATE_GROUP="DAILY"
+floodr_use="DFO_R200" #['DFO_R200','DFO_R100','LIST_R20','DFO_R20','DFOuLIST_R20']
+nullAsZero="True" #null flood ratios are changed to 0
+floodZeroSep="True" # zeros are considered as seperate class
+interv_dates=[20170825, 20170913]
 #Dis_cats=["DEATH","Dehydration","Bite-Insect","Dialysis","Asthma_like","Respiratory_All","Infectious_and_parasitic"]
 Dis_cats=outcome_cats.category.to_list()+['ALL','DEATH']
-first_load=False
 
 for Dis_cat in Dis_cats:
     try:
-        update_output(0, flood_cats_in,avg_window,nullAsZero,
-              floodZeroSep,floodr_use,Dis_cat,date_div,DATE_GROUP)
+       run()
     except Exception as e: print(e)
    
     

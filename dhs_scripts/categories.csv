@@ -12,8 +12,5 @@ Asthma_like,J45,
 Chest_pain,R002;R079;R0789,
 Psychiatric,Z046,
 Intestinal_infectious,A0,
-Acute_upper_respiratory_infects,J0,J09
 Influenza_and_pneumonia,J1;J09,
 Arthropod-borne_viral_fevers,A9,
-Infectious_and_parasitic,A;B,
-Respiratory_All,J,

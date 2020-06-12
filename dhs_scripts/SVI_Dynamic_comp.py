@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Fri May 15 01:55:22 2020
+Created on Thu Jun 11 19:15:05 2020
 
 @author: balajiramesh
 """
@@ -8,10 +8,11 @@ Created on Fri May 15 01:55:22 2020
 
 # -*- coding: utf-8 -*-
 """
-Created on Fri Apr 10 00:25:12 2020
+Created on Fri May 15 01:55:22 2020
 
 @author: balajiramesh
 """
+
 import pandas as pd
 import numpy as np
 import geopandas
@@ -19,6 +20,7 @@ import statsmodels.api as sm
 import statsmodels.formula.api as smf
 from datetime import timedelta, date,datetime
 from dateutil import parser
+import os
 
 import sys
 sys.path.insert(1, r'Z:\GRAScripts\dhs_scripts')
@@ -69,7 +71,7 @@ def filter_from_icds(sp,outcome_cats,Dis_cat):
 
 #%%read ip op data
 INPUT_IPOP_DIR=r'Z:\Balaji\DSHS ED visit data\CleanedMergedJoined'
-sp_file='ip'
+sp_file='op'
 sp=pd.read_pickle(INPUT_IPOP_DIR+'\\'+sp_file)
 #sp=pd.read_pickle(INPUT_IPOP_DIR+r'\op')
 
@@ -87,6 +89,9 @@ demos.Id2=demos.Id2.astype("Int64")
 #read study area counties
 county_to_filter=pd.read_csv('Z:/Balaji/counties_inun.csv').GEOID.to_list()
 
+#read dynamic svi
+SVI_dyn=pd.read_csv('Z:/Balaji/Dynamic_SVI/SPL_Theme1.csv').iloc[:,1:]
+SVI_dyn.FIPS=SVI_dyn.FIPS.astype("Int64")
 #%%read the categories file
 outcome_cats=pd.read_csv('Z:/GRAScripts/dhs_scripts/categories.csv')
 outcome_cats.fillna('',inplace=True)
@@ -156,7 +161,7 @@ def run():
     df=df.loc[df.Population>0,]
     
     #%% merge SVI after recategorization
-    svi=recalculateSVI(SVI_df_raw[SVI_df_raw.FIPS.isin(df.PAT_ADDR_CENSUS_TRACT.unique())]).loc[:,["FIPS",'SVI']]
+    svi=recalculateSVI(SVI_df_raw[SVI_df_raw.FIPS.isin(df.PAT_ADDR_CENSUS_TRACT.unique())]).loc[:,["FIPS",'RPL_THEMES_1']]
     df=df.merge(svi,left_on="PAT_ADDR_CENSUS_TRACT",right_on="FIPS",how='left').drop("FIPS",axis=1)
     #df.loc[:,'SVI']=pd.cut(df.SVI,bins=np.arange(0,1.1,1/4),include_lowest=True,labels=[1,2,3,4])
     
@@ -203,48 +208,62 @@ def run():
     df['month']=(df.STMT_PERIOD_FROM.astype('int32')//1e2%100).astype('category')
     df['weekday']=pd.to_datetime(df.STMT_PERIOD_FROM.astype('str'),format='%Y%m%d').dt.dayofweek.astype('category')
     
+    #%%combine dynamic SVI
     
-    #%%running the model
-    #if Dis_cat!="ALL":offset=np.log(df.TotalVisits)
-    offset=None
-    if Dis_cat=="ALL":offset=np.log(df.Population)
+    df=df.merge(SVI_dyn,left_on=['PAT_ADDR_CENSUS_TRACT','weekday'],right_on=["FIPS",'Day_of_week']).drop([ 'FIPS', 'Day_of_week'],axis=1)
+    df.rename(columns={"Theme_1": "dyn_RPL_THEMES_1"},inplace=True)
     
-    
-    formula='Outcome'+' ~ '+' floodr + Time * SVI '+'+ year'+'+month'+'+weekday' + '+PAT_AGE_YEARS + SEX_CODE + RACE'
-    model = smf.gee(formula=formula,groups=df.PAT_ADDR_CENSUS_TRACT, data=df,offset=offset,missing='drop',family=sm.families.Poisson(link=sm.families.links.log()))
-    #model = smf.logit(formula=formula, data=df,missing='drop')
-    #model = smf.glm(formula=formula, data=df,missing='drop',family=sm.families.Binomial(sm.families.links.logit()))
-    
-    results=model.fit()
-    print(results.summary())
-    print(np.exp(results.params))
-    print(np.exp(results.conf_int())) 
+    #categorize both
+    #df.loc[:,'RPL_THEMES_1']=pd.cut(df["RPL_THEMES_1"],bins=np.arange(0,1.1,1/4),include_lowest=True,labels=[1,2,3,4])
+    #df.loc[:,'dyn_RPL_THEMES_1']=pd.cut(df["dyn_RPL_THEMES_1"],bins=np.arange(0,1.1,1/4),include_lowest=True,labels=[1,2,3,4])
     
     
-    #%% creating result dataframe tables
-    results_as_html = results.summary().tables[1].as_html()
-    reg_table=pd.read_html(results_as_html, header=0, index_col=0)[0].reset_index()
-    reg_table.loc[:,'coef']=np.exp(reg_table.coef)
-    reg_table.loc[:,['[0.025', '0.975]']]=np.exp(reg_table.loc[:,['[0.025', '0.975]']])
-    reg_table=reg_table.loc[~(reg_table['index'].str.contains('month') 
-                              | reg_table['index'].str.contains('month')
-                              | reg_table['index'].str.contains('weekday')
-                              #| reg_table['index'].str.contains('year')
-                              #| reg_table['index'].str.contains('PAT_AGE_YEARS')
-                              
-                              ),]
-    reg_table_dev=pd.read_html(results.summary().tables[0].as_html())[0]
     
-    #counts_outcome=pd.DataFrame(df.Outcome.value_counts())
-    outcomes_recs=df.loc[(df.Outcome>0) & (df.Time!='control'),:]
-    counts_outcome=pd.DataFrame(outcomes_recs.floodr.value_counts())
-    
-    # counts_outcome.loc["flood_bins",'Outcome']=str(flood_bins)
-    
-    #%%write the output
-    reg_table.to_csv(Dis_cat+"_reg"+".csv")
-    reg_table_dev.to_csv(Dis_cat+"_dev"+".csv")
-    counts_outcome.to_csv(Dis_cat+"_aux"+".csv")
-    
-    print(Dis_cat)
-    print(counts_outcome)
+    for theme in ["RPL_THEMES_1","dyn_RPL_THEMES_1"]:     
+        #%%running the model
+        #if Dis_cat!="ALL":offset=np.log(df.TotalVisits)
+        offset=None
+        if Dis_cat=="ALL":offset=np.log(df.Population)
+        
+        
+        formula='Outcome'+' ~ '+' floodr + Time * '+ theme + '+ year'+'+month'+'+weekday' + '+PAT_AGE_YEARS + SEX_CODE + RACE'
+        model = smf.gee(formula=formula,groups=df.PAT_ADDR_CENSUS_TRACT, data=df,offset=offset,missing='drop',family=sm.families.Poisson(link=sm.families.links.log()))
+        #model = smf.logit(formula=formula, data=df,missing='drop')
+        #model = smf.glm(formula=formula, data=df,missing='drop',family=sm.families.Binomial(sm.families.links.logit()))
+        
+        results=model.fit()
+        # print(results.summary())
+        # print(np.exp(results.params))
+        # print(np.exp(results.conf_int())) 
+        
+        
+        #%% creating result dataframe tables
+        results_as_html = results.summary().tables[1].as_html()
+        reg_table=pd.read_html(results_as_html, header=0, index_col=0)[0].reset_index()
+        reg_table.loc[:,'coef']=np.exp(reg_table.coef)
+        reg_table.loc[:,['[0.025', '0.975]']]=np.exp(reg_table.loc[:,['[0.025', '0.975]']])
+        reg_table=reg_table.loc[~(reg_table['index'].str.contains('month') 
+                                  | reg_table['index'].str.contains('month')
+                                  | reg_table['index'].str.contains('weekday')
+                                  #| reg_table['index'].str.contains('year')
+                                  #| reg_table['index'].str.contains('PAT_AGE_YEARS')
+                                  
+                                  ),]
+        reg_table_dev=pd.read_html(results.summary().tables[0].as_html())[0]
+        
+        #counts_outcome=pd.DataFrame(df.Outcome.value_counts())
+        outcomes_recs=df.loc[(df.Outcome>0) & (df.Time!='control'),:]
+        counts_outcome=pd.DataFrame(outcomes_recs.floodr.value_counts())
+        
+        # counts_outcome.loc["flood_bins",'Outcome']=str(flood_bins)
+        
+        #%%write the output
+        if not os.path.exists(theme):os.makedirs(theme)
+        
+        reg_table.to_csv(theme+"/"+Dis_cat+"_reg"+".csv")
+        reg_table_dev.to_csv(theme+"/"+Dis_cat+"_dev"+".csv")
+        counts_outcome.to_csv(theme+"/"+Dis_cat+"_aux"+".csv")
+        
+        print(Dis_cat)
+        print(theme)
+        print(counts_outcome)
