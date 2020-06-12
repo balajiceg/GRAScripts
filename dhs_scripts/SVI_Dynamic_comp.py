@@ -214,8 +214,8 @@ def run():
     df.rename(columns={"Theme_1": "dyn_RPL_THEMES_1"},inplace=True)
     
     #categorize both
-    #df.loc[:,'RPL_THEMES_1']=pd.cut(df["RPL_THEMES_1"],bins=np.arange(0,1.1,1/4),include_lowest=True,labels=[1,2,3,4])
-    #df.loc[:,'dyn_RPL_THEMES_1']=pd.cut(df["dyn_RPL_THEMES_1"],bins=np.arange(0,1.1,1/4),include_lowest=True,labels=[1,2,3,4])
+    df.loc[:,'RPL_THEMES_1']=pd.cut(df["RPL_THEMES_1"],bins=np.arange(0,1.1,1/4),include_lowest=True,labels=[1,2,3,4])
+    df.loc[:,'dyn_RPL_THEMES_1']=pd.cut(df["dyn_RPL_THEMES_1"],bins=np.arange(0,1.1,1/4),include_lowest=True,labels=[1,2,3,4])
     
     
     
