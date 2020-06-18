@@ -90,7 +90,7 @@ demos.Id2=demos.Id2.astype("Int64")
 county_to_filter=pd.read_csv('Z:/Balaji/counties_inun.csv').GEOID.to_list()
 
 #read dynamic svi
-SVI_dyn=pd.read_csv('Z:/Balaji/Dynamic_SVI/SPL_Theme1.csv').iloc[:,1:]
+SVI_dyn=pd.read_csv('Z:/Balaji/Dynamic_SVI/SPL_Themes_1_2_3.csv').iloc[:,1:]
 SVI_dyn.FIPS=SVI_dyn.FIPS.astype("Int64")
 #%%read the categories file
 outcome_cats=pd.read_csv('Z:/GRAScripts/dhs_scripts/categories.csv')
@@ -161,47 +161,47 @@ def run():
     df=df.loc[df.Population>0,]
     
     #%% merge SVI after recategorization
-    svi=recalculateSVI(SVI_df_raw[SVI_df_raw.FIPS.isin(df.PAT_ADDR_CENSUS_TRACT.unique())]).loc[:,["FIPS",'RPL_THEMES_1']]
+    svi=recalculateSVI(SVI_df_raw[SVI_df_raw.FIPS.isin(df.PAT_ADDR_CENSUS_TRACT.unique())]).loc[:,["FIPS",'RPL_THEMES_1','RPL_THEMES_2','RPL_THEMES_3']]
     df=df.merge(svi,left_on="PAT_ADDR_CENSUS_TRACT",right_on="FIPS",how='left').drop("FIPS",axis=1)
     #df.loc[:,'SVI']=pd.cut(df.SVI,bins=np.arange(0,1.1,1/4),include_lowest=True,labels=[1,2,3,4])
     
     #%%merge flood ratio
     
-    FLOOD_QUANTILES=["NO","FLood_1"]
-    floodr=flood_data.copy()
-    floodr.GEOID=pd.to_numeric(floodr.GEOID).astype("Int64")
-    floodr=floodr.loc[:,['GEOID']+[floodr_use]]
-    floodr.columns=['GEOID','floodr']
-    df=df.merge(floodr,left_on="PAT_ADDR_CENSUS_TRACT",right_on='GEOID',how='left')
+    # FLOOD_QUANTILES=["NO","FLood_1"]
+    # floodr=flood_data.copy()
+    # floodr.GEOID=pd.to_numeric(floodr.GEOID).astype("Int64")
+    # floodr=floodr.loc[:,['GEOID']+[floodr_use]]
+    # floodr.columns=['GEOID','floodr']
+    # df=df.merge(floodr,left_on="PAT_ADDR_CENSUS_TRACT",right_on='GEOID',how='left')
     
-    #make tracts with null as zero flooding
-    if nullAsZero == "True": df.loc[pd.isna(df.floodr),'floodr']=0.0
+    # #make tracts with null as zero flooding
+    # if nullAsZero == "True": df.loc[pd.isna(df.floodr),'floodr']=0.0
     
-    #categorize floods as per quantiles
-    tractsfloodr=df.loc[~df.duplicated("PAT_ADDR_CENSUS_TRACT"),['PAT_ADDR_CENSUS_TRACT','floodr']]
-    tractsfloodr.floodr= tractsfloodr.floodr.round(2)
-    if floodZeroSep == "True":
-        s=tractsfloodr.loc[tractsfloodr.floodr>0,'floodr']  
-        flood_bins=s.quantile(np.arange(0,1.1,1/(len(FLOOD_QUANTILES)-1))).to_numpy()
-        flood_bins[0]=1e-6
-        flood_bins=np.append([0],flood_bins)
-    else:
-        s=tractsfloodr.loc[tractsfloodr.floodr>-1,'floodr']
-        flood_bins=s.quantile(np.arange(0,1.1,1/len(FLOOD_QUANTILES))).to_numpy()
+    # #categorize floods as per quantiles
+    # tractsfloodr=df.loc[~df.duplicated("PAT_ADDR_CENSUS_TRACT"),['PAT_ADDR_CENSUS_TRACT','floodr']]
+    # tractsfloodr.floodr= tractsfloodr.floodr.round(2)
+    # if floodZeroSep == "True":
+    #     s=tractsfloodr.loc[tractsfloodr.floodr>0,'floodr']  
+    #     flood_bins=s.quantile(np.arange(0,1.1,1/(len(FLOOD_QUANTILES)-1))).to_numpy()
+    #     flood_bins[0]=1e-6
+    #     flood_bins=np.append([0],flood_bins)
+    # else:
+    #     s=tractsfloodr.loc[tractsfloodr.floodr>-1,'floodr']
+    #     flood_bins=s.quantile(np.arange(0,1.1,1/len(FLOOD_QUANTILES))).to_numpy()
         
-    # adjust if some bincenters were zero    
-    for i in range(1,len(FLOOD_QUANTILES)):
-        flood_bins[i]=i*1e-6 if flood_bins[i]==0.0 else flood_bins[i]
+    # # adjust if some bincenters were zero    
+    # for i in range(1,len(FLOOD_QUANTILES)):
+    #     flood_bins[i]=i*1e-6 if flood_bins[i]==0.0 else flood_bins[i]
     
-    df.loc[:,'floodr']=pd.cut(df.floodr,bins=flood_bins,right=True,include_lowest=True,labels=FLOOD_QUANTILES)
-    df=df.drop("GEOID",axis=1)
+    # df.loc[:,'floodr']=pd.cut(df.floodr,bins=flood_bins,right=True,include_lowest=True,labels=FLOOD_QUANTILES)
+    # df=df.drop("GEOID",axis=1)
     
     #%% bringing in intervention
-    df.loc[:,'Time']=pd.cut(df.STMT_PERIOD_FROM,\
-                                        bins=[0]+interv_dates+[20190101],\
-                                        labels=['control']+[str(i) for i in interv_dates]).cat.as_unordered()
-    #set after 2018 as control
-    df.loc[df.STMT_PERIOD_FROM>20180100,'Time']="control"
+    # df.loc[:,'Time']=pd.cut(df.STMT_PERIOD_FROM,\
+    #                                     bins=[0]+interv_dates+[20190101],\
+    #                                     labels=['control']+[str(i) for i in interv_dates]).cat.as_unordered()
+    # #set after 2018 as control
+    # df.loc[df.STMT_PERIOD_FROM>20180100,'Time']="control"
     
     #%%controling for year month and week of the day
     df['year']=(df.STMT_PERIOD_FROM.astype('int32')//1e4).astype('category')
@@ -211,22 +211,23 @@ def run():
     #%%combine dynamic SVI
     
     df=df.merge(SVI_dyn,left_on=['PAT_ADDR_CENSUS_TRACT','weekday'],right_on=["FIPS",'Day_of_week']).drop([ 'FIPS', 'Day_of_week'],axis=1)
-    df.rename(columns={"Theme_1": "dyn_RPL_THEMES_1"},inplace=True)
+    df.rename(columns={"Theme_1": "dyn_RPL_THEMES_1","Theme_2": "dyn_RPL_THEMES_2","Theme_3": "dyn_RPL_THEMES_3"},inplace=True)
     
     #categorize both
-    df.loc[:,'RPL_THEMES_1']=pd.cut(df["RPL_THEMES_1"],bins=np.arange(0,1.1,1/4),include_lowest=True,labels=[1,2,3,4])
-    df.loc[:,'dyn_RPL_THEMES_1']=pd.cut(df["dyn_RPL_THEMES_1"],bins=np.arange(0,1.1,1/4),include_lowest=True,labels=[1,2,3,4])
+    #df.loc[:,'RPL_THEMES_1']=pd.cut(df["RPL_THEMES_1"],bins=np.arange(0,1.1,1/4),include_lowest=True,labels=[1,2,3,4])
+    #df.loc[:,'dyn_RPL_THEMES_1']=pd.cut(df["dyn_RPL_THEMES_1"],bins=np.arange(0,1.1,1/4),include_lowest=True,labels=[1,2,3,4])
     
     
     
-    for theme in ["RPL_THEMES_1","dyn_RPL_THEMES_1"]:     
+    for theme in ["RPL_THEMES_","dyn_RPL_THEMES_"]:     
         #%%running the model
         #if Dis_cat!="ALL":offset=np.log(df.TotalVisits)
         offset=None
         if Dis_cat=="ALL":offset=np.log(df.Population)
         
-        
-        formula='Outcome'+' ~ '+' floodr + Time * '+ theme + '+ year'+'+month'+'+weekday' + '+PAT_AGE_YEARS + SEX_CODE + RACE'
+        formula = theme+'1 + '+theme+'2 + '+theme+'3 '
+        #formula='Outcome'+' ~ '+' floodr + Time * '+ theme + '+ year'+'+month'+'+weekday' + '+PAT_AGE_YEARS + SEX_CODE + RACE'
+        formula='Outcome'+' ~ '+ formula + '+ year + month + weekday + PAT_AGE_YEARS + SEX_CODE + RACE'
         model = smf.gee(formula=formula,groups=df.PAT_ADDR_CENSUS_TRACT, data=df,offset=offset,missing='drop',family=sm.families.Poisson(link=sm.families.links.log()))
         #model = smf.logit(formula=formula, data=df,missing='drop')
         #model = smf.glm(formula=formula, data=df,missing='drop',family=sm.families.Binomial(sm.families.links.logit()))
@@ -251,9 +252,9 @@ def run():
                                   ),]
         reg_table_dev=pd.read_html(results.summary().tables[0].as_html())[0]
         
-        #counts_outcome=pd.DataFrame(df.Outcome.value_counts())
-        outcomes_recs=df.loc[(df.Outcome>0) & (df.Time!='control'),:]
-        counts_outcome=pd.DataFrame(outcomes_recs.floodr.value_counts())
+        counts_outcome=pd.DataFrame(df.Outcome.value_counts())
+        #outcomes_recs=df.loc[(df.Outcome>0) & (df.Time!='control'),:]
+        #counts_outcome=pd.DataFrame(outcomes_recs.floodr.value_counts())
         
         # counts_outcome.loc["flood_bins",'Outcome']=str(flood_bins)
         

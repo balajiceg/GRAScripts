@@ -111,7 +111,22 @@ nullAsZero="True" #null flood ratios are changed to 0
 floodZeroSep="True" # zeros are considered as seperate class
 interv_dates=[20170825, 20170913]
 #Dis_cats=["DEATH","Dehydration","Bite-Insect","Dialysis","Asthma_like","Respiratory_All","Infectious_and_parasitic"]
-Dis_cats=outcome_cats.category.to_list()+['ALL','DEATH']
+Dis_cats=['ALL','DEATH',
+         #'Flood_Storms',
+         'CO_Exposure',
+         #'Drowning',
+         'Dehydration',
+         'Heat_Related-No_dehydration',
+         'Hypothermia',
+         'Bite-Insect',
+         'Dialysis',
+         'Medication_Refill',
+         'Asthma_like',
+         'Chest_pain',
+         'Psychiatric',
+         'Intestinal_infectious',
+         'Influenza_and_pneumonia',
+         'Arthropod-borne_viral_fevers']
 
 for Dis_cat in Dis_cats:
     try:
