@@ -97,7 +97,7 @@ nullAsZero="True" #null flood ratios are changed to 0
 floodZeroSep="True" # zeros are considered as seperate class
 
 interv_dates=[20170825, 20170913]
-Dis_cat="ALL"
+Dis_cat="DEATH"
 
 #%%cleaing for age, gender and race and create census tract
 #age

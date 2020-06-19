@@ -102,6 +102,13 @@ pd.DataFrame(res[3],index=table.index,columns=table.columns)
 sp.loc[:,"ZIP5"]=sp.PAT_ZIP.str.slice(stop=5)
 sp=sp.loc[~sp.ZIP5.isin(['0'*i for i in range(1,6)]),:]
 one_var="ZIP5"
+
+#%% read and merge sys
+
+files=glob.glob('Z:\\SyS data\\*')
+x=[pd.read_csv(f,encoding = "ISO-8859-1") for f in files]
+result_df=pd.concat(x)
+result_df.to_csv("Z:\\Balaji\\SyS data\\merged.csv",index=None)
 #%%looping for automatic saving 
 
 
