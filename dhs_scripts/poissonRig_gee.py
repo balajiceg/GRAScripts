@@ -83,9 +83,9 @@ sp.loc[~sp.SEX_CODE.isin(["M","F"]),'SEX_CODE']=np.nan
 sp.SEX_CODE=sp.SEX_CODE.astype('category').cat.reorder_categories(['M','F'],ordered=False)
 
 #ethinicity
-# sp.loc[:,'RACE']=pd.to_numeric(sp.RACE,errors="coerce")
-# sp.loc[~sp.RACE.isin([1,2]),'RACE']=np.nan
-# sp.RACE=sp.RACE.astype('category')
+sp.loc[:,'ETHNICITY']=pd.to_numeric(sp.ETHNICITY,errors="coerce")
+sp.loc[~sp.ETHNICITY.isin([1,2]),'ETHNICITY']=np.nan
+sp.ETHNICITY=sp.ETHNICITY.astype('category')
 
 #race
 sp.loc[:,'RACE']=pd.to_numeric(sp.RACE,errors="coerce")
@@ -114,7 +114,7 @@ sp=sp[((sp.STMT_PERIOD_FROM > 20160700) & (sp.STMT_PERIOD_FROM< 20161232))\
 #%%function for looping
 def run():
     #%%filter records for specific outcome
-    df=sp.loc[:,['STMT_PERIOD_FROM','PAT_ADDR_CENSUS_TRACT','PAT_AGE_YEARS','SEX_CODE','RACE']]
+    df=sp.loc[:,['STMT_PERIOD_FROM','PAT_ADDR_CENSUS_TRACT','PAT_AGE_YEARS','SEX_CODE','RACE','ETHNICITY']]
     if Dis_cat=="DEATH":df.loc[:,'Outcome']=filter_mortality(sp)
     if Dis_cat=="ALL":df.loc[:,'Outcome']=1
     if Dis_cat in outcome_cats.category.to_list():df.loc[:,'Outcome']=get_sp_outcomes(sp, Dis_cat)
@@ -175,6 +175,9 @@ def run():
     df['month']=(df.STMT_PERIOD_FROM.astype('int32')//1e2%100).astype('category')
     df['weekday']=pd.to_datetime(df.STMT_PERIOD_FROM.astype('str'),format='%Y%m%d').dt.dayofweek.astype('category')
     
+    #%%stratified model steps
+    df=df.loc[df.Time.isin(['control', '20171014']),]
+    df.Time.cat.remove_unused_categories(inplace=True)
     
     #%%running the model
     #if Dis_cat!="ALL":offset=np.log(df.TotalVisits)
@@ -182,7 +185,7 @@ def run():
     if Dis_cat=="ALL":offset=np.log(df.Population)
     
     
-    formula='Outcome'+' ~ '+' floodr * Time '+'+ year'+'+month'+'+weekday' + '+PAT_AGE_YEARS + SEX_CODE + RACE'
+    formula='Outcome'+' ~ '+' floodr * Time '+'+ year'+'+month'+'+weekday' + '+PAT_AGE_YEARS + SEX_CODE + RACE+ETHNICITY'
     model = smf.gee(formula=formula,groups=df.index, data=df,offset=offset,missing='drop',family=sm.families.Poisson(link=sm.families.links.log()))
     #model = smf.logit(formula=formula, data=df,missing='drop')
     #model = smf.glm(formula=formula, data=df,missing='drop',family=sm.families.Binomial(sm.families.links.logit()))
@@ -210,7 +213,7 @@ def run():
     
     #counts_outcome=pd.DataFrame(df.Outcome.value_counts())
     outcomes_recs=df.loc[(df.Outcome>0) & (df.Time!='control'),:]
-    counts_outcome=pd.DataFrame(outcomes_recs.floodr.value_counts())
+    counts_outcome=pd.DataFrame(outcomes_recs.Time.value_counts())
     
     # counts_outcome.loc["flood_bins",'Outcome']=str(flood_bins)
     

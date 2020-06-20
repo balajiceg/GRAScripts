@@ -111,11 +111,11 @@ nullAsZero="True" #null flood ratios are changed to 0
 floodZeroSep="True" # zeros are considered as seperate class
 interv_dates=[20170825, 20170913]
 #Dis_cats=["DEATH","Dehydration","Bite-Insect","Dialysis","Asthma_like","Respiratory_All","Infectious_and_parasitic"]
-Dis_cats=[#'ALL','DEATH',
+Dis_cats=['ALL','DEATH',
          #'Flood_Storms',
-         #'CO_Exposure',
-         #'Drowning',
-         #'Dehydration',
+         'CO_Exposure',
+         'Drowning',
+         'Dehydration',
          'Heat_Related_But_Not_dehydration',
          'Hypothermia',
          'Bite-Insect',

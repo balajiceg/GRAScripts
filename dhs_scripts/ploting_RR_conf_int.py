@@ -8,13 +8,17 @@ Created on Tue May 26 16:20:06 2020
 import pandas as pd
 
 import glob,os
-import matplotlib.pyplot as plt
-import pylab as pl
+import plotly.express as px
+import plotly.io as pio
+
+pio.renderers.default='browser'
+
 
 #%%read and merge required columns
-req_files=glob.glob("*_reg.csv")
+first_dir=r"Z:\Balaji\Analysis_out_IPOP\19062020\dyn_RPL_THEMES_"
+req_files=glob.glob(first_dir+"\\*_reg.csv")
 
-op_dir=r"Z:\Balaji\Analysis_out_IPOP\25052020\op"
+op_dir=r"Z:\Balaji\Analysis_out_IPOP\19062020\RPL_THEMES_"
 merge_df=pd.DataFrame()
 
 for file in req_files:
@@ -22,52 +26,43 @@ for file in req_files:
     df=df.round(3)
     Dis_cat=os.path.basename(file).replace("_reg.csv","")
     df['outcome']=Dis_cat
+    df['reference']=1
+    df['text']='Dyn theme'
+    
     op_df=pd.read_csv(op_dir+"//"+os.path.basename(file))[['index','coef','P>|z|','[0.025','0.975]']]
-    op_df['outcome']=Dis_cat+"_op_"
+    op_df['outcome']=Dis_cat
+    op_df['reference']=0
+    op_df['text']='theme'
     merge_df=pd.concat([merge_df,df,op_df],axis=0)
     
-merge_df.columns=['covar', 'coef', 'P', 'conf25', 'conf95', 'outcome']
-#%%pull required betas 
-required=["Time[T.20170825]:SVI[T.4]","Time[T.20170913]:SVI[T.4]"]#,"Time[T.20170825]","Time[T.20170913]"]
-required=["floodr[T.FLood_1]:Time[T.20170825]","floodr[T.FLood_1]:Time[T.20170913]"]#,"Time[T.20170825]","Time[T.20170913]"]
-req_df=merge_df.loc[merge_df['covar'].isin(required),:].copy()
-req_df.covar.replace(required,["FloodPeriod","PostFlood"],inplace=True)
+merge_df.columns=['covar', 'RR', 'P', 'conf25', 'conf95', 'outcome','reference','text']
+merge_df['covar']=merge_df['covar'].str.replace("\[T.",'_').str.replace('\]','')
 
-outcomes=req_df.outcome.str.replace('_op_','').unique()
-for i,outcome in enumerate(outcomes):
-    df=req_df[(req_df.outcome==outcome) | (req_df.outcome==outcome+'_op_')].copy()
-    df.P=(df.P<=0.05).replace([True,False],["*",""])
-    df.conf25,df.conf95=df.coef-df.conf25 , df.conf95-df.coef
-    
-    #ax = plt.subplot(req_df.outcome.unique()[:5].size,1,i+1)
-    
-    fig=plt.figure(outcome,figsize=(bbox.width,bbox.height))
-    ax=plt.subplot(1,2,1)
-    sub_df=df[df.outcome==outcome]
-    pl.errorbar(sub_df.covar, sub_df.coef, yerr=[sub_df.conf25,sub_df.conf95], color='red', ls='--',lw=0.5, marker='.', capsize=5, capthick=1, ecolor='black')
-    for i in sub_df.index: ax.annotate(sub_df.loc[i,"P"], (sub_df.loc[i,"covar"],sub_df.loc[i,"coef"]+sub_df.loc[i,"conf95"]),color='red')
-    ax.axhline(1, color='green', ls="--",lw=0.6)
-    ax.set_ylabel(outcome,fontsize=14)
-    ax.spines['bottom'].set_color('none')
-    ax.spines['top'].set_color('none')
-    ax.tick_params(axis="y", labelsize=12)
-    ax.get_xaxis().set_ticks([])
-    
-    ax=plt.subplot(1,2,2)
-    sub_df=df[~(df.outcome==outcome)]
-    ax.errorbar(sub_df.covar+" ", sub_df.coef, yerr=[sub_df.conf25,sub_df.conf95], color='red', ls='--',lw=0.5, marker='.', capsize=5, capthick=1, ecolor='black')
-    for i in sub_df.index: ax.annotate(sub_df.loc[i,"P"], (sub_df.loc[i,"covar"]+" ",sub_df.loc[i,"coef"]+sub_df.loc[i,"conf95"]),color='red')  # 3 points vertical offsettextcoords="offset pixels")
-     
-    ax.get_xaxis().set_ticks([])
-    ax.axhline(1, color='green', ls="--",lw=0.6)
-    ax.spines['bottom'].set_color('none')
-    ax.spines['top'].set_color('none')
-    ax.tick_params(axis="y", labelsize=12)
-    fig.tight_layout()
-    plt.savefig(outcome+".png")
-    
-# ax.set_xlim(xlims)
-# ax.set_ylim(ylims)
+
+#%%pull required betas 
+
+required=["RPL_THEMES_1_4","dyn_RPL_THEMES_1_4"]
+req_df=merge_df.loc[merge_df['covar'].isin(required),:].copy()
+
+#for SVI as scalar alone
+req_df.loc[:,["RR","conf25","conf95"]]=req_df.loc[:,["RR","conf25","conf95"]]**0.10
+
+#req_df.covar.replace(required,["FloodPeriod","PostFlood"],inplace=True)
+
+outcomes=req_df.outcome.unique()
+y_dis=req_df.outcome.astype('category').cat.rename_categories(range(1,len(req_files)*2+1,2)).astype('int')
+req_df['y_dis']=y_dis+req_df.reference/2
+req_df.conf25,req_df.conf95=req_df.RR-req_df.conf25 , req_df.conf95-req_df.RR
+
+fig=px.scatter(req_df, x="RR", y="y_dis", color="outcome",
+                 error_x="conf95", error_x_minus="conf25",text='text')
+fig.update_traces(textposition='top center')
+fig.add_shape(dict(type="line",x0=1,y0=0,x1=1,y1=req_df.y_dis.max()+1,
+                   line=dict(color="Black",width=.5)#,dash='dot')
+            ))
+
+fig.show()
+
     
 #%% tables
     

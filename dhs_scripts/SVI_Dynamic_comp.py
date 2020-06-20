@@ -41,7 +41,7 @@ def get_sp_outcomes(sp,Dis_cat):
 INPUT_IPOP_DIR=r'Z:\Balaji\DSHS ED visit data\CleanedMergedJoined'
 sp_file='op'
 sp=pd.read_pickle(INPUT_IPOP_DIR+'\\'+sp_file)
-sp=sp.loc[:,['RECORD_ID','STMT_PERIOD_FROM','PAT_ADDR_CENSUS_BLOCK_GROUP','PAT_AGE_YEARS','SEX_CODE','RACE','PAT_STATUS']]
+sp=sp.loc[:,['RECORD_ID','STMT_PERIOD_FROM','PAT_ADDR_CENSUS_BLOCK_GROUP','PAT_AGE_YEARS','SEX_CODE','RACE','PAT_STATUS','ETHNICITY']]
 
 #sp=pd.read_pickle(INPUT_IPOP_DIR+r'\op')
 #read op/ip outcomes df
@@ -90,9 +90,9 @@ sp.loc[~sp.SEX_CODE.isin(["M","F"]),'SEX_CODE']=np.nan
 sp.SEX_CODE=sp.SEX_CODE.astype('category').cat.reorder_categories(['M','F'],ordered=False)
 
 #ethinicity
-# sp.loc[:,'RACE']=pd.to_numeric(sp.RACE,errors="coerce")
-# sp.loc[~sp.RACE.isin([1,2]),'RACE']=np.nan
-# sp.RACE=sp.RACE.astype('category')
+sp.loc[:,'ETHNICITY']=pd.to_numeric(sp.ETHNICITY,errors="coerce")
+sp.loc[~sp.ETHNICITY.isin([1,2]),'ETHNICITY']=np.nan
+sp.ETHNICITY=sp.ETHNICITY.astype('category')
 
 #race
 sp.loc[:,'RACE']=pd.to_numeric(sp.RACE,errors="coerce")
@@ -121,7 +121,7 @@ sp=sp[((sp.STMT_PERIOD_FROM > 20160700) & (sp.STMT_PERIOD_FROM< 20161232))\
 #%%function for looping
 def run():
     #%%filter records for specific outcome
-    df=sp.loc[:,['STMT_PERIOD_FROM','PAT_ADDR_CENSUS_TRACT','PAT_AGE_YEARS','SEX_CODE','RACE']]
+    df=sp.loc[:,['STMT_PERIOD_FROM','PAT_ADDR_CENSUS_TRACT','PAT_AGE_YEARS','SEX_CODE','RACE','ETHNICITY']]
     if Dis_cat=="DEATH":df.loc[:,'Outcome']=filter_mortality(sp)
     if Dis_cat=="ALL":df.loc[:,'Outcome']=1
     if Dis_cat in outcome_cats.category.to_list():df.loc[:,'Outcome']=get_sp_outcomes(sp, Dis_cat)
@@ -137,44 +137,6 @@ def run():
     svi=recalculateSVI(SVI_df_raw[SVI_df_raw.FIPS.isin(df.PAT_ADDR_CENSUS_TRACT.unique())]).loc[:,["FIPS",'RPL_THEMES_1','RPL_THEMES_2','RPL_THEMES_3']]
     df=df.merge(svi,left_on="PAT_ADDR_CENSUS_TRACT",right_on="FIPS",how='left').drop("FIPS",axis=1)
     #df.loc[:,'SVI']=pd.cut(df.SVI,bins=np.arange(0,1.1,1/4),include_lowest=True,labels=[1,2,3,4])
-    
-    #%%merge flood ratio
-    
-    # FLOOD_QUANTILES=["NO","FLood_1"]
-    # floodr=flood_data.copy()
-    # floodr.GEOID=pd.to_numeric(floodr.GEOID).astype("Int64")
-    # floodr=floodr.loc[:,['GEOID']+[floodr_use]]
-    # floodr.columns=['GEOID','floodr']
-    # df=df.merge(floodr,left_on="PAT_ADDR_CENSUS_TRACT",right_on='GEOID',how='left')
-    
-    # #make tracts with null as zero flooding
-    # if nullAsZero == "True": df.loc[pd.isna(df.floodr),'floodr']=0.0
-    
-    # #categorize floods as per quantiles
-    # tractsfloodr=df.loc[~df.duplicated("PAT_ADDR_CENSUS_TRACT"),['PAT_ADDR_CENSUS_TRACT','floodr']]
-    # tractsfloodr.floodr= tractsfloodr.floodr.round(2)
-    # if floodZeroSep == "True":
-    #     s=tractsfloodr.loc[tractsfloodr.floodr>0,'floodr']  
-    #     flood_bins=s.quantile(np.arange(0,1.1,1/(len(FLOOD_QUANTILES)-1))).to_numpy()
-    #     flood_bins[0]=1e-6
-    #     flood_bins=np.append([0],flood_bins)
-    # else:
-    #     s=tractsfloodr.loc[tractsfloodr.floodr>-1,'floodr']
-    #     flood_bins=s.quantile(np.arange(0,1.1,1/len(FLOOD_QUANTILES))).to_numpy()
-        
-    # # adjust if some bincenters were zero    
-    # for i in range(1,len(FLOOD_QUANTILES)):
-    #     flood_bins[i]=i*1e-6 if flood_bins[i]==0.0 else flood_bins[i]
-    
-    # df.loc[:,'floodr']=pd.cut(df.floodr,bins=flood_bins,right=True,include_lowest=True,labels=FLOOD_QUANTILES)
-    # df=df.drop("GEOID",axis=1)
-    
-    #%% bringing in intervention
-    # df.loc[:,'Time']=pd.cut(df.STMT_PERIOD_FROM,\
-    #                                     bins=[0]+interv_dates+[20190101],\
-    #                                     labels=['control']+[str(i) for i in interv_dates]).cat.as_unordered()
-    # #set after 2018 as control
-    # df.loc[df.STMT_PERIOD_FROM>20180100,'Time']="control"
     
     #%%controling for year month and week of the day
     df['year']=(df.STMT_PERIOD_FROM.astype('int32')//1e4).astype('category')
@@ -201,7 +163,7 @@ def run():
         
         formula = theme+'1 + '+theme+'2 + '+theme+'3 '
         #formula='Outcome'+' ~ '+' floodr + Time * '+ theme + '+ year'+'+month'+'+weekday' + '+PAT_AGE_YEARS + SEX_CODE + RACE'
-        formula='Outcome'+' ~ '+ formula + '+ year + month + weekday + PAT_AGE_YEARS + SEX_CODE + RACE'
+        formula='Outcome'+' ~ '+ formula + '+ year + month + weekday + PAT_AGE_YEARS + SEX_CODE + RACE + ETHNICITY'
         model = smf.gee(formula=formula,groups=df.PAT_ADDR_CENSUS_TRACT, data=df,offset=offset,missing='drop',family=sm.families.Poisson(link=sm.families.links.log()))
         #model = smf.logit(formula=formula, data=df,missing='drop')
         #model = smf.glm(formula=formula, data=df,missing='drop',family=sm.families.Binomial(sm.families.links.logit()))
@@ -224,6 +186,7 @@ def run():
                                   #| reg_table['index'].str.contains('PAT_AGE_YEARS')
                                   
                                   ),]
+        reg_table['index']=reg_table['index'].str.replace("\[T.",'_').str.replace('\]','')
         reg_table_dev=pd.read_html(results.summary().tables[0].as_html())[0]
         
         counts_outcome=pd.DataFrame(df.Outcome.value_counts())
