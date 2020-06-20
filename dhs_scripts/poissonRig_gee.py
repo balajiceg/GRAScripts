@@ -68,6 +68,7 @@ nullAsZero="True" #null flood ratios are changed to 0
 floodZeroSep="True" # zeros are considered as seperate class
 
 interv_dates=[20170825, 20170913, 20171014]
+interv_dates_cats=['flood','PostFlood1','PostFlood2']
 Dis_cat="Asthma"
 
 #%%cleaing for age, gender and race and create census tract
@@ -85,8 +86,8 @@ sp.SEX_CODE=sp.SEX_CODE.astype('category').cat.reorder_categories(['M','F'],orde
 #ethinicity
 sp.loc[:,'ETHNICITY']=pd.to_numeric(sp.ETHNICITY,errors="coerce")
 sp.loc[~sp.ETHNICITY.isin([1,2]),'ETHNICITY']=np.nan
-sp.ETHNICITY=sp.ETHNICITY.astype('category')
-
+sp.ETHNICITY=sp.ETHNICITY.astype('category').cat.reorder_categories([2,1],ordered=False)
+sp.ETHNICITY.cat.rename_categories({2:'Non_Hispanic',1:'Hispanic'},inplace=True)
 #race
 sp.loc[:,'RACE']=pd.to_numeric(sp.RACE,errors="coerce")
 sp.loc[(sp.RACE<=0) | (sp.RACE>5),'RACE']=np.nan
@@ -165,7 +166,7 @@ def run():
     #%% bringing in intervention
     df.loc[:,'Time']=pd.cut(df.STMT_PERIOD_FROM,\
                                         bins=[0]+interv_dates+[20190101],\
-                                        labels=['control']+[str(i) for i in interv_dates]).cat.as_unordered()
+                                        labels=['control']+[str(i) for i in interv_dates_cats]).cat.as_unordered()
     #set after 2018 as control
     df.loc[df.STMT_PERIOD_FROM>20180100,'Time']="control" if Dis_cat!="Psychiatric" else np.nan
     df=df.loc[~pd.isna(df.Time),]
@@ -176,8 +177,8 @@ def run():
     df['weekday']=pd.to_datetime(df.STMT_PERIOD_FROM.astype('str'),format='%Y%m%d').dt.dayofweek.astype('category')
     
     #%%stratified model steps
-    df=df.loc[df.Time.isin(['control', '20171014']),]
-    df.Time.cat.remove_unused_categories(inplace=True)
+    #df=df.loc[df.Time.isin(['control', '20171014']),]
+    #df.Time.cat.remove_unused_categories(inplace=True)
     
     #%%running the model
     #if Dis_cat!="ALL":offset=np.log(df.TotalVisits)
@@ -185,15 +186,15 @@ def run():
     if Dis_cat=="ALL":offset=np.log(df.Population)
     
     
-    formula='Outcome'+' ~ '+' floodr * Time '+'+ year'+'+month'+'+weekday' + '+PAT_AGE_YEARS + SEX_CODE + RACE+ETHNICITY'
-    model = smf.gee(formula=formula,groups=df.index, data=df,offset=offset,missing='drop',family=sm.families.Poisson(link=sm.families.links.log()))
+    formula='Outcome'+' ~ '+' floodr * Time '+'+ year'+'+month'+'+weekday' + '+PAT_AGE_YEARS + SEX_CODE + RACE + ETHNICITY'
+    model = smf.gee(formula=formula,groups=df.PAT_ADDR_CENSUS_TRACT, data=df,offset=offset,missing='drop',family=sm.families.Poisson(link=sm.families.links.log()))
     #model = smf.logit(formula=formula, data=df,missing='drop')
     #model = smf.glm(formula=formula, data=df,missing='drop',family=sm.families.Binomial(sm.families.links.logit()))
     
     results=model.fit()
-    print(results.summary())
-    print(np.exp(results.params))
-    print(np.exp(results.conf_int())) 
+    # print(results.summary())
+    # print(np.exp(results.params))
+    # print(np.exp(results.conf_int())) 
     
     
     #%% creating result dataframe tables
@@ -212,11 +213,11 @@ def run():
     reg_table_dev=pd.read_html(results.summary().tables[0].as_html())[0]
     
     #counts_outcome=pd.DataFrame(df.Outcome.value_counts())
-    outcomes_recs=df.loc[(df.Outcome>0) & (df.Time!='control'),:]
-    counts_outcome=pd.DataFrame(outcomes_recs.Time.value_counts())
+    outcomes_recs=df.loc[(df.Outcome>0),]
+    counts_outcome=pd.crosstab(outcomes_recs.Time,outcomes_recs.floodr)
     
     # counts_outcome.loc["flood_bins",'Outcome']=str(flood_bins)
-    
+    #return reg_table
     #%%write the output
     reg_table.to_csv(Dis_cat+"_reg"+".csv")
     reg_table_dev.to_csv(Dis_cat+"_dev"+".csv")

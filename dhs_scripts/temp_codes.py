@@ -109,7 +109,7 @@ flood_cats_in=1
 floodr_use="DFO_R200" #['DFO_R200','DFO_R100','LIST_R20','DFO_R20','DFOuLIST_R20']
 nullAsZero="True" #null flood ratios are changed to 0
 floodZeroSep="True" # zeros are considered as seperate class
-interv_dates=[20170825, 20170913]
+
 #Dis_cats=["DEATH","Dehydration","Bite-Insect","Dialysis","Asthma_like","Respiratory_All","Infectious_and_parasitic"]
 Dis_cats=['ALL','DEATH',
          #'Flood_Storms',
