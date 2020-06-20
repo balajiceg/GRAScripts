@@ -34,79 +34,21 @@ def filter_mortality(df):
     pat_sta=pd.to_numeric(pat_sta,errors="coerce")
     return pat_sta.isin([20,40,41,42]).astype('int')
 
-def filter_from_icds(sp,outcome_cats,Dis_cat):
-    icd_cols=['PRINC_DIAG_CODE', 'OTH_DIAG_CODE_1', 'OTH_DIAG_CODE_2',
-       'OTH_DIAG_CODE_3', 'OTH_DIAG_CODE_4', 'OTH_DIAG_CODE_5',
-       'OTH_DIAG_CODE_6', 'OTH_DIAG_CODE_7', 'OTH_DIAG_CODE_8',
-       'OTH_DIAG_CODE_9', 'E_CODE_1', 'E_CODE_2', 'E_CODE_3', 'E_CODE_4',
-       'E_CODE_5']
-    incl=outcome_cats.loc[outcome_cats.category==Dis_cat,'incl']
-    excl=outcome_cats.loc[outcome_cats.category==Dis_cat,'excl']
-    
-    def find_cats(x,incl,excl):
-        x=x.values.squeeze()
-        x=x[~pd.isna(x)]
-        incl=incl.to_list()[0].split(';')
-        excl=excl.to_list()[0].split(';')
-        ret=False
-        for i in range(len(x)):
-            for j in incl:
-                j=j.strip()
-                if j==x[i][:len(j)]:
-                    ret=True
-                    break
-                
-        if excl != ['']:
-            for i in range(len(x)):
-                for j in excl:
-                    j=j.strip()
-                    if j==x[i][:len(j)]:
-                        ret=False
-                        break
-        return ret
-
-    icd_data=sp.loc[:,icd_cols]
-    result=icd_data.apply(find_cats,axis=1,incl=incl,excl=excl)
-        
-    return result.astype('int')
-
-def filter_from_icds_1(sp,outcome_cats,Dis_cat):
-    icd_cols=['PRINC_DIAG_CODE', 'OTH_DIAG_CODE_1', 'OTH_DIAG_CODE_2',
-       'OTH_DIAG_CODE_3', 'OTH_DIAG_CODE_4', 'OTH_DIAG_CODE_5',
-       'OTH_DIAG_CODE_6', 'OTH_DIAG_CODE_7', 'OTH_DIAG_CODE_8',
-       'OTH_DIAG_CODE_9', 'E_CODE_1', 'E_CODE_2', 'E_CODE_3', 'E_CODE_4',
-       'E_CODE_5']
-    incl=outcome_cats.loc[outcome_cats.category==Dis_cat,'incl']
-    excl=outcome_cats.loc[outcome_cats.category==Dis_cat,'excl']
-    
-    incl=pd.Series(incl.to_list()[0].split(';'))
-    excl=pd.Series(excl.to_list()[0].split(';'))
-    
-    #form the searh string
-    search_text=sp[icd_cols[0]].astype('str')
-    for i in icd_cols[1:]:
-        search_text=search_text.str.cat(sp[i].astype('str'),sep=';')
-    search_text=(';'+search_text+';').str.replace('nan;','')
-    
-    #apply regex for inclu code
-    incl_bool=incl.apply(lambda x:search_text.str.match(r'.*;'+x+'[^;]*;',case=False)).any()
-    result=incl_bool
-    
-    if excl.to_list()!=['']:
-        excl_bool=excl.apply(lambda x:search_text.str.match(r'.*;'+x+'[^;]*;',case=False)).any()
-        result= incl_bool & (~excl_bool)
-        
-    return result
-    
-    
+def get_sp_outcomes(sp,Dis_cat):
+    global sp_outcomes
+    return sp.merge(sp_outcomes.loc[:,['RECORD_ID',Dis_cat]],on='RECORD_ID',how='left')[Dis_cat].values
 
 #%%read ip op data
 INPUT_IPOP_DIR=r'Z:\Balaji\DSHS ED visit data\CleanedMergedJoined'
 sp_file='ip'
 sp=pd.read_pickle(INPUT_IPOP_DIR+'\\'+sp_file)
-#sp=pd.read_pickle(INPUT_IPOP_DIR+r'\op')
+sp=sp.loc[:,['RECORD_ID','STMT_PERIOD_FROM','PAT_ADDR_CENSUS_BLOCK_GROUP','PAT_STATUS']]
+
+#read flood data
 flood_data=geopandas.read_file(r'Z:/Balaji/FloodRatioJoinedAll_v1/FloodInund_AllJoined_v1.gpkg')
 
+#read op/ip outcomes df
+sp_outcomes=pd.read_csv(INPUT_IPOP_DIR+'\\'+sp_file+'_outcomes.csv')
 
 #read population
 demos=pd.read_csv(r'Z:/Balaji/Census_data_texas/ACS_17_5YR_DP05_with_ann.csv',low_memory=False,skiprows=1)
@@ -126,7 +68,7 @@ nullAsZero="True"
 floodZeroSep="True"
 DATE_GROUP="DAILY"
 Dis_cats=["ALL","DEATH"]
-Dis_cat="ALL"
+Dis_cat="Asthma"
 
 #%%read the categories file
 outcome_cats=pd.read_csv('Z:/GRAScripts/dhs_scripts/categories.csv')
@@ -134,7 +76,7 @@ outcome_cats.fillna('',inplace=True)
 
 #%%create tract id from block group id
 sp.loc[:,'PAT_ADDR_CENSUS_TRACT']=(sp.PAT_ADDR_CENSUS_BLOCK_GROUP//10)
-    
+
 #%%filter counties
 if county_to_filter != -1:
     sp=sp[(sp.PAT_ADDR_CENSUS_TRACT//1000000).isin(county_to_filter)].copy()
@@ -236,7 +178,7 @@ def update_output(n_clicks, flood_cats_in,avg_window,nullAsZero,floodZeroSep,flo
     
     if Dis_cat=="DEATH":df.loc[:,'Outcome']=filter_mortality(sp)
     if Dis_cat=="ALL":df.loc[:,'Outcome']=1
-    if Dis_cat in outcome_cats.category.to_list():df.loc[:,'Outcome']=filter_from_icds(sp,outcome_cats,Dis_cat)
+    if Dis_cat in outcome_cats.category.to_list():df.loc[:,'Outcome']=get_sp_outcomes(sp,Dis_cat)
    
     #%% run grouping for dinominator and join them
     grouped_tracts_all=df.groupby(['STMT_PERIOD_FROM_GROUPED', 'PAT_ADDR_CENSUS_TRACT']).size().reset_index()
@@ -345,7 +287,7 @@ def update_output(n_clicks, flood_cats_in,avg_window,nullAsZero,floodZeroSep,flo
     return None,None,None,None,\
         {'data': [{'x': rate_avg.Date,'y': rate_avg[cat],'name':cat} for cat in FLOOD_QUANTILES]+
         [{'x':inter_bars.Date,'y':inter_bars.maxi,'name':'intervention','type':'scatter','mode':'markers','marker':{'size':12}}],
-        'layout': {'margin': {'l': 40, 'r': 0, 't': 20, 'b': 30},'yaxis':{'title':'Outcome per 1Million'}}},\
+        'layout': {'margin': {'l': 40, 'r': 0, 't': 20, 'b': 30},'title':Dis_cat,'yaxis':{'title':'Outcome per 1Million'}}},\
         'bin intervals:'+str(flood_bins)
         
 # %% ip op dropdown
@@ -354,6 +296,7 @@ def update_data(value):
     global sp,sp_file
     if sp_file!=value:
         sp=pd.read_pickle(INPUT_IPOP_DIR+'\\'+value) 
+        sp=sp.loc[:,['RECORD_ID','STMT_PERIOD_FROM','PAT_ADDR_CENSUS_BLOCK_GROUP','PAT_STATUS']]
         sp.loc[:,'PAT_ADDR_CENSUS_TRACT']=(sp.PAT_ADDR_CENSUS_BLOCK_GROUP//10)
         sp=sp[(sp.PAT_ADDR_CENSUS_TRACT//1000000).isin(county_to_filter)].copy()
     sp_file=value

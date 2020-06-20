@@ -30,55 +30,26 @@ def filter_mortality(df):
     pat_sta=pd.to_numeric(pat_sta,errors="coerce")
     return pat_sta.isin([20,40,41,42]).astype('int') #status code for died
 
-def filter_from_icds(sp,outcome_cats,Dis_cat):
-    icd_cols=['PRINC_DIAG_CODE', 'OTH_DIAG_CODE_1', 'OTH_DIAG_CODE_2',
-       'OTH_DIAG_CODE_3', 'OTH_DIAG_CODE_4', 'OTH_DIAG_CODE_5',
-       'OTH_DIAG_CODE_6', 'OTH_DIAG_CODE_7', 'OTH_DIAG_CODE_8',
-       'OTH_DIAG_CODE_9', 'E_CODE_1', 'E_CODE_2', 'E_CODE_3', 'E_CODE_4',
-       'E_CODE_5']
-    incl=outcome_cats.loc[outcome_cats.category==Dis_cat,'incl']
-    excl=outcome_cats.loc[outcome_cats.category==Dis_cat,'excl']
-    
-    def find_cats(x,incl,excl):
-        x=x.values.squeeze()
-        x=x[~pd.isna(x)]
-        incl=incl.to_list()[0].split(';')
-        excl=excl.to_list()[0].split(';')
-        ret=False
-        for i in range(len(x)):
-            for j in incl:
-                j=j.strip()
-                if j==x[i][:len(j)]:
-                    ret=True
-                    break
-                
-        if excl != ['']:
-            for i in range(len(x)):
-                for j in excl:
-                    j=j.strip()
-                    if j==x[i][:len(j)]:
-                        ret=False
-                        break
-        return ret
-
-    icd_data=sp.loc[:,icd_cols]
-    result=icd_data.apply(find_cats,axis=1,incl=incl,excl=excl)
-        
-    return result.astype('int')
-    
+def get_sp_outcomes(sp,Dis_cat):
+    global sp_outcomes
+    return sp.merge(sp_outcomes.loc[:,['RECORD_ID',Dis_cat]],on='RECORD_ID',how='left')[Dis_cat].values
 
 #%%read ip op data
 INPUT_IPOP_DIR=r'Z:\Balaji\DSHS ED visit data\CleanedMergedJoined'
-sp_file='ip'
+sp_file='op'
 sp=pd.read_pickle(INPUT_IPOP_DIR+'\\'+sp_file)
+sp=sp.loc[:,['RECORD_ID','STMT_PERIOD_FROM','PAT_ADDR_CENSUS_BLOCK_GROUP','PAT_AGE_YEARS','SEX_CODE','RACE','PAT_STATUS','ETHNICITY']]
 #sp=pd.read_pickle(INPUT_IPOP_DIR+r'\op')
+
+#read op/ip outcomes df
+sp_outcomes=pd.read_csv(INPUT_IPOP_DIR+'\\'+sp_file+'_outcomes.csv')
 
 #read flood ratio data
 flood_data=geopandas.read_file(r'Z:/Balaji/FloodRatioJoinedAll_v1/FloodInund_AllJoined_v1.gpkg')
 
 #read svi data
-SVI_df_raw=geopandas.read_file(r'Z:/Balaji/SVI_Raw/TEXAS.shp').drop('geometry',axis=1)
-SVI_df_raw.FIPS=pd.to_numeric(SVI_df_raw.FIPS)
+# SVI_df_raw=geopandas.read_file(r'Z:/Balaji/SVI_Raw/TEXAS.shp').drop('geometry',axis=1)
+# SVI_df_raw.FIPS=pd.to_numeric(SVI_df_raw.FIPS)
 
 #read population data
 demos=pd.read_csv(r'Z:/Balaji/Census_data_texas/ACS_17_5YR_DP05_with_ann.csv',low_memory=False,skiprows=1)
@@ -96,8 +67,8 @@ floodr_use="DFO_R200" #['DFO_R200','DFO_R100','LIST_R20','DFO_R20','DFOuLIST_R20
 nullAsZero="True" #null flood ratios are changed to 0
 floodZeroSep="True" # zeros are considered as seperate class
 
-interv_dates=[20170825, 20170913]
-Dis_cat="DEATH"
+interv_dates=[20170825, 20170913, 20171014]
+Dis_cat="Asthma"
 
 #%%cleaing for age, gender and race and create census tract
 #age
@@ -146,7 +117,7 @@ def run():
     df=sp.loc[:,['STMT_PERIOD_FROM','PAT_ADDR_CENSUS_TRACT','PAT_AGE_YEARS','SEX_CODE','RACE']]
     if Dis_cat=="DEATH":df.loc[:,'Outcome']=filter_mortality(sp)
     if Dis_cat=="ALL":df.loc[:,'Outcome']=1
-    if Dis_cat in outcome_cats.category.to_list():df.loc[:,'Outcome']=filter_from_icds(sp,outcome_cats,Dis_cat)
+    if Dis_cat in outcome_cats.category.to_list():df.loc[:,'Outcome']=get_sp_outcomes(sp, Dis_cat)
     
     
     #%% merge population
@@ -156,8 +127,8 @@ def run():
     df=df.loc[df.Population>0,]
     
     #%% merge SVI after recategorization
-    svi=recalculateSVI(SVI_df_raw[SVI_df_raw.FIPS.isin(df.PAT_ADDR_CENSUS_TRACT.unique())]).loc[:,["FIPS",'SVI']]
-    df=df.merge(svi,left_on="PAT_ADDR_CENSUS_TRACT",right_on="FIPS",how='left').drop("FIPS",axis=1)
+    # svi=recalculateSVI(SVI_df_raw[SVI_df_raw.FIPS.isin(df.PAT_ADDR_CENSUS_TRACT.unique())]).loc[:,["FIPS",'SVI']]
+    # df=df.merge(svi,left_on="PAT_ADDR_CENSUS_TRACT",right_on="FIPS",how='left').drop("FIPS",axis=1)
     #df.loc[:,'SVI']=pd.cut(df.SVI,bins=np.arange(0,1.1,1/4),include_lowest=True,labels=[1,2,3,4])
     
     #%%merge flood ratio
@@ -196,7 +167,8 @@ def run():
                                         bins=[0]+interv_dates+[20190101],\
                                         labels=['control']+[str(i) for i in interv_dates]).cat.as_unordered()
     #set after 2018 as control
-    df.loc[df.STMT_PERIOD_FROM>20180100,'Time']="control"
+    df.loc[df.STMT_PERIOD_FROM>20180100,'Time']="control" if Dis_cat!="Psychiatric" else np.nan
+    df=df.loc[~pd.isna(df.Time),]
     
     #%%controling for year month and week of the day
     df['year']=(df.STMT_PERIOD_FROM.astype('int32')//1e4).astype('category')
@@ -210,8 +182,8 @@ def run():
     if Dis_cat=="ALL":offset=np.log(df.Population)
     
     
-    formula='Outcome'+' ~ '+' floodr + Time * SVI '+'+ year'+'+month'+'+weekday' + '+PAT_AGE_YEARS + SEX_CODE + RACE'
-    model = smf.gee(formula=formula,groups=df.PAT_ADDR_CENSUS_TRACT, data=df,offset=offset,missing='drop',family=sm.families.Poisson(link=sm.families.links.log()))
+    formula='Outcome'+' ~ '+' floodr * Time '+'+ year'+'+month'+'+weekday' + '+PAT_AGE_YEARS + SEX_CODE + RACE'
+    model = smf.gee(formula=formula,groups=df.index, data=df,offset=offset,missing='drop',family=sm.families.Poisson(link=sm.families.links.log()))
     #model = smf.logit(formula=formula, data=df,missing='drop')
     #model = smf.glm(formula=formula, data=df,missing='drop',family=sm.families.Binomial(sm.families.links.logit()))
     
@@ -233,6 +205,7 @@ def run():
                               #| reg_table['index'].str.contains('PAT_AGE_YEARS')
                               
                               ),]
+    reg_table['index']=reg_table['index'].str.replace("\[T.",'_').str.replace('\]','')
     reg_table_dev=pd.read_html(results.summary().tables[0].as_html())[0]
     
     #counts_outcome=pd.DataFrame(df.Outcome.value_counts())

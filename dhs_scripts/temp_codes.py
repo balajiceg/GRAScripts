@@ -7,20 +7,13 @@ Created on Thu Apr 16 20:31:43 2020
 
 
 
-op_icd_cols=['PAT_REASON_FOR_VISIT','PRINC_DIAG_CODE', 'OTH_DIAG_CODE_1', 'OTH_DIAG_CODE_2',
+icd_cols=['PRINC_DIAG_CODE', 'OTH_DIAG_CODE_1', 'OTH_DIAG_CODE_2',
        'OTH_DIAG_CODE_3', 'OTH_DIAG_CODE_4', 'OTH_DIAG_CODE_5',
        'OTH_DIAG_CODE_6', 'OTH_DIAG_CODE_7', 'OTH_DIAG_CODE_8',
        'OTH_DIAG_CODE_9', 'E_CODE_1', 'E_CODE_2', 'E_CODE_3', 'E_CODE_4',
        'E_CODE_5']
-
-ip_icd_cols=['ADMITTING_DIAGNOSIS',
-       'PRINC_DIAG_CODE', 'OTH_DIAG_CODE_1', 'OTH_DIAG_CODE_2',
-       'OTH_DIAG_CODE_3', 'OTH_DIAG_CODE_4', 'OTH_DIAG_CODE_5',
-       'OTH_DIAG_CODE_6', 'OTH_DIAG_CODE_7', 'OTH_DIAG_CODE_8',
-       'OTH_DIAG_CODE_9', 'E_CODE_1', 'E_CODE_2', 'E_CODE_3', 'E_CODE_4',
-       'E_CODE_5' ]
-       
-icd_codes=sp.loc[:,op_icd_cols]
+  
+icd_codes=sp.loc[:,icd_cols]
 icd_codes=icd_codes.values.flatten()
 
 icd_codes = icd_codes[~pd.isnull(icd_codes)]
@@ -118,22 +111,21 @@ nullAsZero="True" #null flood ratios are changed to 0
 floodZeroSep="True" # zeros are considered as seperate class
 interv_dates=[20170825, 20170913]
 #Dis_cats=["DEATH","Dehydration","Bite-Insect","Dialysis","Asthma_like","Respiratory_All","Infectious_and_parasitic"]
-Dis_cats=['ALL','DEATH',
+Dis_cats=[#'ALL','DEATH',
          #'Flood_Storms',
-         'CO_Exposure',
+         #'CO_Exposure',
          #'Drowning',
-         'Dehydration',
-         'Heat_Related-No_dehydration',
+         #'Dehydration',
+         'Heat_Related_But_Not_dehydration',
          'Hypothermia',
          'Bite-Insect',
          'Dialysis',
          'Medication_Refill',
-         'Asthma_like',
+         'Asthma',
          'Chest_pain',
          'Psychiatric',
-         'Intestinal_infectious',
-         'Influenza_and_pneumonia',
-         'Arthropod-borne_viral_fevers']
+         'Intestinal_infectious_diseases',
+         'Influenza_and_pneumonia']
 
 for Dis_cat in Dis_cats:
     try:

@@ -32,48 +32,21 @@ def filter_mortality(df):
     pat_sta=pd.to_numeric(pat_sta,errors="coerce")
     return pat_sta.isin([20,40,41,42]).astype('int') #status code for died
 
-def filter_from_icds(sp,outcome_cats,Dis_cat):
-    icd_cols=['PRINC_DIAG_CODE', 'OTH_DIAG_CODE_1', 'OTH_DIAG_CODE_2',
-       'OTH_DIAG_CODE_3', 'OTH_DIAG_CODE_4', 'OTH_DIAG_CODE_5',
-       'OTH_DIAG_CODE_6', 'OTH_DIAG_CODE_7', 'OTH_DIAG_CODE_8',
-       'OTH_DIAG_CODE_9', 'E_CODE_1', 'E_CODE_2', 'E_CODE_3', 'E_CODE_4',
-       'E_CODE_5']
-    incl=outcome_cats.loc[outcome_cats.category==Dis_cat,'incl']
-    excl=outcome_cats.loc[outcome_cats.category==Dis_cat,'excl']
-    
-    def find_cats(x,incl,excl):
-        x=x.values.squeeze()
-        x=x[~pd.isna(x)]
-        incl=incl.to_list()[0].split(';')
-        excl=excl.to_list()[0].split(';')
-        ret=False
-        for i in range(len(x)):
-            for j in incl:
-                j=j.strip()
-                if j==x[i][:len(j)]:
-                    ret=True
-                    break
-                
-        if excl != ['']:
-            for i in range(len(x)):
-                for j in excl:
-                    j=j.strip()
-                    if j==x[i][:len(j)]:
-                        ret=False
-                        break
-        return ret
-
-    icd_data=sp.loc[:,icd_cols]
-    result=icd_data.apply(find_cats,axis=1,incl=incl,excl=excl)
-        
-    return result.astype('int')
+def get_sp_outcomes(sp,Dis_cat):
+    global sp_outcomes
+    return sp.merge(sp_outcomes.loc[:,['RECORD_ID',Dis_cat]],on='RECORD_ID',how='left')[Dis_cat].values
     
 
 #%%read ip op data
 INPUT_IPOP_DIR=r'Z:\Balaji\DSHS ED visit data\CleanedMergedJoined'
 sp_file='op'
 sp=pd.read_pickle(INPUT_IPOP_DIR+'\\'+sp_file)
+sp=sp.loc[:,['RECORD_ID','STMT_PERIOD_FROM','PAT_ADDR_CENSUS_BLOCK_GROUP','PAT_AGE_YEARS','SEX_CODE','RACE','PAT_STATUS']]
+
 #sp=pd.read_pickle(INPUT_IPOP_DIR+r'\op')
+#read op/ip outcomes df
+sp_outcomes=pd.read_csv(INPUT_IPOP_DIR+'\\'+sp_file+'_outcomes.csv')
+
 
 #read flood ratio data
 flood_data=geopandas.read_file(r'Z:/Balaji/FloodRatioJoinedAll_v1/FloodInund_AllJoined_v1.gpkg')
@@ -87,7 +60,7 @@ demos=pd.read_csv(r'Z:/Balaji/Census_data_texas/ACS_17_5YR_DP05_with_ann.csv',lo
 demos.Id2=demos.Id2.astype("Int64")
 
 #read study area counties
-county_to_filter=pd.read_csv('Z:/Balaji/counties_inun.csv').GEOID.to_list()
+county_to_filter=-1# pd.read_csv('Z:/Balaji/counties_inun.csv').GEOID.to_list()
 
 #read dynamic svi
 SVI_dyn=pd.read_csv('Z:/Balaji/Dynamic_SVI/SPL_Themes_1_2_3.csv').iloc[:,1:]
@@ -151,7 +124,7 @@ def run():
     df=sp.loc[:,['STMT_PERIOD_FROM','PAT_ADDR_CENSUS_TRACT','PAT_AGE_YEARS','SEX_CODE','RACE']]
     if Dis_cat=="DEATH":df.loc[:,'Outcome']=filter_mortality(sp)
     if Dis_cat=="ALL":df.loc[:,'Outcome']=1
-    if Dis_cat in outcome_cats.category.to_list():df.loc[:,'Outcome']=filter_from_icds(sp,outcome_cats,Dis_cat)
+    if Dis_cat in outcome_cats.category.to_list():df.loc[:,'Outcome']=get_sp_outcomes(sp, Dis_cat)
     
     
     #%% merge population
