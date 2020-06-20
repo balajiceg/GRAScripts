@@ -149,9 +149,9 @@ def run():
     df.rename(columns={"Theme_1": "dyn_RPL_THEMES_1","Theme_2": "dyn_RPL_THEMES_2","Theme_3": "dyn_RPL_THEMES_3"},inplace=True)
     
     #categorize both
-    for i in ["1","2","3"]:
-        df.loc[:,'RPL_THEMES_'+i]=pd.cut(df["RPL_THEMES_"+i],bins=np.arange(0,1.1,1/4),include_lowest=True,labels=[1,2,3,4])
-        df.loc[:,'dyn_RPL_THEMES_'+i]=pd.cut(df["dyn_RPL_THEMES_"+i],bins=np.arange(0,1.1,1/4),include_lowest=True,labels=[1,2,3,4])
+    # for i in ["1","2","3"]:
+    #     df.loc[:,'RPL_THEMES_'+i]=pd.cut(df["RPL_THEMES_"+i],bins=np.arange(0,1.1,1/4),include_lowest=True,labels=[1,2,3,4])
+    #     df.loc[:,'dyn_RPL_THEMES_'+i]=pd.cut(df["dyn_RPL_THEMES_"+i],bins=np.arange(0,1.1,1/4),include_lowest=True,labels=[1,2,3,4])
     
     
     
