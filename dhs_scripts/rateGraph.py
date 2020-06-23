@@ -68,7 +68,7 @@ nullAsZero="True"
 floodZeroSep="True"
 DATE_GROUP="DAILY"
 Dis_cats=["ALL","DEATH"]
-Dis_cat="Asthma"
+Dis_cat="ALL"
 
 #%%read the categories file
 outcome_cats=pd.read_csv('Z:/GRAScripts/dhs_scripts/categories.csv')

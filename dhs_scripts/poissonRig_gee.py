@@ -36,7 +36,7 @@ def get_sp_outcomes(sp,Dis_cat):
 
 #%%read ip op data
 INPUT_IPOP_DIR=r'Z:\Balaji\DSHS ED visit data\CleanedMergedJoined'
-sp_file='op'
+sp_file='ip'
 sp=pd.read_pickle(INPUT_IPOP_DIR+'\\'+sp_file)
 sp=sp.loc[:,['RECORD_ID','STMT_PERIOD_FROM','PAT_ADDR_CENSUS_BLOCK_GROUP','PAT_AGE_YEARS','SEX_CODE','RACE','PAT_STATUS','ETHNICITY']]
 #sp=pd.read_pickle(INPUT_IPOP_DIR+r'\op')
@@ -48,8 +48,8 @@ sp_outcomes=pd.read_csv(INPUT_IPOP_DIR+'\\'+sp_file+'_outcomes.csv')
 flood_data=geopandas.read_file(r'Z:/Balaji/FloodRatioJoinedAll_v1/FloodInund_AllJoined_v1.gpkg')
 
 #read svi data
-# SVI_df_raw=geopandas.read_file(r'Z:/Balaji/SVI_Raw/TEXAS.shp').drop('geometry',axis=1)
-# SVI_df_raw.FIPS=pd.to_numeric(SVI_df_raw.FIPS)
+SVI_df_raw=geopandas.read_file(r'Z:/Balaji/SVI_Raw/TEXAS.shp').drop('geometry',axis=1)
+SVI_df_raw.FIPS=pd.to_numeric(SVI_df_raw.FIPS)
 
 #read population data
 demos=pd.read_csv(r'Z:/Balaji/Census_data_texas/ACS_17_5YR_DP05_with_ann.csv',low_memory=False,skiprows=1)
@@ -128,40 +128,40 @@ def run():
     df=df.loc[df.Population>0,]
     
     #%% merge SVI after recategorization
-    # svi=recalculateSVI(SVI_df_raw[SVI_df_raw.FIPS.isin(df.PAT_ADDR_CENSUS_TRACT.unique())]).loc[:,["FIPS",'SVI']]
-    # df=df.merge(svi,left_on="PAT_ADDR_CENSUS_TRACT",right_on="FIPS",how='left').drop("FIPS",axis=1)
-    #df.loc[:,'SVI']=pd.cut(df.SVI,bins=np.arange(0,1.1,1/4),include_lowest=True,labels=[1,2,3,4])
+    svi=recalculateSVI(SVI_df_raw[SVI_df_raw.FIPS.isin(df.PAT_ADDR_CENSUS_TRACT.unique())]).loc[:,["FIPS",'SVI']]
+    df=df.merge(svi,left_on="PAT_ADDR_CENSUS_TRACT",right_on="FIPS",how='left').drop("FIPS",axis=1)
+    df['SVI_Cat']=pd.cut(df.SVI,bins=np.arange(0,1.1,1/4),include_lowest=True,labels=[1,2,3,4])
     
     #%%merge flood ratio
     
-    FLOOD_QUANTILES=["NO","FLood_1"]
-    floodr=flood_data.copy()
-    floodr.GEOID=pd.to_numeric(floodr.GEOID).astype("Int64")
-    floodr=floodr.loc[:,['GEOID']+[floodr_use]]
-    floodr.columns=['GEOID','floodr']
-    df=df.merge(floodr,left_on="PAT_ADDR_CENSUS_TRACT",right_on='GEOID',how='left')
+    # FLOOD_QUANTILES=["NO","FLood_1"]
+    # floodr=flood_data.copy()
+    # floodr.GEOID=pd.to_numeric(floodr.GEOID).astype("Int64")
+    # floodr=floodr.loc[:,['GEOID']+[floodr_use]]
+    # floodr.columns=['GEOID','floodr']
+    # df=df.merge(floodr,left_on="PAT_ADDR_CENSUS_TRACT",right_on='GEOID',how='left')
     
-    #make tracts with null as zero flooding
-    if nullAsZero == "True": df.loc[pd.isna(df.floodr),'floodr']=0.0
+    # #make tracts with null as zero flooding
+    # if nullAsZero == "True": df.loc[pd.isna(df.floodr),'floodr']=0.0
     
-    #categorize floods as per quantiles
-    tractsfloodr=df.loc[~df.duplicated("PAT_ADDR_CENSUS_TRACT"),['PAT_ADDR_CENSUS_TRACT','floodr']]
-    tractsfloodr.floodr= tractsfloodr.floodr.round(2)
-    if floodZeroSep == "True":
-        s=tractsfloodr.loc[tractsfloodr.floodr>0,'floodr']  
-        flood_bins=s.quantile(np.arange(0,1.1,1/(len(FLOOD_QUANTILES)-1))).to_numpy()
-        flood_bins[0]=1e-6
-        flood_bins=np.append([0],flood_bins)
-    else:
-        s=tractsfloodr.loc[tractsfloodr.floodr>-1,'floodr']
-        flood_bins=s.quantile(np.arange(0,1.1,1/len(FLOOD_QUANTILES))).to_numpy()
+    # #categorize floods as per quantiles
+    # tractsfloodr=df.loc[~df.duplicated("PAT_ADDR_CENSUS_TRACT"),['PAT_ADDR_CENSUS_TRACT','floodr']]
+    # tractsfloodr.floodr= tractsfloodr.floodr.round(2)
+    # if floodZeroSep == "True":
+    #     s=tractsfloodr.loc[tractsfloodr.floodr>0,'floodr']  
+    #     flood_bins=s.quantile(np.arange(0,1.1,1/(len(FLOOD_QUANTILES)-1))).to_numpy()
+    #     flood_bins[0]=1e-6
+    #     flood_bins=np.append([0],flood_bins)
+    # else:
+    #     s=tractsfloodr.loc[tractsfloodr.floodr>-1,'floodr']
+    #     flood_bins=s.quantile(np.arange(0,1.1,1/len(FLOOD_QUANTILES))).to_numpy()
         
-    # adjust if some bincenters were zero    
-    for i in range(1,len(FLOOD_QUANTILES)):
-        flood_bins[i]=i*1e-6 if flood_bins[i]==0.0 else flood_bins[i]
+    # # adjust if some bincenters were zero    
+    # for i in range(1,len(FLOOD_QUANTILES)):
+    #     flood_bins[i]=i*1e-6 if flood_bins[i]==0.0 else flood_bins[i]
     
-    df.loc[:,'floodr']=pd.cut(df.floodr,bins=flood_bins,right=True,include_lowest=True,labels=FLOOD_QUANTILES)
-    df=df.drop("GEOID",axis=1)
+    # df.loc[:,'floodr']=pd.cut(df.floodr,bins=flood_bins,right=True,include_lowest=True,labels=FLOOD_QUANTILES)
+    # df=df.drop("GEOID",axis=1)
     
     #%% bringing in intervention
     df.loc[:,'Time']=pd.cut(df.STMT_PERIOD_FROM,\
@@ -186,7 +186,7 @@ def run():
     if Dis_cat=="ALL":offset=np.log(df.Population)
     
     
-    formula='Outcome'+' ~ '+' floodr * Time '+'+ year'+'+month'+'+weekday' + '+PAT_AGE_YEARS + SEX_CODE + RACE + ETHNICITY'
+    formula='Outcome'+' ~ '+' SVI * Time '+'+ year'+'+month'+'+weekday' + '+PAT_AGE_YEARS + SEX_CODE + RACE + ETHNICITY'
     model = smf.gee(formula=formula,groups=df.PAT_ADDR_CENSUS_TRACT, data=df,offset=offset,missing='drop',family=sm.families.Poisson(link=sm.families.links.log()))
     #model = smf.logit(formula=formula, data=df,missing='drop')
     #model = smf.glm(formula=formula, data=df,missing='drop',family=sm.families.Binomial(sm.families.links.logit()))
@@ -214,7 +214,7 @@ def run():
     
     #counts_outcome=pd.DataFrame(df.Outcome.value_counts())
     outcomes_recs=df.loc[(df.Outcome>0),]
-    counts_outcome=pd.crosstab(outcomes_recs.Time,outcomes_recs.floodr)
+    counts_outcome=pd.crosstab(outcomes_recs.Time,outcomes_recs.SVI_Cat)
     
     # counts_outcome.loc["flood_bins",'Outcome']=str(flood_bins)
     #return reg_table
@@ -225,3 +225,4 @@ def run():
     
     print(Dis_cat)
     print(counts_outcome)
+    print("-"*50)

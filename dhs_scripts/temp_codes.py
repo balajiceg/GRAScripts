@@ -112,7 +112,7 @@ floodZeroSep="True" # zeros are considered as seperate class
 
 #Dis_cats=["DEATH","Dehydration","Bite-Insect","Dialysis","Asthma_like","Respiratory_All","Infectious_and_parasitic"]
 Dis_cats=['ALL','DEATH',
-         #'Flood_Storms',
+         'Flood_Storms',
          'CO_Exposure',
          'Drowning',
          'Dehydration',
