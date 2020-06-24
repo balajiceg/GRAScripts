@@ -106,5 +106,5 @@ res<-get_match_ccdd(query,ccdd)
 View(res$subqueries)
 
 
-View(ssy[res$match,])
+View(sys_data[res$match,])
 
