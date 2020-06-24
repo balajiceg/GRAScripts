@@ -180,13 +180,20 @@ def run():
     #df=df.loc[df.Time.isin(['control', '20171014']),]
     #df.Time.cat.remove_unused_categories(inplace=True)
     
+    #%% save cross tab
+     #counts_outcome=pd.DataFrame(df.Outcome.value_counts())
+    outcomes_recs=df.loc[(df.Outcome>0),]
+    counts_outcome=pd.crosstab(outcomes_recs.Time,outcomes_recs.SVI_Cat)
+    counts_outcome.to_csv(Dis_cat+"_aux"+".csv")
+    print(counts_outcome)
+    
     #%%running the model
     #if Dis_cat!="ALL":offset=np.log(df.TotalVisits)
     offset=None
     if Dis_cat=="ALL":offset=np.log(df.Population)
     
     
-    formula='Outcome'+' ~ '+' SVI * Time '+'+ year'+'+month'+'+weekday' + '+PAT_AGE_YEARS + SEX_CODE + RACE + ETHNICITY'
+    formula='Outcome'+' ~ '+' SVI_Cat * Time '+'+ year'+'+month'+'+weekday' + '+PAT_AGE_YEARS + SEX_CODE + RACE + ETHNICITY'
     model = smf.gee(formula=formula,groups=df.PAT_ADDR_CENSUS_TRACT, data=df,offset=offset,missing='drop',family=sm.families.Poisson(link=sm.families.links.log()))
     #model = smf.logit(formula=formula, data=df,missing='drop')
     #model = smf.glm(formula=formula, data=df,missing='drop',family=sm.families.Binomial(sm.families.links.logit()))
@@ -212,17 +219,14 @@ def run():
     reg_table['index']=reg_table['index'].str.replace("\[T.",'_').str.replace('\]','')
     reg_table_dev=pd.read_html(results.summary().tables[0].as_html())[0]
     
-    #counts_outcome=pd.DataFrame(df.Outcome.value_counts())
-    outcomes_recs=df.loc[(df.Outcome>0),]
-    counts_outcome=pd.crosstab(outcomes_recs.Time,outcomes_recs.SVI_Cat)
+   
     
     # counts_outcome.loc["flood_bins",'Outcome']=str(flood_bins)
     #return reg_table
     #%%write the output
     reg_table.to_csv(Dis_cat+"_reg"+".csv")
     reg_table_dev.to_csv(Dis_cat+"_dev"+".csv")
-    counts_outcome.to_csv(Dis_cat+"_aux"+".csv")
+    
     
     print(Dis_cat)
-    print(counts_outcome)
     print("-"*50)

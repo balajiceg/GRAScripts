@@ -99,18 +99,10 @@ fig.update_layout(title_text=sp_file,xaxis_type='log')
 fig.write_html(sp_file+'.html')
 fig.show()
     
-#%% tables
-    
-flood_df= req_df.dropna().copy()
-flood_df=flood_df.loc[(flood_df.covar=="FloodPeriod")&(flood_df.P<=0.05),:]
-
-post_flood= req_df.dropna().copy()
-post_flood=post_flood.loc[(post_flood.covar=="PostFlood")&(post_flood.P<=0.05),:]
-
-
-
-
-
+#%% outupt
+outcome_files={1:"op",0:"ip"}
+merge_df['file']=merge_df.reference.astype('category').cat.rename_categories(outcome_files)
+merge_df.to_excel('merged.xlsx',index=False)    
 
 
 
