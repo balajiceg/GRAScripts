@@ -1,6 +1,6 @@
 
 library(stringr)
-
+library(dplyr)
 #functions
 
 get_points_subsyn<-function(query,chief_c){
@@ -32,6 +32,49 @@ get_points_subsyn<-function(query,chief_c){
 }
 
 
+#for ccdd query
+get_match_ccdd<-function(query,ccdd){
+  #replace and or andnot using regex
+  x<-gsub(",\\s*or\\s*,"," || ",query,ignore.case = T)
+  x<-gsub(",\\s*and\\s*,"," && ",x,ignore.case = T)
+  x<-gsub(",\\s*andnot\\s*,"," &&! ",x,ignore.case = T)
+  
+  #replace special symbols
+  x<-gsub(",","",x,ignore.case = T)
+  x<-gsub("\\.","\\\\.",x,ignore.case = T)
+  
+  #replace regex used
+  x<-gsub("\\^",".*",x,ignore.case = T)
+  x<-gsub("_",".",x,ignore.case = T)
+  
+  query1<-x
+  query2<-""
+  list_subq<-c()
+  while(T){
+    #get the subquery
+    i<-regexpr('[^|&)(! ]',query1)
+    query2<-paste0(query2,str_sub(query1,end=i-1))
+    subs<-str_sub(query1,i)
+    j<-regexpr('[|&)(]',subs)
+    expr<- str_sub(subs,1,j-1)
+    if(expr=='')break();
+    
+    #check for match
+    expr1<-str_trim(expr)
+    res_m<-regexpr(expr,ccdd,ignore.case = T)>0
+    query2<-paste0(query2,res_m)
+    query1<-str_sub(subs,j)
+    list_subq<-c(list_subq,expr1)
+  }
+  j<-regexpr('[|&)(]',subs)
+  if (j!=-1) query2<-paste0(query2,str_sub(subs,j))
+  
+  query2<-as.matrix(query2)
+  result<-apply(query2,1,function(x) {return(eval(parse(text=x)))})
+  return(list(match=result,subqueries=list_subq))
+}
+
+
 #testing
 #read data
 sys_data<-read.csv("Z:/Balaji/SyS data/merged.csv")
@@ -53,3 +96,15 @@ points<-get_points_subsyn(query,chief_c)
 #get records with points >=10
 filtered<-chief_c[points>=10]
 View(filtered)
+
+
+#test ccdd
+query<-as.character(queries[queries$Type=="CCDD",]$Query[1])
+
+ccdd<-paste0(sys_data$ChiefComplaintOrig,' ',sys_data$Discharge.Diagnosis)
+res<-get_match_ccdd(query,ccdd)
+View(res$subqueries)
+
+
+View(ssy[res$match,])
+
