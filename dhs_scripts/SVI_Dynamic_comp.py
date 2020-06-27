@@ -117,43 +117,40 @@ sp=sp[((sp.STMT_PERIOD_FROM > 20160700) & (sp.STMT_PERIOD_FROM< 20161232))\
     | ((sp.STMT_PERIOD_FROM > 20170400) & (sp.STMT_PERIOD_FROM< 20171232))\
         | ((sp.STMT_PERIOD_FROM > 20180700) & (sp.STMT_PERIOD_FROM< 20181232))]
 
-       
+#%% merge population
+demos_subset=demos.iloc[:,[1,3]]
+demos_subset.columns=["PAT_ADDR_CENSUS_TRACT","Population"]
+sp=sp.merge(demos_subset,on="PAT_ADDR_CENSUS_TRACT",how='left')
+sp=sp.loc[sp.Population>0,]
+
+#%% merge SVI after recategorization
+svi=recalculateSVI(SVI_df_raw[SVI_df_raw.FIPS.isin(sp.PAT_ADDR_CENSUS_TRACT.unique())]).loc[:,["FIPS",'RPL_THEMES_1','RPL_THEMES_2','RPL_THEMES_3']]
+sp=sp.merge(svi,left_on="PAT_ADDR_CENSUS_TRACT",right_on="FIPS",how='left').drop("FIPS",axis=1)
+#sp.loc[:,'SVI']=pd.cut(sp.SVI,bins=np.arange(0,1.1,1/4),include_lowest=True,labels=[1,2,3,4])
+
+ #%%controling for year month and week of the day
+sp['year']=(sp.STMT_PERIOD_FROM.astype('int32')//1e4).astype('category')
+sp['month']=(sp.STMT_PERIOD_FROM.astype('int32')//1e2%100).astype('category')
+sp['weekday']=pd.to_datetime(sp.STMT_PERIOD_FROM.astype('str'),format='%Y%m%d').dt.dayofweek.astype('category')
+
+#%%combine dynamic SVI
+sp=sp.merge(SVI_dyn,left_on=['PAT_ADDR_CENSUS_TRACT','weekday'],right_on=["FIPS",'Day_of_week']).drop([ 'FIPS', 'Day_of_week'],axis=1)
+sp.rename(columns={"Theme_1": "dyn_RPL_THEMES_1","Theme_2": "dyn_RPL_THEMES_2","Theme_3": "dyn_RPL_THEMES_3"},inplace=True)
+
+#categorize both
+# for i in ["1","2","3"]:
+#     sp.loc[:,'RPL_THEMES_'+i]=pd.cut(sp["RPL_THEMES_"+i],bins=np.arange(0,1.1,1/4),include_lowest=True,labels=[1,2,3,4])
+#     sp.loc[:,'dyn_RPL_THEMES_'+i]=pd.cut(sp["dyn_RPL_THEMES_"+i],bins=np.arange(0,1.1,1/4),include_lowest=True,labels=[1,2,3,4])
+
 #%%function for looping
 def run():
     #%%filter records for specific outcome
-    df=sp.loc[:,['STMT_PERIOD_FROM','PAT_ADDR_CENSUS_TRACT','PAT_AGE_YEARS','SEX_CODE','RACE','ETHNICITY']]
+    df=sp
     if Dis_cat=="DEATH":df.loc[:,'Outcome']=filter_mortality(sp)
     if Dis_cat=="ALL":df.loc[:,'Outcome']=1
     if Dis_cat in outcome_cats.category.to_list():df.loc[:,'Outcome']=get_sp_outcomes(sp, Dis_cat)
     
-    
-    #%% merge population
-    demos_subset=demos.iloc[:,[1,3]]
-    demos_subset.columns=["PAT_ADDR_CENSUS_TRACT","Population"]
-    df=df.merge(demos_subset,on="PAT_ADDR_CENSUS_TRACT",how='left')
-    df=df.loc[df.Population>0,]
-    
-    #%% merge SVI after recategorization
-    svi=recalculateSVI(SVI_df_raw[SVI_df_raw.FIPS.isin(df.PAT_ADDR_CENSUS_TRACT.unique())]).loc[:,["FIPS",'RPL_THEMES_1','RPL_THEMES_2','RPL_THEMES_3']]
-    df=df.merge(svi,left_on="PAT_ADDR_CENSUS_TRACT",right_on="FIPS",how='left').drop("FIPS",axis=1)
-    #df.loc[:,'SVI']=pd.cut(df.SVI,bins=np.arange(0,1.1,1/4),include_lowest=True,labels=[1,2,3,4])
-    
-    #%%controling for year month and week of the day
-    df['year']=(df.STMT_PERIOD_FROM.astype('int32')//1e4).astype('category')
-    df['month']=(df.STMT_PERIOD_FROM.astype('int32')//1e2%100).astype('category')
-    df['weekday']=pd.to_datetime(df.STMT_PERIOD_FROM.astype('str'),format='%Y%m%d').dt.dayofweek.astype('category')
-    
-    #%%combine dynamic SVI
-    
-    df=df.merge(SVI_dyn,left_on=['PAT_ADDR_CENSUS_TRACT','weekday'],right_on=["FIPS",'Day_of_week']).drop([ 'FIPS', 'Day_of_week'],axis=1)
-    df.rename(columns={"Theme_1": "dyn_RPL_THEMES_1","Theme_2": "dyn_RPL_THEMES_2","Theme_3": "dyn_RPL_THEMES_3"},inplace=True)
-    
-    #categorize both
-    # for i in ["1","2","3"]:
-    #     df.loc[:,'RPL_THEMES_'+i]=pd.cut(df["RPL_THEMES_"+i],bins=np.arange(0,1.1,1/4),include_lowest=True,labels=[1,2,3,4])
-    #     df.loc[:,'dyn_RPL_THEMES_'+i]=pd.cut(df["dyn_RPL_THEMES_"+i],bins=np.arange(0,1.1,1/4),include_lowest=True,labels=[1,2,3,4])
-    
-    
+#%%fun model 
     
     for theme in ["RPL_THEMES_","dyn_RPL_THEMES_"]:     
         #%%running the model
@@ -172,7 +169,7 @@ def run():
         # print(results.summary())
         # print(np.exp(results.params))
         # print(np.exp(results.conf_int())) 
-        
+        print(results.qic(scale=1))
         
         #%% creating result dataframe tables
         results_as_html = results.summary().tables[1].as_html()
@@ -196,12 +193,13 @@ def run():
         # counts_outcome.loc["flood_bins",'Outcome']=str(flood_bins)
         
         #%%write the output
-        if not os.path.exists(theme):os.makedirs(theme)
+        # if not os.path.exists(theme):os.makedirs(theme)
         
-        reg_table.to_csv(theme+"/"+Dis_cat+"_reg"+".csv")
-        reg_table_dev.to_csv(theme+"/"+Dis_cat+"_dev"+".csv")
-        counts_outcome.to_csv(theme+"/"+Dis_cat+"_aux"+".csv")
+        # reg_table.to_csv(theme+"/"+Dis_cat+"_reg"+".csv")
+        # reg_table_dev.to_csv(theme+"/"+Dis_cat+"_dev"+".csv")
+        # counts_outcome.to_csv(theme+"/"+Dis_cat+"_aux"+".csv")
         
         print(Dis_cat)
         print(theme)
         print(counts_outcome)
+        print("-"*30)

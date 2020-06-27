@@ -112,9 +112,9 @@ floodZeroSep="True" # zeros are considered as seperate class
 
 #Dis_cats=["DEATH","Dehydration","Bite-Insect","Dialysis","Asthma_like","Respiratory_All","Infectious_and_parasitic"]
 Dis_cats=['ALL','DEATH',
-         'Flood_Storms',
+         #'Flood_Storms',
          'CO_Exposure',
-         'Drowning',
+         #'Drowning',
          'Dehydration',
          'Heat_Related_But_Not_dehydration',
          'Hypothermia',
@@ -144,15 +144,22 @@ for Dis_cat in Dis_cats:
     
     
     
+    #%%
     
-    
-    
-    
-    
-    
-    
-    
-    
+
+zip_code=sp.PAT_ZIP.value_counts().reset_index()
+zip_code.rename(columns={'index':'zip_code','PAT_ZIP':'counts'},inplace=True)
+zip_code.zip_code=pd.to_numeric(zip_code.zip_code,errors="coerce")   
+zip_code.zip_code=zip_code.astype('Int64')
+zip_code=zip_code.loc[~pd.isna(zip_code.zip_code),:]
+
+zip_code.zip_code=zip_code.zip_code.astype(str).str[:5].astype('int')
+zip_code=zip_code.groupby(by='zip_code').sum().reset_index()
+
+#filter texas zip code alone
+zip_code_study=pd.read_csv(r"Z:/Balaji/DSHS ED visit data/AllZip_codes_in_study_area.csv")
+zip_code_final=zip_code[zip_code.zip_code.isin(zip_code_study.ZCTA5CE10)]
+
     
     
     
