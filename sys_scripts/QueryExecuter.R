@@ -93,8 +93,8 @@ query<-subsyn_queries$Query[1]
 chief_c<-sys_data$ChiefComplaintOrig
 points<-get_points_subsyn(query,chief_c)
 
-#get records with points >=10
-filtered<-chief_c[points>=10]
+#get records with points >=6
+filtered<-chief_c[points>=6]
 View(filtered)
 
 
