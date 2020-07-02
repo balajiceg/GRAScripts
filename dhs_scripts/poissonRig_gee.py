@@ -38,14 +38,18 @@ def get_sp_outcomes(sp,Dis_cat):
 INPUT_IPOP_DIR=r'Z:\Balaji\DSHS ED visit data\CleanedMergedJoined'
 sp_file='op'
 sp=pd.read_pickle(INPUT_IPOP_DIR+'\\'+sp_file)
-sp=sp.loc[:,['RECORD_ID','STMT_PERIOD_FROM','PAT_ADDR_CENSUS_BLOCK_GROUP','PAT_AGE_YEARS','SEX_CODE','RACE','PAT_STATUS','ETHNICITY']]
+sp=sp.loc[:,['RECORD_ID','STMT_PERIOD_FROM','PAT_ADDR_CENSUS_BLOCK_GROUP','PAT_AGE_YEARS','SEX_CODE','RACE','PAT_STATUS','ETHNICITY','PAT_ZIP']]
 #sp=pd.read_pickle(INPUT_IPOP_DIR+r'\op')
 
 #read op/ip outcomes df
 sp_outcomes=pd.read_csv(INPUT_IPOP_DIR+'\\'+sp_file+'_outcomes.csv')
 
 #read flood ratio data
-flood_data=geopandas.read_file(r'Z:/Balaji/FloodRatioJoinedAll_v1/FloodInund_AllJoined_v1.gpkg')
+flood_data=geopandas.read_file(r'Z:/Balaji/FloodRatioJoinedAll_v1/FloodInund_AllJoined_v1.gpkg').drop('geometry',axis=1)
+
+#read zip code flood ratio data
+flood_data_zip=geopandas.read_file(r"Z:/Balaji/FloodInund_Zip_v1/FloodInund_Zip_v1.shp").loc[:,['ZCTA5CE10','DFO_R200']]
+flood_data_zip.rename(columns={'ZCTA5CE10':'GEOID'},inplace=True)
 
 #read svi data
 SVI_df_raw=geopandas.read_file(r'Z:/Balaji/SVI_Raw/TEXAS.shp').drop('geometry',axis=1)
@@ -57,6 +61,7 @@ demos.Id2=demos.Id2.astype("Int64")
 
 #read study area counties
 county_to_filter=pd.read_csv('Z:/Balaji/counties_inun.csv').GEOID.to_list()
+zip_to_filter=pd.read_csv('Z:/Balaji/DSHS ED visit data/AllZip_codes_in_study_area.csv').ZCTA5CE10.to_list()
 
 #%%read the categories file
 outcome_cats=pd.read_csv('Z:/GRAScripts/dhs_scripts/categories.csv')
@@ -66,6 +71,7 @@ flood_cats_in=1
 floodr_use="DFO_R200" #['DFO_R200','DFO_R100','LIST_R20','DFO_R20','DFOuLIST_R20']
 nullAsZero="True" #null flood ratios are changed to 0
 floodZeroSep="True" # zeros are considered as seperate class
+#flood_data_zip=None
 
 interv_dates=[20170825, 20170913, 20171014]
 interv_dates_cats=['flood','PostFlood1','PostFlood2']
@@ -98,10 +104,15 @@ sp.RACE.cat.rename_categories({3:'black',4:'white',5:'other'},inplace=True)
 #create tract id from block group id
 sp.loc[:,'PAT_ADDR_CENSUS_TRACT']=(sp.PAT_ADDR_CENSUS_BLOCK_GROUP//10)
     
-#%%filter records for counties in study area
-if county_to_filter != -1:
+#%%filter records for counties in study area or from zip codes
+if flood_data_zip is None:
     sp=sp[(sp.PAT_ADDR_CENSUS_TRACT//1000000).isin(county_to_filter)].copy()
-
+else:
+    zip_codes=sp.PAT_ZIP
+    zip_codes=zip_codes.astype(str).str[:5]
+    sp.PAT_ZIP=pd.to_numeric(zip_codes,errors="coerce").astype('Int64')
+    sp=sp[sp.PAT_ZIP.isin(zip_to_filter)]
+    
 #%%keep only the dates we requested for
 
 #remove records before 2016
@@ -117,24 +128,27 @@ sp=sp.merge(demos_subset,on="PAT_ADDR_CENSUS_TRACT",how='left')
 sp=sp.loc[sp.Population>0,]
 
 #%% merge SVI after recategorization
-svi=recalculateSVI(SVI_df_raw[SVI_df_raw.FIPS.isin(sp.PAT_ADDR_CENSUS_TRACT.unique())]).loc[:,["FIPS",'SVI']]
-sp=sp.merge(svi,left_on="PAT_ADDR_CENSUS_TRACT",right_on="FIPS",how='left').drop("FIPS",axis=1)
-sp['SVI_Cat']=pd.cut(sp.SVI,bins=np.arange(0,1.1,1/4),include_lowest=True,labels=[1,2,3,4])
+# svi=recalculateSVI(SVI_df_raw[SVI_df_raw.FIPS.isin(sp.PAT_ADDR_CENSUS_TRACT.unique())]).loc[:,["FIPS",'SVI']]
+# sp=sp.merge(svi,left_on="PAT_ADDR_CENSUS_TRACT",right_on="FIPS",how='left').drop("FIPS",axis=1)
+# sp['SVI_Cat']=pd.cut(sp.SVI,bins=np.arange(0,1.1,1/4),include_lowest=True,labels=[1,2,3,4])
 
 #%%merge flood ratio
-
+flood_join_filed='PAT_ADDR_CENSUS_TRACT'
+if flood_data_zip is not None: 
+    flood_data=flood_data_zip
+    flood_join_field='PAT_ZIP'
 FLOOD_QUANTILES=["NO","FLood_1"]
 floodr=flood_data.copy()
 floodr.GEOID=pd.to_numeric(floodr.GEOID).astype("Int64")
 floodr=floodr.loc[:,['GEOID']+[floodr_use]]
 floodr.columns=['GEOID','floodr']
-sp=sp.merge(floodr,left_on="PAT_ADDR_CENSUS_TRACT",right_on='GEOID',how='left')
+sp=sp.merge(floodr,left_on=flood_join_field,right_on='GEOID',how='left')
 
 #make tracts with null as zero flooding
 if nullAsZero == "True": sp.loc[pd.isna(sp.floodr),'floodr']=0.0
 
 #categorize floods as per quantiles
-tractsfloodr=sp.loc[~sp.duplicated("PAT_ADDR_CENSUS_TRACT"),['PAT_ADDR_CENSUS_TRACT','floodr']]
+tractsfloodr=sp.loc[~sp.duplicated(flood_join_filed),[flood_join_filed,'floodr']]
 tractsfloodr.floodr= tractsfloodr.floodr.round(2)
 if floodZeroSep == "True":
     s=tractsfloodr.loc[tractsfloodr.floodr>0,'floodr']  
@@ -183,7 +197,7 @@ def run():
     #%% save cross tab
      #counts_outcome=pd.DataFrame(df.Outcome.value_counts())
     outcomes_recs=df.loc[(df.Outcome>0),]
-    counts_outcome=pd.crosstab(outcomes_recs.Time,outcomes_recs.SVI_Cat)
+    counts_outcome=pd.crosstab(outcomes_recs.Time,outcomes_recs.floodr)
     counts_outcome.to_csv(Dis_cat+"_aux"+".csv")
     print(counts_outcome)
     
@@ -193,8 +207,8 @@ def run():
     if Dis_cat=="ALL":offset=np.log(df.Population)
     
     
-    formula='Outcome'+' ~ '+' SVI_Cat * Time '+'+ year'+'+month'+'+weekday' + '+PAT_AGE_YEARS + SEX_CODE + RACE + ETHNICITY'
-    model = smf.gee(formula=formula,groups=df.PAT_ADDR_CENSUS_TRACT, data=df,offset=offset,missing='drop',family=sm.families.Poisson(link=sm.families.links.log()))
+    formula='Outcome'+' ~ '+' floodr * Time '+'+ year'+'+month'+'+weekday' + '+PAT_AGE_YEARS + SEX_CODE + RACE + ETHNICITY'
+    model = smf.gee(formula=formula,groups=df[flood_join_filed], data=df,offset=offset,missing='drop',family=sm.families.Poisson(link=sm.families.links.log()))
     #model = smf.logit(formula=formula, data=df,missing='drop')
     #model = smf.glm(formula=formula, data=df,missing='drop',family=sm.families.Binomial(sm.families.links.logit()))
     
@@ -227,6 +241,3 @@ def run():
     reg_table.to_csv(Dis_cat+"_reg"+".csv")
     reg_table_dev.to_csv(Dis_cat+"_dev"+".csv")
     
-    
-    print(Dis_cat)
-    print("-"*50)
