@@ -13,7 +13,7 @@ import os
 import glob
 
 #%%read and merge required columns
-first_dir=r"Z:\Balaji\Analysis_out_IPOP\23062020"
+first_dir=r"Z:\Balaji\Analysis_out_IPOP\20062020_2"
 req_files=glob.glob(first_dir+"\\op\\*_reg.csv")
 
 merge_df=pd.DataFrame()
@@ -37,4 +37,4 @@ merge_df['covar']=merge_df['covar'].str.replace("\[T.",'_').str.replace('\]','')
 outcome_files={1:"op",0:"ip"}
 merge_df['file']=merge_df.reference.astype('category').cat.rename_categories(outcome_files)
 merge_df=merge_df.drop('reference',axis=1)
-merge_df.to_excel('merged.xlsx',index=False)  
+merge_df.to_excel(first_dir+r'\merged.xlsx',index=False)  

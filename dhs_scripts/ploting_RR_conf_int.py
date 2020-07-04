@@ -15,7 +15,7 @@ pio.renderers.default='browser'
 
 
 #%%read and merge required columns
-first_dir=r"Z:\Balaji\Analysis_out_IPOP\27062020\ip"
+first_dir=r"Z:\Balaji\Analysis_out_IPOP\20062020_2\op"
 req_files=glob.glob(first_dir+"\\*_reg.csv")
 
 op_dir=r"Z:\Balaji\Analysis_out_IPOP\20062020_2\ip"
@@ -69,7 +69,7 @@ fig.show()
 
 #%%for  op ip flood outcome
 
-sp_file='op'
+sp_file='ip'
 outcome_titls={"op":1,"ip":0}
 required=['floodr_FLood_1:Time_flood', 'floodr_FLood_1:Time_PostFlood1','floodr_FLood_1:Time_PostFlood2']
 
@@ -102,7 +102,7 @@ fig.show()
 #%% comparing zip code with census tract
 
 outcome_titls={1:"zip_code",0:"census_tracts"}
-i=0
+i=2
 flood_times= ['floodr_FLood_1:Time_flood','floodr_FLood_1:Time_PostFlood1','floodr_FLood_1:Time_PostFlood2']
 required=[flood_times[i]]
 req_df=merge_df.loc[merge_df['covar'].isin(required),:].copy()
