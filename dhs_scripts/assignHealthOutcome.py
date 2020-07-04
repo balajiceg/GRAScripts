@@ -77,7 +77,7 @@ def filter_from_icds_1(sp,outcome_cats,Dis_cat):
     
 #%%read op or ip as sp
 INPUT_IPOP_DIR=r'Z:\Balaji\DSHS ED visit data\CleanedMergedJoined'
-sp_file='ip'
+sp_file='op'
 sp=pd.read_pickle(INPUT_IPOP_DIR+'\\'+sp_file) 
 
 #read categories
@@ -86,10 +86,13 @@ outcome_cats.fillna('',inplace=True)
 print(outcome_cats.category.to_list())
 
 cats=outcome_cats.category.to_list()
+cats=['ARI', 'Pregnancy_complic']
 
-df=pd.DataFrame(sp.RECORD_ID)
+#load teh previous output file of outocmes
+df=pd.read_csv(INPUT_IPOP_DIR+'\\'+sp_file+'_outcomes.csv')
+#df=pd.DataFrame(sp.RECORD_ID)
 for Dis_cat in cats:
-    df[Dis_cat]=filter_from_icds(sp, outcome_cats, Dis_cat)
-    print(Dis_cat)
+     print(Dis_cat+'\n'+'-'*30)
+     df[Dis_cat]=filter_from_icds(sp, outcome_cats, Dis_cat)
 
 df.to_csv(INPUT_IPOP_DIR+'\\'+sp_file+'_outcomes.csv',index=False)
