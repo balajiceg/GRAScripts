@@ -36,7 +36,7 @@ def get_sp_outcomes(sp,Dis_cat):
 
 #%%read ip op data
 INPUT_IPOP_DIR=r'Z:\Balaji\DSHS ED visit data\CleanedMergedJoined'
-sp_file='ip'
+sp_file='op'
 sp=pd.read_pickle(INPUT_IPOP_DIR+'\\'+sp_file)
 sp=sp.loc[:,['RECORD_ID','STMT_PERIOD_FROM','PAT_ADDR_CENSUS_BLOCK_GROUP','PAT_AGE_YEARS','SEX_CODE','RACE','PAT_STATUS','ETHNICITY','PAT_ZIP']]
 #sp=pd.read_pickle(INPUT_IPOP_DIR+r'\op')
@@ -71,7 +71,7 @@ flood_cats_in=1
 floodr_use="DFO_R200" #['DFO_R200','DFO_R100','LIST_R20','DFO_R20','DFOuLIST_R20']
 nullAsZero="True" #null flood ratios are changed to 0
 floodZeroSep="True" # zeros are considered as seperate class
-#flood_data_zip=None
+flood_data_zip=None
 
 interv_dates=[20170825, 20170913, 20171014]
 interv_dates_cats=['flood','PostFlood1','PostFlood2']
@@ -133,7 +133,7 @@ sp=sp.loc[sp.Population>0,]
 # sp['SVI_Cat']=pd.cut(sp.SVI,bins=np.arange(0,1.1,1/4),include_lowest=True,labels=[1,2,3,4])
 
 #%%merge flood ratio
-flood_join_filed='PAT_ADDR_CENSUS_TRACT'
+flood_join_field='PAT_ADDR_CENSUS_TRACT'
 if flood_data_zip is not None: 
     flood_data=flood_data_zip
     flood_join_field='PAT_ZIP'
@@ -148,7 +148,7 @@ sp=sp.merge(floodr,left_on=flood_join_field,right_on='GEOID',how='left')
 if nullAsZero == "True": sp.loc[pd.isna(sp.floodr),'floodr']=0.0
 
 #categorize floods as per quantiles
-tractsfloodr=sp.loc[~sp.duplicated(flood_join_filed),[flood_join_filed,'floodr']]
+tractsfloodr=sp.loc[~sp.duplicated(flood_join_field),[flood_join_field,'floodr']]
 tractsfloodr.floodr= tractsfloodr.floodr.round(2)
 if floodZeroSep == "True":
     s=tractsfloodr.loc[tractsfloodr.floodr>0,'floodr']  
@@ -208,7 +208,7 @@ def run():
     
     
     formula='Outcome'+' ~ '+' floodr * Time '+'+ year'+'+month'+'+weekday' + '+PAT_AGE_YEARS + SEX_CODE + RACE + ETHNICITY'
-    model = smf.gee(formula=formula,groups=df[flood_join_filed], data=df,offset=offset,missing='drop',family=sm.families.Poisson(link=sm.families.links.log()))
+    model = smf.gee(formula=formula,groups=df[flood_join_field], data=df,offset=offset,missing='drop',family=sm.families.Poisson(link=sm.families.links.log()))
     #model = smf.logit(formula=formula, data=df,missing='drop')
     #model = smf.glm(formula=formula, data=df,missing='drop',family=sm.families.Binomial(sm.families.links.logit()))
     
