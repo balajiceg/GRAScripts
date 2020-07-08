@@ -75,36 +75,38 @@ get_match_ccdd<-function(query,ccdd){
 }
 
 
-#testing
+
 #read data
-sys_data<-read.csv("Z:/Balaji/SyS data/merged.csv")
+sys_data<-read.csv("H:/SyS data/merged.csv")
 #read queries
-queries<-read.csv("Z:/GRAScripts/sys_scripts/queries.csv")
+queries<-read.csv("H:/Balaji/GRAScripts/sys_scripts/queries.csv")
 
 
-#get the subsyndromes alone
-subsyn_queries<-queries[queries$Type=="Subsyndrome",]
-subsyn_queries$Query<-droplevels(subsyn_queries$Query)
 
-#get a query
-query<-subsyn_queries$Query[1]
 
-#get points for all diagnosis
-chief_c<-sys_data$ChiefComplaintOrig
-points<-get_points_subsyn(query,chief_c)
-
-#get records with points >=6
-filtered<-chief_c[points>=6]
+#testing subsyndrome query
+query<-as.character(queries[queries$Name=="ExcessiveHeat",]$Query[1])
+#get points for the chief complaints
+points<-get_points_subsyn(query,sys_data$ChiefComplaintOrig)
+#filter records with points >=6
+filtered<-sys_data$ChiefComplaintOrig[points>=10]
+#join points to form a dataframe
+filtered=data.frame(cc=filtered,points=points[points>=10])
 View(filtered)
+#write the filtered output to file
+write.csv(filtered,"subsyn_filtered_output.csv")
 
 
-#test ccdd
-query<-as.character(queries[queries$Type=="CCDD",]$Query[1])
 
+
+#test ccdd "Disaster-related Mental Health v1 - Syndrome Definition Committee"	
+query<-as.character(queries[queries$Name=="Disaster-related Mental Health v1 - Syndrome Definition Committee",]$Query[1])
+#join the CC and DD from data
 ccdd<-paste0(sys_data$ChiefComplaintOrig,' ',sys_data$Discharge.Diagnosis)
 res<-get_match_ccdd(query,ccdd)
 View(res$subqueries)
-
-
-View(sys_data[res$match,])
+#view the filtered records
+View(ccdd[res$match])
+#write the filtered output to file
+write.csv(ccdd[res$match],"ccdd_filtered_output.csv")
 
