@@ -104,17 +104,28 @@ filtered_all$points<-points[points>=6]
 View(filtered)
 #write the filtered output to file
 write.csv(filtered,"subsyn_filtered_output.csv")
-write.csv(filtered,"subsyn_filtered_output_all_cols.csv")
+write.csv(filtered_all,"subsyn_filtered_output_all_cols.csv")
+
+
 
 
 
 #test ccdd "Disaster-related Mental Health v1 - Syndrome Definition Committee"	
 query<-as.character(queries[queries$Name=="Disaster-related Mental Health v1 - Syndrome Definition Committee",]$Query[1])
+
 #join the CC and DD from data
-ccdd<-paste0(sys_data$ChiefComplaintOrig
-             #,' ',
-             #sys_data$Discharge.Diagnosis
-             )
+ccdd<-paste0(sys_data$ChiefComplaintOrig,' ',sys_data$Discharge.Diagnosis)
+res<-get_match_ccdd(query,ccdd)
+View(res$subqueries)
+#view the filtered records
+View(ccdd[res$match])
+#write the filtered output to file
+write.csv(ccdd[res$match],"ccdd_filtered_output.csv")
+write.csv(sys_data[res$match,],"ccdd_filtered_output_all_cols.csv")
+
+
+#use only CC for ccdd query
+ccdd<-paste0(sys_data$ChiefComplaintOrig)
 res<-get_match_ccdd(query,ccdd)
 View(res$subqueries)
 #view the filtered records
@@ -122,3 +133,14 @@ View(ccdd[res$match])
 #write the filtered output to file
 write.csv(ccdd[res$match],"cc_filtered_output.csv")
 write.csv(sys_data[res$match,],"cc_filtered_output_all_cols.csv")
+
+
+#use only DD queries for ccdd query
+ccdd<-paste0(sys_data$Discharge.Diagnosis)
+res<-get_match_ccdd(query,ccdd)
+View(res$subqueries)
+#view the filtered records
+View(ccdd[res$match])
+#write the filtered output to file
+write.csv(ccdd[res$match],"dd_filtered_output.csv")
+write.csv(sys_data[res$match,],"dd_filtered_output_all_cols.csv")
