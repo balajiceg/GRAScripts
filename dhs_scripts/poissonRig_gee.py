@@ -74,6 +74,7 @@ floodZeroSep="True" # zeros are considered as seperate class
 flood_data_zip=None
 
 interv_dates=[20170825, 20170913, 20171014]
+washout_period=[20170819,20170825] #including the dates specified
 interv_dates_cats=['flood','PostFlood1','PostFlood2']
 Dis_cat="Asthma"
 
@@ -121,6 +122,9 @@ sp=sp.loc[(~pd.isna(sp.STMT_PERIOD_FROM))&(~pd.isna(sp.PAT_ADDR_CENSUS_BLOCK_GRO
 sp=sp[((sp.STMT_PERIOD_FROM > 20160700) & (sp.STMT_PERIOD_FROM< 20161232))\
     | ((sp.STMT_PERIOD_FROM > 20170400) & (sp.STMT_PERIOD_FROM< 20171232))\
         | ((sp.STMT_PERIOD_FROM > 20180700) & (sp.STMT_PERIOD_FROM< 20181232))]
+
+#remove data in washout period
+sp= sp[~((sp.STMT_PERIOD_FROM >= washout_period[0]) & (sp.STMT_PERIOD_FROM <= washout_period[1]))]
 #%% merge population
 demos_subset=demos.iloc[:,[1,3]]
 demos_subset.columns=["PAT_ADDR_CENSUS_TRACT","Population"]
@@ -207,7 +211,7 @@ def run():
     if Dis_cat=="ALL":offset=np.log(df.Population)
     
     
-    formula='Outcome'+' ~ '+' SVI * floodr * Time '+'+ year'+'+month'+'+weekday' + '+PAT_AGE_YEARS + SEX_CODE + RACE + ETHNICITY'
+    formula='Outcome'+' ~ '+'floodr * Time '+'+ year'+'+month'+'+weekday' + '+PAT_AGE_YEARS + SEX_CODE + RACE + ETHNICITY'
     model = smf.gee(formula=formula,groups=df[flood_join_field], data=df,offset=offset,missing='drop',family=sm.families.Poisson(link=sm.families.links.log()))
     #model = smf.logit(formula=formula, data=df,missing='drop')
     #model = smf.glm(formula=formula, data=df,missing='drop',family=sm.families.Binomial(sm.families.links.logit()))

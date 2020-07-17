@@ -15,10 +15,10 @@ pio.renderers.default='browser'
 
 
 #%%read and merge required columns
-first_dir=r"Z:\Balaji\Analysis_out_IPOP\20062020_2\op"
+first_dir=r"Z:\Balaji\Analysis_out_IPOP\16072020\op"
 req_files=glob.glob(first_dir+"\\*_reg.csv")
 
-op_dir=r"Z:\Balaji\Analysis_out_IPOP\20062020_2\ip"
+op_dir=r"Z:\Balaji\Analysis_out_IPOP\16072020\ip"
 merge_df=pd.DataFrame()
 
 for file in req_files:
@@ -69,7 +69,7 @@ fig.show()
 
 #%%for  op ip flood outcome
 
-sp_file='ip'
+sp_file='op'
 outcome_titls={"op":1,"ip":0}
 required=['floodr_FLood_1:Time_flood', 'floodr_FLood_1:Time_PostFlood1','floodr_FLood_1:Time_PostFlood2']
 

@@ -79,7 +79,7 @@ get_match_ccdd<-function(query,ccdd){
 #read data
 sys_data<-read.csv("H:/SyS data/merged.csv")
 #read queries
-queries<-read.csv("H:/Balaji/GRAScripts/sys_scripts/queries.csv")
+queries<-read.csv("Z:/GRAScripts/sys_scripts/queries.csv")
 
 
 
@@ -89,9 +89,9 @@ query<-as.character(queries[queries$Name=="ExcessiveHeat",]$Query[1])
 #get points for the chief complaints
 points<-get_points_subsyn(query,sys_data$ChiefComplaintOrig)
 #filter records with points >=6
-filtered<-sys_data$ChiefComplaintOrig[points>=10]
+filtered<-sys_data$ChiefComplaintOrig[points>=6]
 #join points to form a dataframe
-filtered=data.frame(cc=filtered,points=points[points>=10])
+filtered=data.frame(cc=filtered,points=points[points>=6])
 View(filtered)
 #write the filtered output to file
 write.csv(filtered,"subsyn_filtered_output.csv")
