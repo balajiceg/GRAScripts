@@ -10,15 +10,16 @@ import pandas as pd
 import glob,os
 import plotly.express as px
 import plotly.io as pio
-
+import plotly.graph_objects as go
+import numpy as np
 pio.renderers.default='browser'
 
 
 #%%read and merge required columns
-first_dir=r"Z:\Balaji\Analysis_out_IPOP\16072020\op"
+first_dir=r"Z:\Balaji\Analysis_out_IPOP\20062020_1\dyn_RPL_THEMES_"
 req_files=glob.glob(first_dir+"\\*_reg.csv")
 
-op_dir=r"Z:\Balaji\Analysis_out_IPOP\16072020\ip"
+op_dir=r"Z:\Balaji\Analysis_out_IPOP\20062020_1\RPL_THEMES_"
 merge_df=pd.DataFrame()
 
 for file in req_files:
@@ -39,10 +40,11 @@ merge_df['covar']=merge_df['covar'].str.replace("\[T.",'_').str.replace('\]','')
 
 #%%pull required betas  for SVI vs dyn SVI
 outcome_titls={1:"dyn RPL",0:"RPL"}
-i="1"
+i="3"
 #for i in ["1_2","1_3","1_4","2_2","2_3","2_4","3_2","3_3","3_4"]:
 required=["RPL_THEMES_"+i,"dyn_RPL_THEMES_"+i]
 req_df=merge_df.loc[merge_df['covar'].isin(required),:].copy()
+
 
 #for SVI as scalar alone multipy by 10 percentile
 #req_df.loc[:,["RR","conf25","conf95"]]=req_df.loc[:,["RR","conf25","conf95"]]**0.1
@@ -55,6 +57,14 @@ req_df['text']=req_df.reference.astype('category').cat.rename_categories(outcome
 req_df['y_dis']=y_dis+req_df.reference/n
 req_df.conf25,req_df.conf95=req_df.RR-req_df.conf25 , req_df.conf95-req_df.RR
 
+#read Qic values and merge
+qic=pd.read_csv(r'Z:\Balaji\Analysis_out_IPOP\20062020_1\qic_rpl_vs_dyn.csv')
+req_df=req_df.merge(qic,left_on=['outcome','text'],right_on=['outcome','Model'],how='left')
+req_df.QIC=np.round(req_df.QIC)
+req_df=req_df.dropna()
+
+req_df['text']=req_df.reference.astype('category').cat.rename_categories({1:"dyn RPL",0:"CDC RPL"}).astype('str')
+
 #plot data
 fig=px.scatter(req_df, x="RR", y="y_dis", color="outcome",
                  error_x="conf95", error_x_minus="conf25",text='text')
@@ -62,9 +72,24 @@ fig.update_traces(textposition='top center')
 fig.add_shape(dict(type="line",x0=1,y0=0,x1=1,y1=req_df.y_dis.max()+1,
                    line=dict(color="Black",width=.5)#,dash='dot')
             ))
+
+fig.add_trace(go.Scatter(
+    x=req_df.RR+req_df.conf95,
+    y=req_df.y_dis,
+    name="Model Fitness : QIC",
+    mode="text",
+    text= "  "+req_df.QIC.astype(str),
+    textposition="middle right",
+    textfont=dict(
+        family="sans serif",
+        size=10,
+        color="red"
+    )
+))
+
 # Set title
 fig.update_layout(title_text=required[0],xaxis_type='log')
-#fig.write_html(required[0]+'.html')
+fig.write_html(required[0]+'.html')
 fig.show()
 
 #%%for  op ip flood outcome
