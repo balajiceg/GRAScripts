@@ -40,7 +40,7 @@ def get_sp_outcomes(sp,Dis_cat):
 
 #%%read ip op data
 INPUT_IPOP_DIR=r'Z:\Balaji\DSHS ED visit data\CleanedMergedJoined'
-sp_file='ip'
+sp_file='op'
 sp=pd.read_pickle(INPUT_IPOP_DIR+'\\'+sp_file)
 sp=sp.loc[:,['RECORD_ID','STMT_PERIOD_FROM','PAT_ADDR_CENSUS_BLOCK_GROUP','PAT_STATUS']]
 

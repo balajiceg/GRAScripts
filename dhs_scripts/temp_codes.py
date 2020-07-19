@@ -87,6 +87,19 @@ table=table.transpose()
 res=stats.chi2_contingency(table)
 print(res)
 pd.DataFrame(res[3],index=table.index,columns=table.columns)
+#%% merge aux files to see the counts
+files=glob.glob('Z:\\Balaji\\Analysis_out_IPOP\\16072020\\op\\*_aux.csv')
+x=[]
+for f in files:
+    df=pd.read_csv(f)
+    df["outcome"]=os.path.basename(f).replace("_aux.csv","")
+    x.append(df)
+result_df=pd.concat(x)
+
+result_df=result_df.loc[result_df.Time!='control',]
+result_df["floo_sum"]=result_df.FLood_1+result_df.NO
+
+result_df.groupby(by='outcome').sum().floo_sum.to_clipboard()
 
 
 #%%
