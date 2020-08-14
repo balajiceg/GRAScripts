@@ -30,6 +30,13 @@ def groupAndCat(df):
     #remove zero counts groups
     grouped_tracts=grouped_tracts.loc[grouped_tracts['Counts']>0,]
     
+#%% population in 2881 tracts
+
+x=pd.read_csv(r"Z:/Balaji/DSHS ED visit data/tractsInStudyArea.csv")
+
+y=x.merge(demos,left_on='CensusTractFIPS',right_on='Id2',how='left')
+
+y.loc[:,'Estimate; SEX AND AGE - Total population'].sum()
 #%% chi square test
 from scipy import stats
 cols_to_check=["SEX_CODE","ETHNICITY","RACE","PAT_AGE_YEARS"]
@@ -115,6 +122,12 @@ files=glob.glob('Z:\\SyS data\\*')
 x=[pd.read_csv(f,encoding = "ISO-8859-1") for f in files]
 result_df=pd.concat(x)
 result_df.to_csv("Z:\\Balaji\\SyS data\\merged.csv",index=None)
+
+#%%find unique tracts and counts in OP data
+rm_df=df.loc[:,['Outcome','floodr','Time','year','month','weekday', 'PAT_AGE_YEARS','SEX_CODE','RACE','ETHNICITY','PAT_ADDR_CENSUS_TRACT']]
+rm_df=rm_df.dropna()
+rm_df.PAT_ADDR_CENSUS_TRACT.unique()
+(rm_df.PAT_ADDR_CENSUS_TRACT//1000000).unique()
 #%%looping for automatic saving 
 
 

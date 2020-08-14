@@ -32,17 +32,27 @@ def filter_mortality(df):
 
 def get_sp_outcomes(sp,Dis_cat):
     global sp_outcomes
-    return sp.merge(sp_outcomes.loc[:,['RECORD_ID',Dis_cat]],on='RECORD_ID',how='left')[Dis_cat].values
+    return sp.merge(sp_outcomes.loc[:,['RECORD_ID','op',Dis_cat]],on=['RECORD_ID','op'],how='left')[Dis_cat].values
 
 #%%read ip op data
 INPUT_IPOP_DIR=r'Z:\Balaji\DSHS ED visit data\CleanedMergedJoined'
-sp_file='op'
-sp=pd.read_pickle(INPUT_IPOP_DIR+'\\'+sp_file)
-sp=sp.loc[:,['RECORD_ID','STMT_PERIOD_FROM','PAT_ADDR_CENSUS_BLOCK_GROUP','PAT_AGE_YEARS','SEX_CODE','RACE','PAT_STATUS','ETHNICITY','PAT_ZIP']]
+#read_op
+op=pd.read_pickle(INPUT_IPOP_DIR+'\\op')
+op=op.loc[:,['RECORD_ID','STMT_PERIOD_FROM','PAT_ADDR_CENSUS_BLOCK_GROUP','PAT_AGE_YEARS','SEX_CODE','RACE','PAT_STATUS','ETHNICITY','PAT_ZIP']]
+op['op']=True
 #sp=pd.read_pickle(INPUT_IPOP_DIR+r'\op')
+#read_ip
+ip=pd.read_pickle(INPUT_IPOP_DIR+'\\ip')
+ip=ip.loc[:,['RECORD_ID','STMT_PERIOD_FROM','PAT_ADDR_CENSUS_BLOCK_GROUP','PAT_AGE_YEARS','SEX_CODE','RACE','PAT_STATUS','ETHNICITY','PAT_ZIP']]
+ip['op']=False
+#merge Ip and OP
+op=pd.concat([op,ip])
+sp=op
+del op,ip
+
 
 #read op/ip outcomes df
-sp_outcomes=pd.read_csv(INPUT_IPOP_DIR+'\\'+sp_file+'_outcomes.csv')
+sp_outcomes=pd.read_csv(INPUT_IPOP_DIR+'\\ip_op_outcomes.csv')
 
 #read flood ratio data
 flood_data=geopandas.read_file(r'Z:/Balaji/FloodRatioJoinedAll_v1/FloodInund_AllJoined_v1.gpkg').drop('geometry',axis=1)
@@ -76,7 +86,7 @@ flood_data_zip=None
 interv_dates=[20170825, 20170913, 20171014]
 washout_period=[20170819,20170825] #including the dates specified
 interv_dates_cats=['flood','PostFlood1','PostFlood2']
-Dis_cat="Asthma"
+Dis_cat="ALL"
 
 #%%cleaing for age, gender and race and create census tract
 #age
@@ -170,7 +180,10 @@ for i in range(1,len(FLOOD_QUANTILES)):
 sp.loc[:,'floodr']=pd.cut(sp.floodr,bins=flood_bins,right=True,include_lowest=True,labels=FLOOD_QUANTILES)
 sp=sp.drop("GEOID",axis=1)
     
-       
+#%%calculating total visits for offset
+vists_per_tract=sp.groupby(['PAT_ADDR_CENSUS_TRACT','STMT_PERIOD_FROM'])\
+                  .size().reset_index().rename(columns={0:'TotalVisits'})
+sp=sp.merge(vists_per_tract,on=['PAT_ADDR_CENSUS_TRACT','STMT_PERIOD_FROM'],how='left')
 #%%function for looping
 def run():
     #%%filter records for specific outcome
@@ -206,12 +219,12 @@ def run():
     print(counts_outcome)
     
     #%%running the model
-    #if Dis_cat!="ALL":offset=np.log(df.TotalVisits)
-    offset=None
+    if Dis_cat!="ALL":offset=np.log(df.TotalVisits)
+    #offset=None
     if Dis_cat=="ALL":offset=np.log(df.Population)
     
     
-    formula='Outcome'+' ~ '+'SVI * floodr * Time '+'+ year'+'+month'+'+weekday' + '+PAT_AGE_YEARS + SEX_CODE + RACE + ETHNICITY'
+    formula='Outcome'+' ~ '+'floodr * Time '+'+ year'+'+month'+'+weekday' + '+PAT_AGE_YEARS + SEX_CODE + RACE + ETHNICITY + op'
     model = smf.gee(formula=formula,groups=df[flood_join_field], data=df,offset=offset,missing='drop',family=sm.families.Poisson(link=sm.families.links.log()))
     #model = smf.logit(formula=formula, data=df,missing='drop')
     #model = smf.glm(formula=formula, data=df,missing='drop',family=sm.families.Binomial(sm.families.links.logit()))
@@ -228,10 +241,9 @@ def run():
     reg_table.loc[:,'coef']=np.exp(reg_table.coef)
     reg_table.loc[:,['[0.025', '0.975]']]=np.exp(reg_table.loc[:,['[0.025', '0.975]']])
     reg_table=reg_table.loc[~(reg_table['index'].str.contains('month') 
-                              | reg_table['index'].str.contains('month')
                               | reg_table['index'].str.contains('weekday')
                               #| reg_table['index'].str.contains('year')
-                              #| reg_table['index'].str.contains('PAT_AGE_YEARS')
+                              #| reg_table['index'].str.contains('PAT_AGE_YEARS'))
                               
                               ),]
     reg_table['index']=reg_table['index'].str.replace("\[T.",'_').str.replace('\]','')

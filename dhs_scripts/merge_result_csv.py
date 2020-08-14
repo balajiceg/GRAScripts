@@ -13,7 +13,7 @@ import os
 import glob
 
 #%%read and merge required columns
-first_dir=r"Z:\Balaji\Analysis_out_IPOP\17072020"
+first_dir=r"Z:\Balaji\Analysis_out_IPOP\19072020"
 req_files=glob.glob(first_dir+"\\op\\*_reg.csv")
 
 merge_df=pd.DataFrame()
