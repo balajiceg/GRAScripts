@@ -38,3 +38,25 @@ outcome_files={1:"op",0:"ip"}
 merge_df['file']=merge_df.reference.astype('category').cat.rename_categories(outcome_files)
 merge_df=merge_df.drop('reference',axis=1)
 merge_df.to_excel(first_dir+r'\merged.xlsx',index=False)  
+
+
+
+#%%combined merge
+first_dir=r"Z:\Balaji\Analysis_out_IPOP\13082020"
+req_files=glob.glob(first_dir+"\\*_reg.csv")
+
+merge_df=pd.DataFrame()
+
+for file in req_files:
+    df=pd.read_csv(file)[['index','coef','P>|z|','[0.025','0.975]']]
+    df=df.round(3)
+    Dis_cat=os.path.basename(file).replace("_reg.csv","")
+    df['outcome']=Dis_cat
+    
+    merge_df=pd.concat([merge_df,df],axis=0)
+    
+merge_df.columns=['covar', 'RR', 'P', 'conf25', 'conf95', 'outcome']
+merge_df['covar']=merge_df['covar'].str.replace("\[T.",'_').str.replace('\]','')
+
+#%% outupt
+merge_df.to_excel(first_dir+r'\merged.xlsx',index=False)  

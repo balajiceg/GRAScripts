@@ -40,9 +40,9 @@ def get_sp_outcomes(sp,Dis_cat):
 
 #%%read ip op data
 INPUT_IPOP_DIR=r'Z:\Balaji\DSHS ED visit data\CleanedMergedJoined'
-sp_file='op'
+sp_file='ip_op'
 sp=pd.read_pickle(INPUT_IPOP_DIR+'\\'+sp_file)
-sp=sp.loc[:,['RECORD_ID','STMT_PERIOD_FROM','PAT_ADDR_CENSUS_BLOCK_GROUP','PAT_STATUS']]
+sp=sp.loc[:,['RECORD_ID','STMT_PERIOD_FROM','PAT_ADDR_CENSUS_BLOCK_GROUP','PAT_STATUS','op']]
 
 #read flood data
 flood_data=geopandas.read_file(r'Z:/Balaji/FloodRatioJoinedAll_v1/FloodInund_AllJoined_v1.gpkg')
@@ -96,7 +96,7 @@ app = dash.Dash('Rate Graph',external_stylesheets=external_stylesheets)
 app.layout = html.Div([
     dcc.Slider(min=0, max=3, marks={i: item for i,item in enumerate(["NO","FLood_1","FLOOD_2","FLOOD_3"])},
         value=flood_cats_in,id='my-slider'),
-    dcc.RadioItems(id='ip-op',options=[{'label':i, 'value': i} for i in ['ip','op']],value=sp_file,labelStyle={'display': 'inline-block'},style={'display': 'inline'}),
+    dcc.RadioItems(id='ip-op',options=[{'label':i, 'value': i} for i in ['ip_op']],value=sp_file,labelStyle={'display': 'inline-block'},style={'display': 'inline'}),
     dcc.Loading(children=html.Div(id='hidden-div', style={'display':'none'})),
     dcc.Input(id="avg_window",type="number",placeholder="avg window",value=avg_window,style={'display':'inline'}),
     dcc.Dropdown(id='floodr_use',options=[{'label':i, 'value': i} for i in flood_products],value=floodr_use),
