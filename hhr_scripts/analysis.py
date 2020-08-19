@@ -176,7 +176,7 @@ for dependent in depnsB[0:1]:
      
     print('POISSON----------- '*5)
     #glm poisson
-    formula=dependent+'_1 ~ '+' * '.join(indes)
+    formula=dependent+'_1 ~ '+' + '.join(indes)
     
     offset=np.log(df[dependent+'_1']+df[dependent+'_0'])
     

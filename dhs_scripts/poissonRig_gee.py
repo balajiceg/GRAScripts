@@ -224,7 +224,7 @@ def run():
     if Dis_cat=="ALL":offset=np.log(df.Population)
     
     
-    formula='Outcome'+' ~ '+'SVI * Time '+'+ year'+'+month'+'+weekday' + '+PAT_AGE_YEARS + SEX_CODE + RACE + ETHNICITY + op'
+    formula='Outcome'+' ~ '+'SVI * floodr * Time '+'+ year'+'+month'+'+weekday' + '+PAT_AGE_YEARS + SEX_CODE + RACE + ETHNICITY + op'
     model = smf.gee(formula=formula,groups=df[flood_join_field], data=df,offset=offset,missing='drop',family=sm.families.Poisson(link=sm.families.links.log()))
     #model = smf.logit(formula=formula, data=df,missing='drop')
     #model = smf.glm(formula=formula, data=df,missing='drop',family=sm.families.Binomial(sm.families.links.logit()))

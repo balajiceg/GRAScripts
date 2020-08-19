@@ -95,7 +95,7 @@ res=stats.chi2_contingency(table)
 print(res)
 pd.DataFrame(res[3],index=table.index,columns=table.columns)
 #%% merge aux files to see the counts
-files=glob.glob('Z:\\Balaji\\Analysis_out_IPOP\\16072020\\op\\*_aux.csv')
+files=glob.glob('Z:\\Balaji\\Analysis_out_IPOP\\13082020\\*_aux.csv')
 x=[]
 for f in files:
     df=pd.read_csv(f)

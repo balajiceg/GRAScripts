@@ -13,7 +13,7 @@ import os
 import glob
 
 #%%read and merge required columns
-first_dir=r"Z:\Balaji\Analysis_out_IPOP\19072020"
+first_dir=r"Z:\Balaji\Analysis_out_IPOP\18082020"
 req_files=glob.glob(first_dir+"\\op\\*_reg.csv")
 
 merge_df=pd.DataFrame()
@@ -42,7 +42,7 @@ merge_df.to_excel(first_dir+r'\merged.xlsx',index=False)
 
 
 #%%combined merge
-first_dir=r"Z:\Balaji\Analysis_out_IPOP\13082020"
+first_dir=r"Z:\Balaji\Analysis_out_IPOP\18082020"
 req_files=glob.glob(first_dir+"\\*_reg.csv")
 
 merge_df=pd.DataFrame()
