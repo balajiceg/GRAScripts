@@ -12,11 +12,17 @@ import statsmodels.api as sm
 import statsmodels.formula.api as smf
 from datetime import timedelta, date,datetime
 from dateutil import parser
-
+import geopandas as gpd
 import sys
 sys.path.insert(1, r'Z:\GRAScripts\dhs_scripts')
 from recalculate_svi import recalculateSVI
+import math
 
+
+import plotly.express as px
+import plotly.io as pio
+import plotly.graph_objects as go
+pio.renderers.default='browser'
 
 #%%read ip op data
 INPUT_IPOP_DIR=r'Z:\Balaji\DSHS ED visit data\CleanedMergedJoined'
@@ -91,25 +97,94 @@ provider_zip["ZIP5"]=pd.to_numeric(zip_codes,errors="coerce").astype('Int64')
 provider_zip=provider_zip[~provider_zip.duplicated(['PROVIDER_NAME','ZIP5'],keep='first')]
     
 provider_zip["STATE"]= "TX"
+
+#%%import bg centroid and geocoded hospitals and compute cross distance
+providers_loc=gpd.read_file(r"Z:\Balaji\arcProFiles\Default.gdb",layer="providers_Zips5_GeocodeAddreProjected")
+providers_loc['s_no']=range(providers_loc.shape[0])
+bg_centroids=gpd.read_file(r"Z:\Balaji\arcProFiles\Default.gdb",layer="tx_bg_centroid_proj")
+
+merge_df=[]
+#compute distance from each point to other
+for i in range(providers_loc.shape[0]):
+    dis=bg_centroids.distance(providers_loc.iloc[i,:].geometry)   
+    df=bg_centroids.copy()
+    df['DistanceToProvider']=dis
+    df['provider_s_no']=providers_loc.iloc[i,:].s_no
+    df["Provider_X"]=providers_loc.iloc[i,:].geometry.x
+    df["Provider_Y"]=providers_loc.iloc[i,:].geometry.y
+    merge_df.append(df)
+    print(i)
+    
+merge_df=pd.concat(merge_df)
+
+
+merge_df=merge_df.loc[:,['GEOID','provider_s_no','DistanceToProvider','Provider_X','Provider_Y']]
+merge_df=merge_df.merge(providers_loc.loc[:,['USER_PROVIDER_NAME','USER_PROVIDER_ZIP','s_no']],left_on="provider_s_no",right_on="s_no",how='left')
     
     
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
+#%% combine merge_df with the op ip df
+merge_df.GEOID=pd.to_numeric(merge_df.GEOID).astype('Int64')
+sp=sp.merge(merge_df,left_on=['PROVIDER_NAME','PROVIDER_ZIP','PAT_ADDR_CENSUS_BLOCK_GROUP'],right_on=['USER_PROVIDER_NAME','USER_PROVIDER_ZIP','GEOID'],how='left')
+
+sp=sp.loc[:,['RECORD_ID', 'STMT_PERIOD_FROM', 'PAT_ADDR_CENSUS_BLOCK_GROUP','DistanceToProvider','Provider_X','Provider_Y','op','provider_s_no']]    
+#save this as pickle 
+sp.to_csv(r"Z:\Balaji\DSHS ED visit data\Provider_bg_dis.csv",index=False)
+
+#%%merge innundation data
+#%%group by stment period , flooded non flooded
+#read blocks innundation
+blocks_flood=gpd.read_file(r"Z:\Balaji\arcProFiles\Default.gdb",layer="tx_bg_Project_inundation").loc[:,["GEOID","flood_cell_count"]]
+blocks_flood.GEOID=pd.to_numeric(blocks_flood.GEOID).astype('int64')
+blocks_flood.flood_cell_count=(blocks_flood.flood_cell_count>0)
+
+#merge inundation data
+sp=sp.merge(blocks_flood,left_on="PAT_ADDR_CENSUS_BLOCK_GROUP",right_on="GEOID",how='left')
+sp.DistanceToProvider=sp.DistanceToProvider/1000
+
+#groupd by date, flooded/not
+grp_df=sp.loc[:,['STMT_PERIOD_FROM','flood_cell_count','DistanceToProvider']].groupby(['STMT_PERIOD_FROM','flood_cell_count']).agg(['mean', 'count', 'std'])
+
+#compute conf interval
+
+ci95_hi = []
+ci95_lo = []
+
+for i in grp_df.index:
+    m, c, s = grp_df.loc[i]
+    ci95_hi.append(m + 1.96*s/math.sqrt(c))
+    ci95_lo.append(m - 1.96*s/math.sqrt(c))
+
+grp_df['ci95_hi'] = ci95_hi
+grp_df['ci95_lo'] = ci95_lo
+
+grp_df.reset_index(inplace=True)
+grp_df["date"]=pd.to_datetime( pd.Series(grp_df.STMT_PERIOD_FROM,dtype='str'))
+grp_df['avg']=grp_df.DistanceToProvider['mean']
+#rolling mean
+grp_df_cpy=grp_df.copy()
+#%%draw plots
+grp_df=grp_df_cpy.copy()
+grp_df.loc[:,['ci95_hi','ci95_lo','avg']]=grp_df.loc[:,['ci95_hi','ci95_lo','avg']].rolling(window=1).mean()
+
+fig=go.Figure()
+df=grp_df[grp_df.flood_cell_count]
+fig.add_trace(go.Scatter(x=df.date, y=df.avg,mode='lines+markers',name='flooded',marker_color="red"))
+fig.add_trace(go.Scatter(x=df.date, y=df.ci95_hi,line=dict(color='red',dash='dot')))
+fig.add_trace(go.Scatter(x=df.date, y=df.ci95_lo,line=dict(color='red',dash='dot')))
+
+df=grp_df[~grp_df.flood_cell_count]
+fig.add_trace(go.Scatter(x=df.date, y=df.avg,mode='lines+markers',name='non_flooded',marker_color="blue"))
+fig.add_trace(go.Scatter(x=df.date, y=df.ci95_hi,line=dict(color='blue',dash='dot')))
+fig.add_trace(go.Scatter(x=df.date, y=df.ci95_lo,line=dict(color='blue',dash='dot')))
+fig.add_shape(dict(type="rect",x0='2017-08-26',y1=grp_df.ci95_hi.max()+5,x1='2017-09-13',y0=grp_df.ci95_lo.min()-5,opacity=0.4,fillcolor='#ffff00',line=dict(width=0) ))
+fig.update_layout(plot_bgcolor='white')
+fig.update_xaxes( gridcolor='rgb(210,210,210)',gridwidth=.5)
+fig.update_yaxes(gridcolor='rgb(210,210,210)',gridwidth=.5)
+fig.show()
+#%%
+grp_df=grp_df.rename(columns={0:"counts"})
+grp_df = gpd.GeoDataFrame(grp_df, geometry=gpd.points_from_xy(grp_df.Provider_X, grp_df.Provider_Y))
+grp_df.to_file('new')
     
     
     

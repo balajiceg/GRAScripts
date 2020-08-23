@@ -16,7 +16,7 @@ pio.renderers.default='browser'
 
 
 #%%read and merge required columns
-first_dir=r"Z:\Balaji\Analysis_out_IPOP\13082020"
+first_dir=r"Z:\Balaji\Analysis_out_IPOP\22082020\SVI_4"
 req_files=glob.glob(first_dir+"\\*_reg.csv")
 
 op_dir=r"Z:\Balaji\Analysis_out_IPOP\20062020_1\RPL_THEMES_"
@@ -97,22 +97,23 @@ fig.show()
 
 sp_file='op'
 outcome_titls={"op":1,"ip":0}
-required=['floodr_FLood_1:Time_flood', 'floodr_FLood_1:Time_PostFlood1','floodr_FLood_1:Time_PostFlood2']
+required=['floodr_FLood_1:Time_flood','floodr_FLood_1:Time_PostFlood1','floodr_FLood_1:Time_PostFlood2']
 
 req_df=merge_df.loc[merge_df['covar'].isin(required) & (merge_df.reference==outcome_titls[sp_file]),: ].copy()
-outcomes_req=['Bite-Insect', 'CO_Exposure',
-       'Dehydration', 'Dialysis', 'Drowning','Hypothermia',
-       'Intestinal_infectious_diseases', 'Medication_Refill',
-       'Pregnancy_complic', 'Psychiatric']
-req_df=req_df[req_df.outcome.isin(outcomes_req)]
+outcomes_req=['ARI', 'Asthma', 'Bite-Insect', 'Chest_pain', 'CO_Exposure',
+      'Dehydration','Drowning', 
+       'Heat_Related_But_Not_dehydration', 'Hypothermia',
+       'Intestinal_infectious_diseases', 
+       'Pregnancy_complic']#, 'Psychiatric']
+#req_df=req_df[req_df.outcome.isin(outcomes_req)]
 
 #prepare y distance
 outcomes=req_df.outcome.unique()
 n=len(required)
-y_dis=req_df.outcome.astype('category').cat.rename_categories(np.arange(1,len(outcomes)*n*1+1,n*1)).astype('int')
+y_dis=req_df.outcome.astype('category').cat.rename_categories(np.arange(1,len(outcomes)*n*2+1,n*2)).astype('int')
 req_df['reference']=req_df.covar.astype('category').cat \
                     .reorder_categories(required[::-1]).cat \
-                    .rename_categories(range(len(required))).astype('int')
+                    .rename_categories(range(0,len(required)*1,1)).astype('int')
 req_df['y_dis']=y_dis+req_df.reference
 req_df.conf25,req_df.conf95=req_df.RR-req_df.conf25 , req_df.conf95-req_df.RR
 req_df['text']=req_df.covar.str.split('_').str[3]
@@ -129,7 +130,7 @@ fig.add_shape(dict(type="line",x0=1,y0=0,x1=1,y1=req_df.y_dis.max()+1,
 fig.update_layout(title_text=sp_file,xaxis_type='log',plot_bgcolor='white')
 fig.update_xaxes( gridcolor='rgb(210,210,210)',gridwidth=.5)
 fig.update_yaxes( showgrid=False)
-fig.write_html(sp_file+'.html')
+fig.write_html('rr_plot.html')
 fig.show()
     
 #%% comparing zip code with census tract

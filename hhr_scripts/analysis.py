@@ -159,7 +159,7 @@ indes = [
 
              #'otherHomesFlood',#'skinContact',
             #'  #'leftHome',
-             'floodRatioCat','SVI',#,'imperInd',
+             'floodRatioCat'#,'SVI',#,'imperInd',
             # 'waterLevelC_3','waterLevelC_6',
             # 'electricityLostDaysC_15','electricityLostDaysC_30',
             # 'floodedDaysC_10','floodedDaysC_90',
@@ -170,7 +170,7 @@ depnsB=['Illness','Injury',"Hospital"]
 #corellation analysis
 #cor_mat=df.loc[:,indes].corr()
 
-for dependent in depnsB[0:1]:
+for dependent in depnsB[1:2]:
     print("_"*200)
     #print(dependent)
      
