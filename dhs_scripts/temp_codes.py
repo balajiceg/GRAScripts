@@ -95,7 +95,7 @@ res=stats.chi2_contingency(table)
 print(res)
 pd.DataFrame(res[3],index=table.index,columns=table.columns)
 #%% merge aux files to see the counts
-files=glob.glob('Z:\\Balaji\\Analysis_out_IPOP\\13082020\\*_aux.csv')
+files=glob.glob('Z:\\Balaji\\Analysis_out_IPOP\\13082020_final1\\*_aux.csv')
 x=[]
 for f in files:
     df=pd.read_csv(f)
@@ -128,6 +128,7 @@ rm_df=df.loc[:,['Outcome','floodr','Time','year','month','weekday', 'PAT_AGE_YEA
 rm_df=rm_df.dropna()
 rm_df.PAT_ADDR_CENSUS_TRACT.unique()
 (rm_df.PAT_ADDR_CENSUS_TRACT//1000000).unique()
+#%% generating summary table
 #%%looping for automatic saving 
 
 

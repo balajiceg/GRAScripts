@@ -219,10 +219,12 @@ def run():
     
     #%% save cross tab
      #counts_outcome=pd.DataFrame(df.Outcome.value_counts())
-    outcomes_recs=df.loc[(df.Outcome>0),]
+    outcomes_recs=df.loc[(df.Outcome>0)&(~pd.isna(df.loc[:,['floodr','Time','year','month','weekday' ,'PAT_AGE_YEARS', 
+                                                          'SEX_CODE','RACE','ETHNICITY']]).any(axis=1)),]
     counts_outcome=pd.crosstab(outcomes_recs.Time,outcomes_recs.floodr)
     counts_outcome.to_csv(Dis_cat+"_aux"+".csv")
     print(counts_outcome)
+    del outcomes_recs
     
     #%%running the model
     if Dis_cat!="ALL":offset=np.log(df.TotalVisits)
@@ -230,7 +232,7 @@ def run():
     if Dis_cat=="ALL":offset=np.log(df.Population)
     
     
-    formula='Outcome'+' ~ '+' floodr * Time * DayFromStart'+'+ year'+'+month'+'+weekday' + '+PAT_AGE_YEARS + SEX_CODE + RACE + ETHNICITY + op'
+    formula='Outcome'+' ~ '+' floodr * Time'+'+ year'+'+month'+'+weekday' + '+PAT_AGE_YEARS + SEX_CODE + RACE + ETHNICITY'
     model = smf.gee(formula=formula,groups=df[flood_join_field], data=df,offset=offset,missing='drop',family=sm.families.Poisson(link=sm.families.links.log()))
     #model = smf.logit(formula=formula, data=df,missing='drop')
     #model = smf.glm(formula=formula, data=df,missing='drop',family=sm.families.Binomial(sm.families.links.logit()))
