@@ -16,7 +16,7 @@ pio.renderers.default='browser'
 
 
 #%%read and merge required columns
-first_dir=r"Z:\Balaji\Analysis_out_IPOP\22082020\SVI_4"
+first_dir=r"Z:\Balaji\Analysis_out_IPOP\13082020"
 req_files=glob.glob(first_dir+"\\*_reg.csv")
 
 op_dir=r"Z:\Balaji\Analysis_out_IPOP\20062020_1\RPL_THEMES_"
@@ -97,7 +97,7 @@ fig.show()
 
 sp_file='op'
 outcome_titls={"op":1,"ip":0}
-required=['floodr_FLood_1:Time_flood','floodr_FLood_1:Time_PostFlood1','floodr_FLood_1:Time_PostFlood2']
+required=['floodr_FLood_1:Time_flood']#,'floodr_FLood_1:Time_PostFlood1','floodr_FLood_1:Time_PostFlood2']
 
 req_df=merge_df.loc[merge_df['covar'].isin(required) & (merge_df.reference==outcome_titls[sp_file]),: ].copy()
 outcomes_req=['ARI', 'Asthma', 'Bite-Insect', 'Chest_pain', 'CO_Exposure',
@@ -105,7 +105,7 @@ outcomes_req=['ARI', 'Asthma', 'Bite-Insect', 'Chest_pain', 'CO_Exposure',
        'Heat_Related_But_Not_dehydration', 'Hypothermia',
        'Intestinal_infectious_diseases', 
        'Pregnancy_complic']#, 'Psychiatric']
-#req_df=req_df[req_df.outcome.isin(outcomes_req)]
+req_df=req_df[req_df.outcome.isin(outcomes_req)]
 
 #prepare y distance
 outcomes=req_df.outcome.unique()
@@ -118,16 +118,24 @@ req_df['y_dis']=y_dis+req_df.reference
 req_df.conf25,req_df.conf95=req_df.RR-req_df.conf25 , req_df.conf95-req_df.RR
 req_df['text']=req_df.covar.str.split('_').str[3]
 
+#rename outcomes
+rename_dict={'Bite-Insect':"Insect Bite", 'Chest_pain':'Chest Pain/ Palpitations',
+             'Heat_Related_But_Not_dehydration':"Heat Related Illness",
+             'Pregnancy_complic':'Pregnancy Complications'}
+for k,v in rename_dict.items():
+    req_df.outcome[req_df.outcome==k]=v
+
 #plot data
 fig=px.scatter(req_df, x="RR", y="y_dis", color="outcome",
-                 error_x="conf95", error_x_minus="conf25",text='text')
+                 error_x="conf95", error_x_minus="conf25",text='outcome')
 fig.update_traces(textposition='top center')
 fig.add_shape(dict(type="line",x0=1,y0=0,x1=1,y1=req_df.y_dis.max()+1,
                    line=dict(color="Red",width=1,dash='dot')
             ))
 
 # Set title
-fig.update_layout(title_text=sp_file,xaxis_type='log',plot_bgcolor='white')
+fig.update_layout(title_text=sp_file,xaxis_type='log',plot_bgcolor='white',
+                  font=dict(size=17))
 fig.update_xaxes( gridcolor='rgb(210,210,210)',gridwidth=.5)
 fig.update_yaxes( showgrid=False)
 fig.write_html('rr_plot.html')

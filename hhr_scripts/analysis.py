@@ -148,7 +148,7 @@ for field in depnsB:
 s=df.loc[df.floodRatio>0,'floodRatio']
 
 #df.loc[:,'floodRatioCat']=pd.cut(df.floodRatio,bins=df.floodRatio.quantile(np.arange(0,1.1,1/2)),right=False)
-df.loc[:,'floodRatioCat']=pd.cut(df.floodRatio,bins=[0]+s.quantile([0]+np.arange(0,1.1,1/1)).to_list(),right=False)
+df.loc[:,'floodRatioCat']=pd.cut(df.floodRatio,bins=[0]+s.quantile([0]+np.arange(0,1.1,1/3)).to_list(),right=False)
 
 df.loc[:,'SVI']=pd.cut(df.SVI,bins=np.arange(0,1.1,1/4),include_lowest=True) #,labels=['<=25%','<=100%'])
 
@@ -159,7 +159,7 @@ indes = [
 
              #'otherHomesFlood',#'skinContact',
             #'  #'leftHome',
-             'floodRatioCat'#,'SVI',#,'imperInd',
+             'floodRatioCat','SVI',#,'imperInd',
             # 'waterLevelC_3','waterLevelC_6',
             # 'electricityLostDaysC_15','electricityLostDaysC_30',
             # 'floodedDaysC_10','floodedDaysC_90',
@@ -170,7 +170,7 @@ depnsB=['Illness','Injury',"Hospital"]
 #corellation analysis
 #cor_mat=df.loc[:,indes].corr()
 
-for dependent in depnsB[1:2]:
+for dependent in depnsB[0:1]:
     print("_"*200)
     #print(dependent)
      
@@ -192,3 +192,5 @@ for dependent in depnsB[1:2]:
     
     
 
+illness_df=df.loc[:,['Illness_1','Illness_0','floodRatioCat','SVI']].dropna()
+injury_df=df.loc[:,['Injury_1','Injury_0','floodRatioCat','SVI']].dropna()

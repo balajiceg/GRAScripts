@@ -147,7 +147,7 @@ sp=sp.merge(svi,left_on="PAT_ADDR_CENSUS_TRACT",right_on="FIPS",how='left').drop
 sp['SVI_Cat']=pd.cut(sp.SVI,bins=np.arange(0,1.1,1/4),include_lowest=True,labels=[1,2,3,4])
 
 #%%filter SVI cat for stratified analysis
-sp=sp[sp.SVI_Cat==4]
+#sp=sp[sp.SVI_Cat==4]
 #%%merge flood ratio
 flood_join_field='PAT_ADDR_CENSUS_TRACT'
 if flood_data_zip is not None: 
@@ -186,6 +186,10 @@ sp=sp.drop("GEOID",axis=1)
 vists_per_tract=sp.groupby(['PAT_ADDR_CENSUS_TRACT','STMT_PERIOD_FROM'])\
                   .size().reset_index().rename(columns={0:'TotalVisits'})
 sp=sp.merge(vists_per_tract,on=['PAT_ADDR_CENSUS_TRACT','STMT_PERIOD_FROM'],how='left')
+
+#%%creating day from start for CITS
+day_from_start=pd.DataFrame({'STMT_PERIOD_FROM':pd.date_range('2016-07-01', '2018-12-31', freq='d').astype('str').str.replace('-','').astype('int64')}).reset_index().rename(columns={'index':'DayFromStart'})
+sp=sp.merge(day_from_start,on='STMT_PERIOD_FROM',how='left')
 #%%function for looping
 def run():
     #%%filter records for specific outcome
@@ -226,7 +230,7 @@ def run():
     if Dis_cat=="ALL":offset=np.log(df.Population)
     
     
-    formula='Outcome'+' ~ '+' floodr * Time '+'+ year'+'+month'+'+weekday' + '+PAT_AGE_YEARS + SEX_CODE + RACE + ETHNICITY + op'
+    formula='Outcome'+' ~ '+' floodr * Time * DayFromStart'+'+ year'+'+month'+'+weekday' + '+PAT_AGE_YEARS + SEX_CODE + RACE + ETHNICITY + op'
     model = smf.gee(formula=formula,groups=df[flood_join_field], data=df,offset=offset,missing='drop',family=sm.families.Poisson(link=sm.families.links.log()))
     #model = smf.logit(formula=formula, data=df,missing='drop')
     #model = smf.glm(formula=formula, data=df,missing='drop',family=sm.families.Binomial(sm.families.links.logit()))
