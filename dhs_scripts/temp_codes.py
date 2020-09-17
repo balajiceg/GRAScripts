@@ -95,18 +95,26 @@ res=stats.chi2_contingency(table)
 print(res)
 pd.DataFrame(res[3],index=table.index,columns=table.columns)
 #%% merge aux files to see the counts
-files=glob.glob('Z:\\Balaji\\Analysis_out_IPOP\\13082020_final1\\*_aux.csv')
+import pandas as pd
+import glob
+import os
+
+files=glob.glob('Z:\\Balaji\\Analysis_out_IPOP\\22082020\\SVI_4\\*_aux.csv')
 x=[]
 for f in files:
     df=pd.read_csv(f)
     df["outcome"]=os.path.basename(f).replace("_aux.csv","")
     x.append(df)
-result_df=pd.concat(x)
+concat_df=pd.concat(x)
 
-result_df=result_df.loc[result_df.Time!='control',]
-result_df["floo_sum"]=result_df.FLood_1+result_df.NO
-
-result_df.groupby(by='outcome').sum().floo_sum.to_clipboard()
+result_df=pd.DataFrame({'outcome':concat_df.outcome.unique()})
+flood_cats=['NO','FLood_1']
+for cat in flood_cats:
+    for period in concat_df.Time.unique():
+        cols=concat_df.loc[concat_df.Time==period,['outcome',cat]].rename(columns={cat:cat+'_'+period})
+        result_df=result_df.merge(cols,on='outcome',how='left')
+        
+result_df.to_clipboard(index=False)
 
 
 #%%
