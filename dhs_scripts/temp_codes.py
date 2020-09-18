@@ -140,7 +140,6 @@ rm_df.PAT_ADDR_CENSUS_TRACT.unique()
 #%%looping for automatic saving 
 
 
-flood_cats_in=1
 floodr_use="DFO_R200" #['DFO_R200','DFO_R100','LIST_R20','DFO_R20','DFOuLIST_R20']
 nullAsZero="True" #null flood ratios are changed to 0
 floodZeroSep="True" # zeros are considered as seperate class
@@ -160,7 +159,7 @@ Dis_cats=['ALL',
            'Medication_Refill',
            'Asthma',
            'Chest_pain',
-           'Psychiatric',
+           #'Psychiatric',
            'Intestinal_infectious_diseases',
             'ARI',
             'Pregnancy_complic'

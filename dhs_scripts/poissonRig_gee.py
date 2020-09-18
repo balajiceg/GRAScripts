@@ -153,7 +153,7 @@ flood_join_field='PAT_ADDR_CENSUS_TRACT'
 if flood_data_zip is not None: 
     flood_data=flood_data_zip
     flood_join_field='PAT_ZIP'
-FLOOD_QUANTILES=["NO","FLood_1"]
+FLOOD_QUANTILES=["NO","FLood_1","FLood_2","FLood_3"]
 floodr=flood_data.copy()
 floodr.GEOID=pd.to_numeric(floodr.GEOID).astype("Int64")
 floodr=floodr.loc[:,['GEOID']+[floodr_use]]
@@ -165,8 +165,9 @@ if nullAsZero == "True": sp.loc[pd.isna(sp.floodr),'floodr']=0.0
 
 #categorize floods as per quantiles
 tractsfloodr=sp.loc[~sp.duplicated(flood_join_field),[flood_join_field,'floodr']]
-tractsfloodr.floodr= tractsfloodr.floodr.round(2)
+
 if floodZeroSep == "True":
+    #tractsfloodr.floodr= tractsfloodr.floodr.round(4)
     s=tractsfloodr.loc[tractsfloodr.floodr>0,'floodr']  
     flood_bins=s.quantile(np.arange(0,1.1,1/(len(FLOOD_QUANTILES)-1))).to_numpy()
     flood_bins[0]=1e-6
@@ -232,7 +233,7 @@ def run():
     if Dis_cat=="ALL":offset=np.log(df.Population)
     
     
-    formula='Outcome'+' ~ '+' floodr * Time'+'+ year'+'+month'+'+weekday' + '+PAT_AGE_YEARS + SEX_CODE + RACE + ETHNICITY'
+    formula='Outcome'+' ~ '+' floodr * Time'+'+ year'+'+month'+'+weekday' + '+PAT_AGE_YEARS + SEX_CODE + RACE + ETHNICITY +op'
     model = smf.gee(formula=formula,groups=df[flood_join_field], data=df,offset=offset,missing='drop',family=sm.families.Poisson(link=sm.families.links.log()))
     #model = smf.logit(formula=formula, data=df,missing='drop')
     #model = smf.glm(formula=formula, data=df,missing='drop',family=sm.families.Binomial(sm.families.links.logit()))
