@@ -164,14 +164,17 @@ Dis_cats=['ALL',
             'ARI',
             'Pregnancy_complic'
          ]
-
-for Dis_cat in Dis_cats:
-    try:
-        
-        print(Dis_cat)
-        print("-"*50)
-        run()
-    except Exception as e: print(e)
+cuts=[0.00183,0.01133,0.02668,0.05128,0.08075,0.12103,0.19259]
+for i in range(len(cuts)):
+    os.mkdir('cuts_'+str(i))
+    os.chdir('cuts_'+str(i))
+    for Dis_cat in Dis_cats:
+        try:
+            print(Dis_cat)
+            print("-"*50)
+            run()
+        except Exception as e: print(e)
+    os.chdir('..')
    
     
     
