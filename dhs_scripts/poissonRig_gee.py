@@ -193,8 +193,8 @@ day_from_start=pd.DataFrame({'STMT_PERIOD_FROM':pd.date_range('2016-07-01', '201
 sp=sp.merge(day_from_start,on='STMT_PERIOD_FROM',how='left')
 #%%function for looping
 def run():
-    print(cuts[i])
-    sp.loc[:,'floodr_cat']=pd.cut(sp.floodr,bins=[0,cuts[i],1],right=True,include_lowest=True,labels=FLOOD_QUANTILES)
+    #print(cuts[i])
+    #sp.loc[:,'floodr_cat']=pd.cut(sp.floodr,bins=[0,cuts[i],1],right=True,include_lowest=True,labels=FLOOD_QUANTILES)
     #%%filter records for specific outcome
     df=sp
     if Dis_cat=="DEATH":df.loc[:,'Outcome']=filter_mortality(sp)

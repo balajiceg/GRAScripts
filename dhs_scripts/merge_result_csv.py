@@ -42,7 +42,7 @@ merge_df.to_excel(first_dir+r'\merged.xlsx',index=False)
 
 
 #%%combined merge
-first_dir=r"Z:\Balaji\Analysis_out_IPOP\30082020"
+first_dir=r"Z:\Balaji\Analysis_out_IPOP\18092020\cuts_0"
 req_files=glob.glob(first_dir+"\\*_reg.csv")
 
 merge_df=pd.DataFrame()
@@ -59,4 +59,4 @@ merge_df.columns=['covar', 'RR', 'P', 'conf25', 'conf95', 'outcome']
 merge_df['covar']=merge_df['covar'].str.replace("\[T.",'_').str.replace('\]','')
 
 #%% outupt
-merge_df.to_excel(first_dir+r'\merged5.xlsx',index=False)  
+merge_df.to_excel(first_dir+r'\merged_flood_cat.xlsx',index=False)  
