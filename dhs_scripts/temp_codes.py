@@ -99,7 +99,7 @@ import pandas as pd
 import glob
 import os
 
-files=glob.glob('Z:\\Balaji\\Analysis_out_IPOP\\17092020_1\\*_aux.csv')
+files=glob.glob(r'Z:\Balaji\Analysis_out_IPOP\13082020_final1\*_aux.csv')
 x=[]
 for f in files:
     df=pd.read_csv(f)
@@ -108,7 +108,7 @@ for f in files:
 concat_df=pd.concat(x)
 
 result_df=pd.DataFrame({'outcome':concat_df.outcome.unique()})
-flood_cats=['NO','FLood_1',"FLood_2","FLood_3"]
+flood_cats=['NO','FLood_1']
 for cat in flood_cats:
     for period in concat_df.Time.unique():
         cols=concat_df.loc[concat_df.Time==period,['outcome',cat]].rename(columns={cat:cat+'_'+period})

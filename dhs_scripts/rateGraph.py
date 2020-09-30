@@ -219,12 +219,12 @@ def update_output(n_clicks, flood_cats_in,avg_window,nullAsZero,floodZeroSep,flo
     
     #%%plot the rate graph
     plot_data={}
-    Dis_cat='ALL'
+    #Dis_cat='ALL'
     for item in FLOOD_QUANTILES:
         plot_data[item]=grouped_tracts.loc[grouped_tracts.floodr==item,["STMT_PERIOD_FROM_GROUPED","Outcome","TotalVisits"]]
         plot_data[item]=plot_data[item].groupby(['STMT_PERIOD_FROM_GROUPED']).agg({'Outcome':'sum','TotalVisits':'sum'}).reset_index()
         
-        if Dis_cat!="ALL":plot_data[item]["Outcome"]=plot_data[item]["Outcome"]/plot_data[item]["TotalVisits"]
+        if Dis_cat!="ALL":plot_data[item].loc[:,"Outcome"]=plot_data[item]["Outcome"]/plot_data[item]["TotalVisits"]
         
         plot_data[item]=plot_data[item].loc[:,['STMT_PERIOD_FROM_GROUPED', 'Outcome']]
         plot_data[item].loc[:,"STMT_PERIOD_FROM_GROUPED"]=pd.to_datetime(plot_data[item].loc[:,"STMT_PERIOD_FROM_GROUPED"].astype(str))
