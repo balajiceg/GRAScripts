@@ -83,9 +83,9 @@ nullAsZero="True" #null flood ratios are changed to 0
 floodZeroSep="True" # zeros are considered as seperate class
 flood_data_zip=None
 
-interv_dates=[20170825, 20170925] #lower bound not includeed 
+interv_dates=[20170825, 20170913, 20171008] #lower bound excluded
 washout_period=[20170819,20170825] #including the dates specified
-interv_dates_cats=['flood','PostFlood1']
+interv_dates_cats=['flood','PostFlood1','PostFlood2']
 Dis_cat="ALL"
 
 #%%cleaing for age, gender and race and create census tract

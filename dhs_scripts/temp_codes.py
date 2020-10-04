@@ -178,13 +178,45 @@ for i in range(len(cuts)):
    
     
     
+#%%poission regression for 
+df.TotalVisits=1
+grouped_tracts=df.groupby(['STMT_PERIOD_FROM', 'PAT_ADDR_CENSUS_TRACT']).agg({'Outcome':'sum','TotalVisits':'sum'})\
+                 .unstack(fill_value=0).stack()\
+                 .reset_index()
+grouped_tracts=grouped_tracts.merge(df.loc[~df.PAT_ADDR_CENSUS_TRACT.duplicated(),['PAT_ADDR_CENSUS_TRACT','floodr_cat']],how='left',on="PAT_ADDR_CENSUS_TRACT")
+grouped_tracts=grouped_tracts.merge(df.loc[~df.PAT_ADDR_CENSUS_TRACT.duplicated(),['PAT_ADDR_CENSUS_TRACT','Population']],how='left',on="PAT_ADDR_CENSUS_TRACT")
+grouped_tracts.loc[:,'Time']=pd.cut(grouped_tracts.STMT_PERIOD_FROM,\
+                                        bins=[0]+interv_dates+[20190101],\
+                                        labels=['control']+[str(i) for i in interv_dates_cats]).cat.as_unordered()   
+
+
+grouped_tracts=grouped_tracts[~(grouped_tracts.TotalVisits==0)]
+    
+if Dis_cat!="ALL":offset=np.log(grouped_tracts.TotalVisits)
+    #offset=None
+if Dis_cat=="ALL":offset=np.log(grouped_tracts.Population)
     
     
-    
-    
-    
-    
-    
+#run basic poission model
+formula= 'Outcome ~  floodr_cat * Time'
+model=smf.glm(formula=formula,offset=offset,data=grouped_tracts,family=sm.families.Poisson())
+results=model.fit()
+
+
+results_as_html = results.summary().tables[1].as_html()
+reg_table=pd.read_html(results_as_html, header=0, index_col=0)[0].reset_index()
+reg_table.loc[:,'coef']=np.exp(reg_table.coef)
+reg_table.loc[:,['[0.025', '0.975]']]=np.exp(reg_table.loc[:,['[0.025', '0.975]']])
+reg_table=reg_table.loc[~(reg_table['index'].str.contains('month') 
+                          | reg_table['index'].str.contains('weekday')
+                          #| reg_table['index'].str.contains('year')
+                          #| reg_table['index'].str.contains('PAT_AGE_YEARS'))
+                          
+                          ),]
+reg_table['index']=reg_table['index'].str.replace("\[T.",'_').str.replace('\]','')
+reg_table_dev=pd.read_html(results.summary().tables[0].as_html())[0]
+results.summary()
+reg_table.to_clipboard(index=False)
     
     
     
