@@ -180,16 +180,16 @@ for i in range(len(cuts)):
     
 #%%poission regression for 
 df.TotalVisits=1
-grouped_tracts=df.groupby(['STMT_PERIOD_FROM', 'PAT_ADDR_CENSUS_TRACT']).agg({'Outcome':'sum','TotalVisits':'sum'})\
-                 .unstack(fill_value=0).stack()\
-                 .reset_index()
+grouped_tracts=df.groupby(['STMT_PERIOD_FROM', 'PAT_ADDR_CENSUS_TRACT']).agg({'Outcome':'sum','TotalVisits':'sum','PAT_AGE_YEARS':'mean'}).reset_index()
+                 #.unstack(fill_value=0).stack()
+                 
 grouped_tracts=grouped_tracts.merge(df.loc[~df.PAT_ADDR_CENSUS_TRACT.duplicated(),['PAT_ADDR_CENSUS_TRACT','floodr_cat']],how='left',on="PAT_ADDR_CENSUS_TRACT")
 grouped_tracts=grouped_tracts.merge(df.loc[~df.PAT_ADDR_CENSUS_TRACT.duplicated(),['PAT_ADDR_CENSUS_TRACT','Population']],how='left',on="PAT_ADDR_CENSUS_TRACT")
 grouped_tracts.loc[:,'Time']=pd.cut(grouped_tracts.STMT_PERIOD_FROM,\
                                         bins=[0]+interv_dates+[20190101],\
                                         labels=['control']+[str(i) for i in interv_dates_cats]).cat.as_unordered()   
 
-
+#comment this line for ALL ed category
 grouped_tracts=grouped_tracts[~(grouped_tracts.TotalVisits==0)]
     
 if Dis_cat!="ALL":offset=np.log(grouped_tracts.TotalVisits)
@@ -219,6 +219,46 @@ results.summary()
 reg_table.to_clipboard(index=False)
     
     
+#%% 
+grouped_tracts=df.loc[:,['STMT_PERIOD_FROM','PAT_AGE_YEARS','PAT_ADDR_CENSUS_TRACT','Outcome']]
+
+
+grouped_tracts=pd.concat([grouped_tracts]+[pd.get_dummies(df[i],prefix=i) for i in ['SEX_CODE','RACE','ETHNICITY','op']],axis=1)
+
+grouped_tracts=grouped_tracts.groupby(['STMT_PERIOD_FROM', 'PAT_ADDR_CENSUS_TRACT']).agg({'Outcome':'sum',
+                                                                              'PAT_AGE_YEARS':'mean',
+                                                                              'SEX_CODE_M':'sum','SEX_CODE_F':'sum', 
+                                                                              'RACE_white':'sum','RACE_black':'sum','RACE_other':'sum',
+                                                                              'ETHNICITY_Non_Hispanic':'sum','ETHNICITY_Hispanic':'sum', 
+                                                                              'op_False':'sum','op_True':'sum'}).reset_index()
+                 
+grouped_tracts=grouped_tracts.merge(df.drop_duplicates(['STMT_PERIOD_FROM','PAT_ADDR_CENSUS_TRACT']).loc[:,['STMT_PERIOD_FROM','PAT_ADDR_CENSUS_TRACT','floodr_cat','Population','Time','year','month','weekday']],how='left',on=["PAT_ADDR_CENSUS_TRACT",'STMT_PERIOD_FROM'])
+dummy_cols=['SEX_CODE_M', 'SEX_CODE_F', 'RACE_white', 'RACE_black', 'RACE_other','ETHNICITY_Non_Hispanic', 'ETHNICITY_Hispanic', 'op_False', 'op_True']
+grouped_tracts.loc[:,dummy_cols]=grouped_tracts.loc[:,dummy_cols].divide(grouped_tracts.Outcome,axis=0)
+
+if Dis_cat=="ALL":offset=np.log(grouped_tracts.Population)
+formula='Outcome'+' ~ '+' floodr_cat * Time'+'+ year'+'+month'+'+weekday + PAT_AGE_YEARS + '+' + '.join(dummy_cols)
+
+model = smf.gee(formula=formula,groups=grouped_tracts[flood_join_field], data=grouped_tracts,offset=offset,missing='drop',family=sm.families.Poisson(link=sm.families.links.log()))
+    #model = smf.logit(formula=formula, data=df,missing='drop')
+    #model = smf.glm(formula=formula, data=df,missing='drop',family=sm.families.Binomial(sm.families.links.logit()))
+    
+results=model.fit()    
+
+
+results_as_html = results.summary().tables[1].as_html()
+reg_table=pd.read_html(results_as_html, header=0, index_col=0)[0].reset_index()
+reg_table.loc[:,'coef']=np.exp(reg_table.coef)
+reg_table.loc[:,['[0.025', '0.975]']]=np.exp(reg_table.loc[:,['[0.025', '0.975]']])
+reg_table=reg_table.loc[~(reg_table['index'].str.contains('month') 
+                          | reg_table['index'].str.contains('weekday')
+                          #| reg_table['index'].str.contains('year')
+                          #| reg_table['index'].str.contains('PAT_AGE_YEARS'))
+                          
+                          ),]
+reg_table['index']=reg_table['index'].str.replace("\[T.",'_').str.replace('\]','')
+reg_table_dev=pd.read_html(results.summary().tables[0].as_html())[0]
+results.summary()
+reg_table.to_clipboard(index=False)
     
 
-    

@@ -83,7 +83,7 @@ nullAsZero="True" #null flood ratios are changed to 0
 floodZeroSep="True" # zeros are considered as seperate class
 flood_data_zip=None
 
-interv_dates=[20170825, 20170913, 20171008] #lower bound excluded
+interv_dates=[20170825, 20170913, 20171014] #lower bound excluded
 washout_period=[20170819,20170825] #including the dates specified
 interv_dates_cats=['flood','PostFlood1','PostFlood2']
 Dis_cat="ALL"
@@ -229,13 +229,34 @@ def run():
     print(counts_outcome)
     del outcomes_recs
     
+    #%%for total ED visits using grouped / coutns
+    if Dis_cat=="ALL":
+        grouped_tracts=df.loc[:,['STMT_PERIOD_FROM','PAT_AGE_YEARS','PAT_ADDR_CENSUS_TRACT','Outcome']]
+        grouped_tracts=pd.concat([grouped_tracts]+[pd.get_dummies(df[i],prefix=i) for i in ['SEX_CODE','RACE','ETHNICITY','op']],axis=1)
+        
+        grouped_tracts=grouped_tracts.groupby(['STMT_PERIOD_FROM', 'PAT_ADDR_CENSUS_TRACT']).agg({'Outcome':'sum',
+                                                                                      'PAT_AGE_YEARS':'mean',
+                                                                                      'SEX_CODE_M':'sum','SEX_CODE_F':'sum', 
+                                                                                      'RACE_white':'sum','RACE_black':'sum','RACE_other':'sum',
+                                                                                      'ETHNICITY_Non_Hispanic':'sum','ETHNICITY_Hispanic':'sum', 
+                                                                                      'op_False':'sum','op_True':'sum'}).reset_index()
+                         
+        grouped_tracts=grouped_tracts.merge(df.drop_duplicates(['STMT_PERIOD_FROM','PAT_ADDR_CENSUS_TRACT']).loc[:,['STMT_PERIOD_FROM','PAT_ADDR_CENSUS_TRACT','floodr_cat','Population','Time','year','month','weekday']],how='left',on=["PAT_ADDR_CENSUS_TRACT",'STMT_PERIOD_FROM'])
+        dummy_cols=['SEX_CODE_M', 'SEX_CODE_F', 'RACE_white', 'RACE_black', 'RACE_other','ETHNICITY_Non_Hispanic', 'ETHNICITY_Hispanic', 'op_False', 'op_True']
+        grouped_tracts.loc[:,dummy_cols]=grouped_tracts.loc[:,dummy_cols].divide(grouped_tracts.Outcome,axis=0)
+        del df
+        df=grouped_tracts
+    
+    
     #%%running the model
     if Dis_cat!="ALL":offset=np.log(df.TotalVisits)
     #offset=None
     if Dis_cat=="ALL":offset=np.log(df.Population)
     
     
-    formula='Outcome'+' ~ '+' floodr_cat * Time'+'+ year'+'+month'+'+weekday' + '+PAT_AGE_YEARS + SEX_CODE + RACE + ETHNICITY +op'
+    formula='Outcome'+' ~ '+' floodr_cat * Time'+' + year + month + weekday' + ' + PAT_AGE_YEARS + SEX_CODE + RACE + ETHNICITY + op'
+    if Dis_cat=='ALL': formula='Outcome'+' ~ '+' floodr_cat * Time'+' + year + month + weekday + PAT_AGE_YEARS + '+' + '.join(dummy_cols)
+    
     model = smf.gee(formula=formula,groups=df[flood_join_field], data=df,offset=offset,missing='drop',family=sm.families.Poisson(link=sm.families.links.log()))
     #model = smf.logit(formula=formula, data=df,missing='drop')
     #model = smf.glm(formula=formula, data=df,missing='drop',family=sm.families.Binomial(sm.families.links.logit()))

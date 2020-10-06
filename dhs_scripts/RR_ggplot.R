@@ -6,15 +6,15 @@ library(hablar)
 library(dplyr)
 library(stringr)
 
-all_df<-read_excel("Docum_for_paper.xlsx",sheet='result_rr',range="A1:J15")
+all_df<-read_excel("merged_flood_cat.xlsx",sheet='results_rr',range="A1:J15")
 colnames(all_df)<-c('Outcome',rep(c('RR','conf25','conf95'),3))
 flood_df<-all_df[-1,1:4]
 flood_df<-rbind(flood_df,all_df[-1,c(1,5,6,7)])
 flood_df<-rbind(flood_df,all_df[-1,c(1,8,9,10)])
 flood_df$Period<-rep(c('Flood Period','Post Flood 1','Post Flood 2'),each=length(unique(flood_df$Outcome)))
 
-outcomes<-c("Insect Bite","CO Poisoning","Dehydration","Drowning","Heat Related Illness","Hypothermia")
-#outcomes<-c("All","Mortality","Pregnency Complications")
+#outcomes<-c("Insect Bite","CO Poisoning","Dehydration","Drowning","Heat Related Illness","Hypothermia")
+outcomes<-c("All","Mortality","Pregnancy Complications")
 #outcomes<-c("Intestinal_infectious_diseases","ARI","Chest Pain/Palpitation","Asthma")
 
 flood_df<-flood_df %>% retype()
@@ -27,7 +27,7 @@ flood_df$xindex<-1:length(flood_df$Outcome)
                      .2, color = "gray40") +
     geom_point(size = 6,shape="_") +
     geom_hline(aes(yintercept = 1), size = .25, linetype = "dashed")+
-    geom_vline(data=flood_df[seq(3,length(flood_df$xindex)-1,3),],aes(xintercept=xindex+.5),color='gray60',size=.2,linetype = "dotted")+
+    geom_vline(data=flood_df[seq(3,length(flood_df$xindex)-1,3),],aes(xintercept=xindex+.5),color='gray60',size=.5,linetype = "dotted")+
     scale_x_continuous(breaks=flood_df$xindex[seq(2,length(flood_df$xindex),3)],
                        labels=flood_df$Outcome[seq(2,length(flood_df$Outcome),3)])+
     scale_y_log10()+
@@ -40,13 +40,13 @@ flood_df$xindex<-1:length(flood_df$Outcome)
     xlab("") 
   
 ) 
-ggsave('RRPlot3.png',plot=p,width = unit(12,'cm'))
+ggsave('RRPlot2.png',plot=p,width = unit(12,'cm'))
 
 #---------------------------------For stratified SVI-------------------
 #flood_period
 #all_df<-read_excel("merged_all.xlsx",sheet='Results_formated',range="A2:M20")
 #post flood 1
-all_df<-read_excel("Docum_for_paper.xlsx",sheet='categorical_comp_RR',range="A36:J50")
+all_df<-read_excel("Docum_for_paper.xlsx",sheet='categorical_comp_RR',range="A19:J33")
 #post flood 2
 #all_df<-read_excel("merged_all.xlsx",sheet='Results_formated',range="A36:J50")
 
