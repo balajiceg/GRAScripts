@@ -70,7 +70,7 @@ demos=pd.read_csv(r'Z:/Balaji/Census_data_texas/ACS_17_5YR_DP05_with_ann.csv',lo
 demos.Id2=demos.Id2.astype("Int64")
 
 #read study area counties
-county_to_filter=pd.read_csv('Z:/Balaji/counties_inun.csv').GEOID.to_list()
+county_to_filter=pd.read_csv('Z:/Balaji/counties_evacu_order.csv').GEOID.to_list()
 
 zip_to_filter=pd.read_csv('Z:/Balaji/DSHS ED visit data/AllZip_codes_in_study_area.csv').ZCTA5CE10.to_list()
 
@@ -203,7 +203,7 @@ def run():
     if Dis_cat in outcome_cats.category.to_list():df.loc[:,'Outcome']=get_sp_outcomes(sp, Dis_cat)
     
     #%%for filtering flooded or non flooded alone
-    df=df[df.floodr_cat=="FLood_1"].copy()
+    #df=df[df.floodr_cat=="FLood_1"].copy()
 
     #%% bringing in intervention
     df.loc[:,'Time']=pd.cut(df.STMT_PERIOD_FROM,\
