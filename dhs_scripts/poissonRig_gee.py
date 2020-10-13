@@ -202,8 +202,8 @@ def run():
     if Dis_cat=="ALL":df.loc[:,'Outcome']=1
     if Dis_cat in outcome_cats.category.to_list():df.loc[:,'Outcome']=get_sp_outcomes(sp, Dis_cat)
     
-    #%%
-    df=df[df.floodr_cat=="NO"].copy()
+    #%%for filtering flooded or non flooded alone
+    df=df[df.floodr_cat=="FLood_1"].copy()
 
     #%% bringing in intervention
     df.loc[:,'Time']=pd.cut(df.STMT_PERIOD_FROM,\
