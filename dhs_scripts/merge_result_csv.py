@@ -60,3 +60,10 @@ merge_df['covar']=merge_df['covar'].str.replace("\[T.",'_').str.replace('\]','')
 
 #%% outupt
 merge_df.to_excel(first_dir+r'\merged_flood_cat.xlsx',index=False)  
+#%%writ pivot table
+pmerge_df=merge_df.loc[merge_df.covar.isin(['floodr_cat_FLood_1:Time_flood',
+       'floodr_cat_FLood_1:Time_PostFlood1',
+       'floodr_cat_FLood_1:Time_PostFlood2']),:]
+pivot_table=pd.pivot_table(pmerge_df, columns=['covar'], values=['RR','conf25','conf95'], index='outcome', aggfunc='first')
+pivot_table=pivot_table.sort_index(axis='columns', level='covar')
+pivot_table.to_excel(first_dir+r'\merged_flood_cat.xlsx',sheet_name='pivot') 

@@ -71,6 +71,7 @@ demos.Id2=demos.Id2.astype("Int64")
 
 #read study area counties
 county_to_filter=pd.read_csv('Z:/Balaji/counties_inun.csv').GEOID.to_list()
+
 zip_to_filter=pd.read_csv('Z:/Balaji/DSHS ED visit data/AllZip_codes_in_study_area.csv').ZCTA5CE10.to_list()
 
 #%%read the categories file
@@ -196,7 +197,7 @@ def run():
     #print(cuts[i])
     #sp.loc[:,'floodr_cat']=pd.cut(sp.floodr,bins=[0,cuts[i],1],right=True,include_lowest=True,labels=FLOOD_QUANTILES)
     #%%filter records for specific outcome
-    df=sp
+    df=sp#[sp.floodr_cat=='NO'].copy()
     if Dis_cat=="DEATH":df.loc[:,'Outcome']=filter_mortality(sp)
     if Dis_cat=="ALL":df.loc[:,'Outcome']=1
     if Dis_cat in outcome_cats.category.to_list():df.loc[:,'Outcome']=get_sp_outcomes(sp, Dis_cat)
@@ -222,9 +223,9 @@ def run():
     
     #%% save cross tab
      #counts_outcome=pd.DataFrame(df.Outcome.value_counts())
-    outcomes_recs=df.loc[(df.Outcome>0)&(~pd.isna(df.loc[:,['floodr_cat','Time','year','month','weekday' ,'PAT_AGE_YEARS', 
+    outcomes_recs=df.loc[(df.Outcome>0)&(~pd.isna(df.loc[:,['SVI_Cat','floodr_cat','Time','year','month','weekday' ,'PAT_AGE_YEARS', 
                                                           'SEX_CODE','RACE','ETHNICITY']]).any(axis=1)),]
-    counts_outcome=pd.crosstab(outcomes_recs.Time,outcomes_recs.floodr_cat)
+    counts_outcome=pd.crosstab(outcomes_recs.Time,outcomes_recs.SVI_Cat)
     counts_outcome.to_csv(Dis_cat+"_aux"+".csv")
     print(counts_outcome)
     del outcomes_recs
@@ -241,7 +242,7 @@ def run():
                                                                                       'ETHNICITY_Non_Hispanic':'sum','ETHNICITY_Hispanic':'sum', 
                                                                                       'op_False':'sum','op_True':'sum'}).reset_index()
                          
-        grouped_tracts=grouped_tracts.merge(df.drop_duplicates(['STMT_PERIOD_FROM','PAT_ADDR_CENSUS_TRACT']).loc[:,['STMT_PERIOD_FROM','PAT_ADDR_CENSUS_TRACT','floodr_cat','Population','Time','year','month','weekday']],how='left',on=["PAT_ADDR_CENSUS_TRACT",'STMT_PERIOD_FROM'])
+        grouped_tracts=grouped_tracts.merge(df.drop_duplicates(['STMT_PERIOD_FROM','PAT_ADDR_CENSUS_TRACT']).loc[:,['STMT_PERIOD_FROM','PAT_ADDR_CENSUS_TRACT','floodr_cat','Population','Time','year','month','weekday','SVI_Cat']],how='left',on=["PAT_ADDR_CENSUS_TRACT",'STMT_PERIOD_FROM'])
         dummy_cols=['SEX_CODE_M', 'SEX_CODE_F', 'RACE_white', 'RACE_black', 'RACE_other','ETHNICITY_Non_Hispanic', 'ETHNICITY_Hispanic', 'op_False', 'op_True']
         grouped_tracts.loc[:,dummy_cols]=grouped_tracts.loc[:,dummy_cols].divide(grouped_tracts.Outcome,axis=0)
         del df
@@ -254,8 +255,8 @@ def run():
     if Dis_cat=="ALL":offset=np.log(df.Population)
     
     
-    formula='Outcome'+' ~ '+' floodr_cat * Time'+' + year + month + weekday' + ' + PAT_AGE_YEARS + SEX_CODE + RACE + ETHNICITY + op'
-    if Dis_cat=='ALL': formula='Outcome'+' ~ '+' floodr_cat * Time'+' + year + month + weekday + PAT_AGE_YEARS + '+' + '.join(dummy_cols)
+    formula='Outcome'+' ~ '+' SVI_Cat * Time'+' + year + month + weekday' + ' + PAT_AGE_YEARS + SEX_CODE + RACE + ETHNICITY + op'
+    if Dis_cat=='ALL': formula='Outcome'+' ~ '+' SVI_Cat * Time'+' + year + month + weekday + PAT_AGE_YEARS + '+' + '.join(['SEX_CODE_M','RACE_white', 'RACE_black','ETHNICITY_Non_Hispanic', 'op_True'])
     
     model = smf.gee(formula=formula,groups=df[flood_join_field], data=df,offset=offset,missing='drop',family=sm.families.Poisson(link=sm.families.links.log()))
     #model = smf.logit(formula=formula, data=df,missing='drop')
