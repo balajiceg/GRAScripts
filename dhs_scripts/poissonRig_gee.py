@@ -197,12 +197,13 @@ def run():
     #print(cuts[i])
     #sp.loc[:,'floodr_cat']=pd.cut(sp.floodr,bins=[0,cuts[i],1],right=True,include_lowest=True,labels=FLOOD_QUANTILES)
     #%%filter records for specific outcome
-    df=sp#[sp.floodr_cat=='NO'].copy()
+    df=sp
     if Dis_cat=="DEATH":df.loc[:,'Outcome']=filter_mortality(sp)
     if Dis_cat=="ALL":df.loc[:,'Outcome']=1
     if Dis_cat in outcome_cats.category.to_list():df.loc[:,'Outcome']=get_sp_outcomes(sp, Dis_cat)
     
-    
+    #%%
+    df=df[df.floodr_cat=="NO"].copy()
 
     #%% bringing in intervention
     df.loc[:,'Time']=pd.cut(df.STMT_PERIOD_FROM,\
