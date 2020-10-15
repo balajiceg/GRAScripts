@@ -42,11 +42,11 @@ flood_df$xindex<-1:length(flood_df$Outcome)
 ) 
 ggsave('RRPlot3.png',plot=p,width = unit(12,'cm'))
 
-#---------------------------------For stratified SVI-------------------
+#---------------------------------For Flood cat-------------------
 #flood_period
 #all_df<-read_excel("merged_all.xlsx",sheet='Results_formated',range="A16:M20")
 #post flood 1
-all_df<-read_excel("Docum_for_paper.xlsx",sheet='dicho_comparision_RR',range="A16:J30")
+all_df<-read_excel("merged_flood_cat1.xlsx",sheet='result',range="A16:J30")
 #post flood 2
 #all_df<-read_excel("merged_all.xlsx",sheet='Results_formated',range="A36:J50")
 
@@ -106,4 +106,62 @@ flood_df_sub$xindex<-1:length(flood_df_sub$Outcome)
 ggsave(paste0('plot_binalry_rr1',i,'.png'),plot=p,width = unit(8.1,'cm'),height=unit(6,'cm'))
 
 i<-i+1
+}
+
+
+#----------------------------- SVI comparison-------------------------------
+library(ggplot2)
+library(readxl)
+library(hablar)
+library(dplyr)
+library(stringr)
+
+all_df<-read_excel("merged_SVI_flood.xlsx",sheet='Sheet1')
+
+#repalce with proper outcome names
+from<- c('ARI','Asthma','Dehydration','Drowning','Hypothermia','ALL','Bite-Insect','Chest_pain','CO_Exposure','DEATH','Heat_Related_But_Not_dehydration','Intestinal_infectious_diseases','Pregnancy_complic')
+to<-c('ARI','Asthma','Dehydration','Drowning','Hypothermia','All','Insect Bite','Chest Pain/Palpitation','CO Poisoning','Mortality','Heat Related Illness','Intestinal infectious diseases','Pregnancy Complications')
+map = setNames(to, from)
+all_df$outcome[]<- map[all_df$outcome]
+
+period<-'Time_flood'
+flood_df<-all_df[all_df$covar %in% paste0(c('SVI_Cat_2','SVI_Cat_3','SVI_Cat_4'),':',period),]
+
+n=length(unique(flood_df$covar))
+loutcomes<-list()
+loutcomes[[1]]<-c("CO Poisoning","Drowning","Hypothermia","Dehydration","Heat Related Illness","Intestinal infectious diseases","Insect Bite")
+loutcomes[[2]]<-c("All","Mortality","Pregnancy Complications","ARI","Chest Pain/Palpitation","Asthma")
+
+flood_df<-flood_df %>% retype()
+flood_df<-flood_df[order(flood_df$outcome),]
+
+i<-1
+for(outcomes in loutcomes){
+  #outcomes<-loutcomes[[i]]
+  flood_df_sub<-subset(flood_df,outcome %in% outcomes)
+  flood_df_sub["xindex"]<-1:length(flood_df_sub$outcome)
+  flood_df_sub$outcome[flood_df_sub$Flood_cat=='Flood_1'] = paste0(flood_df_sub$outcome[flood_df_sub$Flood_cat=='Flood_1'],'_F')
+  
+  (p <- ggplot(flood_df_sub, aes(y = RR, x = xindex ,color=factor(covar))) + 
+      geom_errorbar(aes(ymax = conf25, ymin = conf95), size = .5, width = 
+                      .2, color = "gray40") +
+      geom_point(size = 6,shape="_") +
+      geom_hline(aes(yintercept = 1), size = .25, linetype = "dashed")+
+      geom_vline(data=flood_df_sub[seq(n,length(flood_df_sub$xindex)-1,n),],aes(xintercept=xindex+.5),color='gray50',size=.4,linetype = "dotted")+
+      scale_x_continuous(breaks=flood_df_sub$xindex[seq(2,length(flood_df_sub$xindex),n)],
+                         labels=flood_df_sub$outcome[seq(2,length(flood_df_sub$outcome),n)])+
+      
+      scale_y_log10()+
+      theme_bw()+
+      theme(panel.grid.minor = element_blank(),panel.grid.major.x = element_blank(),axis.ticks.length.x=unit(-0.2, "cm"),
+            axis.text.x = element_text(vjust = 6.5,size=15),legend.title = element_blank(),
+            legend.justification = c("left", "top"),legend.position = c(0.01, .99),legend.text = element_text(size = 13),
+            axis.text.y = element_text(size = 12,angle = 90),axis.title = element_text(size = 16),) +
+      ylab("Rate ratio") +
+      xlab("") #+  scale_color_discrete(breaks=mlevels)
+  )
+  ggsave(paste0('plot_svi_rr',i,'.png'),plot=p,width = unit(20.8,'cm'),height=unit(7,'cm'))
+  #ggsave(paste0('plot_binalry_rr1',i,'.png'),plot=p,width = unit(8.1,'cm'),height=unit(6,'cm'))
+  
+  i<-i+1
 }
