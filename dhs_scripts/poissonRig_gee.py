@@ -150,7 +150,8 @@ sp=sp.loc[sp.Population>0,]
 economy_subset=income.loc[:,['id','Estimate!!Median income (dollars)!!HOUSEHOLD INCOME BY RACE AND HISPANIC OR LATINO ORIGIN OF HOUSEHOLDER!!Households']]
 economy_subset.columns=["PAT_ADDR_CENSUS_TRACT","Median_H_Income"]
 sp=sp.merge(economy_subset,on="PAT_ADDR_CENSUS_TRACT",how='left')
-
+sp.loc[sp.Median_H_Income=='250,000+',"Median_H_Income"]=250000
+sp.Median_H_Income=pd.to_numeric(sp.Median_H_Income,errors='coerce')
 #%% merge SVI after recategorization
 svi=recalculateSVI(SVI_df_raw[SVI_df_raw.FIPS.isin(sp.PAT_ADDR_CENSUS_TRACT.unique())]).loc[:,["FIPS",'SVI']]
 sp=sp.merge(svi,left_on="PAT_ADDR_CENSUS_TRACT",right_on="FIPS",how='left').drop("FIPS",axis=1)
