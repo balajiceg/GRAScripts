@@ -61,15 +61,16 @@ county_to_filter=pd.read_csv('Z:/Balaji/counties_inun.csv').GEOID.to_list()
 #%%predefine variable if got getting from gui
 interven_date1,interven_date2=str(datetime(2017,8,25)),str(datetime(2017,9,13))
 date_div=[{'props':{'date':i}} for i in [interven_date1,interven_date2]]
-avg_window=3
-flood_cats_in=0
+avg_window=7
+flood_cats_in=1
 floodr_use="DFO_R200"
 nullAsZero="True"
 floodZeroSep="True"
 DATE_GROUP="DAILY"
 Dis_cats=["ALL","DEATH"]
 Dis_cat="ALL"
-
+interv_dates=[20170825, 20170913, 20171014] #lower bound excluded
+washout_period=[20170819,20170825] #including the dates specified
 #%%read the categories file
 outcome_cats=pd.read_csv('Z:/GRAScripts/dhs_scripts/categories.csv')
 outcome_cats.fillna('',inplace=True)
@@ -87,6 +88,10 @@ sp=sp.loc[(~pd.isna(sp.STMT_PERIOD_FROM))&(~pd.isna(sp.PAT_ADDR_CENSUS_BLOCK_GRO
 sp=sp[((sp.STMT_PERIOD_FROM > 20160700) & (sp.STMT_PERIOD_FROM< 20161232))\
     | ((sp.STMT_PERIOD_FROM > 20170400) & (sp.STMT_PERIOD_FROM< 20171232))\
         | ((sp.STMT_PERIOD_FROM > 20180700) & (sp.STMT_PERIOD_FROM< 20181232))]
+
+#remove washout period
+sp= sp[~((sp.STMT_PERIOD_FROM >= washout_period[0]) & (sp.STMT_PERIOD_FROM <= washout_period[1]))]
+
 #%%define app GUI
 
 first_load=True
@@ -139,9 +144,9 @@ def update_output(n_clicks, flood_cats_in,avg_window,nullAsZero,floodZeroSep,flo
         first_load=False
         return
     #%%variables 
-    interv_dates=[x['props']['date'] for x in date_div]
+    #interv_dates=[x['props']['date'] for x in date_div]
      
-    interv_dates=[int(datetime.strftime(parser.parse(test),"%Y%m%d")) for test in interv_dates]
+    #interv_dates=[int(datetime.strftime(parser.parse(test),"%Y%m%d")) for test in interv_dates]
     #DATE_GROUPS={"DAILY","WEEKLY","MONTHLY"}
     #flood quantiles
     FLOOD_QUANTILES=["NO","FLood_1","FLOOD_2","FLOOD_3","FLOOD_4"]
@@ -215,13 +220,22 @@ def update_output(n_clicks, flood_cats_in,avg_window,nullAsZero,floodZeroSep,flo
     grouped_tracts.loc[:,'floodr']=pd.cut(grouped_tracts.floodr,bins=flood_bins,right=True,include_lowest=True,labels=FLOOD_QUANTILES)
     grouped_tracts=grouped_tracts.drop("GEOID",axis=1)
     
+
+    #%% merge SVI after recategorization
+        #read svi data
+    SVI_df_raw=geopandas.read_file(r'Z:/Balaji/SVI_Raw/TEXAS.shp').drop('geometry',axis=1)
+    SVI_df_raw.FIPS=pd.to_numeric(SVI_df_raw.FIPS)
     
-    
+    svi=recalculateSVI(SVI_df_raw[SVI_df_raw.FIPS.isin(grouped_tracts.PAT_ADDR_CENSUS_TRACT.unique())]).loc[:,["FIPS",'SVI']]
+    grouped_tracts=grouped_tracts.merge(svi,left_on="PAT_ADDR_CENSUS_TRACT",right_on="FIPS",how='left').drop("FIPS",axis=1)
+    grouped_tracts['SVI_Cat']=pd.cut(grouped_tracts.SVI,bins=np.arange(0,1.1,1/4),include_lowest=True,labels=['SVI_1','SVI_2','SVI_3','SVI_4'])
     #%%plot the rate graph
+    param="SVI_Cat"
+    QUANTILES=grouped_tracts[param].cat.categories.tolist()
     plot_data={}
     #Dis_cat='ALL'
-    for item in FLOOD_QUANTILES:
-        plot_data[item]=grouped_tracts.loc[grouped_tracts.floodr==item,["STMT_PERIOD_FROM_GROUPED","Outcome","TotalVisits"]]
+    for item in QUANTILES:
+        plot_data[item]=grouped_tracts.loc[grouped_tracts[param]==item,["STMT_PERIOD_FROM_GROUPED","Outcome","TotalVisits"]]
         plot_data[item]=plot_data[item].groupby(['STMT_PERIOD_FROM_GROUPED']).agg({'Outcome':'sum','TotalVisits':'sum'}).reset_index()
         
         if Dis_cat!="ALL":plot_data[item].loc[:,"Outcome"]=plot_data[item]["Outcome"]/plot_data[item]["TotalVisits"]
@@ -230,44 +244,71 @@ def update_output(n_clicks, flood_cats_in,avg_window,nullAsZero,floodZeroSep,flo
         plot_data[item].loc[:,"STMT_PERIOD_FROM_GROUPED"]=pd.to_datetime(plot_data[item].loc[:,"STMT_PERIOD_FROM_GROUPED"].astype(str))
     
 
-    floodedCats=plot_data[FLOOD_QUANTILES[0]]
-    for i in range(1,len(FLOOD_QUANTILES)):
-        floodedCats=floodedCats.merge(plot_data[FLOOD_QUANTILES[i]],on='STMT_PERIOD_FROM_GROUPED',suffixes=FLOOD_QUANTILES[i-1:i+1])
-    floodedCats.columns=["Date"]+FLOOD_QUANTILES
+    floodedCats=plot_data[QUANTILES[0]]
+    for i in range(1,len(QUANTILES)):
+        floodedCats=floodedCats.merge(plot_data[QUANTILES[i]],on='STMT_PERIOD_FROM_GROUPED',suffixes=QUANTILES[i-1:i+1])
+    floodedCats.columns=["Date"]+QUANTILES
     
     #find dinominator population for computing rate
     if Dis_cat=="ALL":
          #merge population
         demos_subset=demos.iloc[:,[1,3]]
         demos_subset.columns=["PAT_ADDR_CENSUS_TRACT","Population"]
-        grouped_tracts=grouped_tracts.merge(demos_subset,on="PAT_ADDR_CENSUS_TRACT",how='left')
+        if 'Population' not in grouped_tracts.columns: grouped_tracts=grouped_tracts.merge(demos_subset,on="PAT_ADDR_CENSUS_TRACT",how='left')
         grouped_tracts=grouped_tracts.loc[grouped_tracts.Population>0,]
         
         population=grouped_tracts.loc[~grouped_tracts.duplicated("PAT_ADDR_CENSUS_TRACT"),:]
-        population=population.groupby(["floodr"])[['Population']].sum()
+        population=population.groupby([param])[['Population']].sum()
         #per million
-        tmp=(floodedCats.loc[:,FLOOD_QUANTILES]/population.T.iloc[0,:].to_numpy())*1e6
+        tmp=(floodedCats.loc[:,QUANTILES]/population.T.iloc[0,:].to_numpy())*1e6
         floodedCats=pd.concat([floodedCats.Date,tmp],axis=1).reset_index().iloc[:,1:]
     
     rate=floodedCats.sort_values(by='Date',ignore_index=True)
     rate_avg=rate.copy()
     rate_avg.iloc[:,1:]=rate_avg.iloc[:,1:].rolling(window=avg_window).mean()
+
+#%% stanalone plot
+    rate_avg=rate_avg.dropna()
+    
+    interv_dates_cats=['control','flood','PostFlood1','PostFlood2']
+    rate_avg.loc[:,'Time']=pd.cut(rate_avg.Date.dt.strftime('%Y%m%d').astype('int'),\
+                                        bins=[0]+interv_dates+[20190101],\
+                                        labels=[str(i) for i in interv_dates_cats]).cat.as_unordered()
+    rate_avg.loc[rate_avg.Date.dt.strftime('%Y%m%d').astype('int')>20180100,'Time']="control"
+        
+    #create baseline variables
+    for i in QUANTILES:
+        rate_avg.loc[:,"base_"+str(i)]=rate_avg.loc[rate_avg.Time=='control',i].mean()
+        for j in interv_dates_cats[1:]:
+            rate_avg.loc[rate_avg.Time==j,"mean_"+str(i)]=rate_avg.loc[rate_avg.Time==j,i].mean()
+            rate_avg.loc[rate_avg.Time==j,"diff_"+str(i)]=rate_avg.loc[rate_avg.Time==j,"mean_"+str(i)]-rate_avg.loc[rate_avg.Time==j,"base_"+str(i)]
+    
+    colors=['rgb(0,9,9)','rgb(8,48,107)', 'rgb(66,146,198)', 'rgb(158,202,225)'][:len(QUANTILES)]*3 # 3- mean,base,actual; 2-
+    fig = px.line(rate_avg, x="Date", y=["mean_"+str(i) for i in QUANTILES], color_discrete_sequence=colors,line_dash_sequence=['dash'],template='plotly_white')
+    fig=fig.add_traces(px.line(rate_avg, x="Date", y=["base_"+str(i) for i in QUANTILES], color_discrete_sequence=colors,line_dash_sequence=['dot']).data)
+    fig=fig.add_traces(px.line(rate_avg, x="Date", y=[i for i in QUANTILES], color_discrete_sequence=colors,line_dash_sequence=['solid']).data)
+    fig.update_layout(title_text=Dis_cat,title_font_size=16)
+    fig.show()
+    
+    fig1= px.line(rate_avg, x="Date", y=["diff_"+str(i) for i in QUANTILES], color_discrete_sequence=colors,template='plotly_white')
+    fig1.update_layout(title_text=Dis_cat,title_font_size=16)
+    fig1.show()
     
 #%% return for listner    
    
     # inter_bars=pd.to_datetime( pd.Series(interv_dates,dtype='str'))
     # inter_bars=inter_bars.to_frame().merge(rate_avg,left_on=0,right_on='Date')
-    # inter_bars.loc[:,'maxi']=inter_bars.loc[:,FLOOD_QUANTILES].max(axis=1).copy()
+    # inter_bars.loc[:,'maxi']=inter_bars.loc[:,QUANTILES].max(axis=1).copy()
     
     # # return reg_table.to_dict('r ecords'),[{"name": i, "id": i} for i in reg_table.columns],\
     # #     reg_table_dev.to_dict('records'),[{"name": i, "id": i} for i in reg_table_dev.columns],\
-    # #     {'data': [{'x': rate_avg.Date,'y': rate_avg[cat],'name':cat} for cat in FLOOD_QUANTILES]+
+    # #     {'data': [{'x': rate_avg.Date,'y': rate_avg[cat],'name':cat} for cat in QUANTILES]+
     # #     [{'x':inter_bars.Date,'y':inter_bars.maxi,'name':'intervention','type':'scatter','mode':'markers','marker':{'size':12}}],
     # #     'layout': {'margin': {'l': 40, 'r': 0, 't': 20, 'b': 30}}},\
     # #     'bin intervals:'+str(flood_bins)
         
     # return None,None,None,None,\
-    #     {'data': [{'x': rate_avg.Date,'y': rate_avg[cat],'name':cat} for cat in FLOOD_QUANTILES]+
+    #     {'data': [{'x': rate_avg.Date,'y': rate_avg[cat],'name':cat} for cat in QUANTILES]+
     #     [{'x':inter_bars.Date,'y':inter_bars.maxi,'name':'intervention','type':'scatter','mode':'markers','marker':{'size':12}}],
     #     'layout': {'margin': {'l': 40, 'r': 0, 't': 20, 'b': 30}}},\
     #     'bin intervals:'+str(flood_bins)
@@ -275,17 +316,17 @@ def update_output(n_clicks, flood_cats_in,avg_window,nullAsZero,floodZeroSep,flo
     #%%
     inter_bars=pd.to_datetime( pd.Series(interv_dates,dtype='str'))
     inter_bars=inter_bars.to_frame().merge(rate_avg,left_on=0,right_on='Date')
-    inter_bars.loc[:,'maxi']=inter_bars.loc[:,FLOOD_QUANTILES].max(axis=1).copy()
+    inter_bars.loc[:,'maxi']=inter_bars.loc[:,QUANTILES].max(axis=1).copy()
     
     # return reg_table.to_dict('r ecords'),[{"name": i, "id": i} for i in reg_table.columns],\
     #     reg_table_dev.to_dict('records'),[{"name": i, "id": i} for i in reg_table_dev.columns],\
-    #     {'data': [{'x': rate_avg.Date,'y': rate_avg[cat],'name':cat} for cat in FLOOD_QUANTILES]+
+    #     {'data': [{'x': rate_avg.Date,'y': rate_avg[cat],'name':cat} for cat in QUANTILES]+
     #     [{'x':inter_bars.Date,'y':inter_bars.maxi,'name':'intervention','type':'scatter','mode':'markers','marker':{'size':12}}],
     #     'layout': {'margin': {'l': 40, 'r': 0, 't': 20, 'b': 30}}},\
     #     'bin intervals:'+str(flood_bins)
         
     return None,None,None,None,\
-        {'data': [{'x': rate_avg.Date,'y': rate_avg[cat],'name':cat} for cat in FLOOD_QUANTILES]+
+        {'data': [{'x': rate_avg.Date,'y': rate_avg[cat],'name':cat} for cat in QUANTILES]+
         [{'x':inter_bars.Date,'y':inter_bars.maxi,'name':'intervention','type':'scatter','mode':'markers','marker':{'size':12}}],
         'layout': {'margin': {'l': 40, 'r': 0, 't': 20, 'b': 30},'title':Dis_cat,'yaxis':{'title':'Outcome per 1Million'}}},\
         'bin intervals:'+str(flood_bins)

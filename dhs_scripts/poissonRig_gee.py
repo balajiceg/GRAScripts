@@ -147,15 +147,19 @@ demos_subset.columns=["PAT_ADDR_CENSUS_TRACT","Population"]
 sp=sp.merge(demos_subset,on="PAT_ADDR_CENSUS_TRACT",how='left')
 sp=sp.loc[sp.Population>0,]
 
-economy_subset=income.loc[:,['id','Estimate!!Median income (dollars)!!HOUSEHOLD INCOME BY RACE AND HISPANIC OR LATINO ORIGIN OF HOUSEHOLDER!!Households']]
-economy_subset.columns=["PAT_ADDR_CENSUS_TRACT","Median_H_Income"]
-sp=sp.merge(economy_subset,on="PAT_ADDR_CENSUS_TRACT",how='left')
-sp.loc[sp.Median_H_Income=='250,000+',"Median_H_Income"]=250000
-sp.Median_H_Income=pd.to_numeric(sp.Median_H_Income,errors='coerce')
+# economy_subset=income.loc[:,['id','Estimate!!Median income (dollars)!!HOUSEHOLD INCOME BY RACE AND HISPANIC OR LATINO ORIGIN OF HOUSEHOLDER!!Households']]
+# economy_subset.columns=["PAT_ADDR_CENSUS_TRACT","Median_H_Income"]
+# sp=sp.merge(economy_subset,on="PAT_ADDR_CENSUS_TRACT",how='left')
+# sp.loc[sp.Median_H_Income=='250,000+',"Median_H_Income"]=250000
+# sp.Median_H_Income=pd.to_numeric(sp.Median_H_Income,errors='coerce')
 #%% merge SVI after recategorization
-svi=recalculateSVI(SVI_df_raw[SVI_df_raw.FIPS.isin(sp.PAT_ADDR_CENSUS_TRACT.unique())]).loc[:,["FIPS",'SVI']]
+svi=recalculateSVI(SVI_df_raw[SVI_df_raw.FIPS.isin(sp.PAT_ADDR_CENSUS_TRACT.unique())]).loc[:,["FIPS",'SVI',]]
 sp=sp.merge(svi,left_on="PAT_ADDR_CENSUS_TRACT",right_on="FIPS",how='left').drop("FIPS",axis=1)
 sp['SVI_Cat']=pd.cut(sp.SVI,bins=np.arange(0,1.1,1/4),include_lowest=True,labels=[1,2,3,4])
+
+# #do same for the for cats
+# for i in ['1','2','3','4']:
+#     sp['SVI_Cat_T'+i]=pd.cut(sp['RPL_THEMES_'+i],bins=np.arange(0,1.1,1/4),include_lowest=True,labels=[1,2,3,4])
 
 #%%filter SVI cat for stratified analysis
 #sp=sp[sp.SVI_Cat==4]
@@ -223,6 +227,8 @@ def run():
     df.loc[df.STMT_PERIOD_FROM>20180100,'Time']="control" if Dis_cat!="Psychiatric" else np.nan
     df=df.loc[~pd.isna(df.Time),]
     
+    #take only control period
+    df=df[df.Time=='control']
     #%%controling for year month and week of the day
     df['year']=(df.STMT_PERIOD_FROM.astype('int32')//1e4).astype('category')
     df['month']=(df.STMT_PERIOD_FROM.astype('int32')//1e2%100).astype('category')
@@ -253,7 +259,7 @@ def run():
                                                                                       'ETHNICITY_Non_Hispanic':'sum','ETHNICITY_Hispanic':'sum', 
                                                                                       'op_False':'sum','op_True':'sum'}).reset_index()
                          
-        grouped_tracts=grouped_tracts.merge(df.drop_duplicates(['STMT_PERIOD_FROM','PAT_ADDR_CENSUS_TRACT']).loc[:,['STMT_PERIOD_FROM','PAT_ADDR_CENSUS_TRACT','floodr_cat','Population','Median_H_Income','Time','year','month','weekday','SVI_Cat']],how='left',on=["PAT_ADDR_CENSUS_TRACT",'STMT_PERIOD_FROM'])
+        grouped_tracts=grouped_tracts.merge(df.drop_duplicates(['STMT_PERIOD_FROM','PAT_ADDR_CENSUS_TRACT']).loc[:,['STMT_PERIOD_FROM','PAT_ADDR_CENSUS_TRACT','floodr_cat','Population','Time','year','month','weekday','SVI_Cat']],how='left',on=["PAT_ADDR_CENSUS_TRACT",'STMT_PERIOD_FROM'])
         dummy_cols=['SEX_CODE_M', 'SEX_CODE_F', 'RACE_white', 'RACE_black', 'RACE_other','ETHNICITY_Non_Hispanic', 'ETHNICITY_Hispanic', 'op_False', 'op_True']
         grouped_tracts.loc[:,dummy_cols]=grouped_tracts.loc[:,dummy_cols].divide(grouped_tracts.Outcome,axis=0)
         del df
@@ -266,9 +272,9 @@ def run():
     if Dis_cat=="ALL":offset=np.log(df.Population)
     
     
-    formula='Outcome'+' ~ '+' SVI_Cat * floodr_cat * Time'+' + year + month + weekday' + ' + PAT_AGE_YEARS + SEX_CODE + RACE + ETHNICITY + op'
-    if Dis_cat=='ALL': formula='Outcome'+' ~ '+' SVI_Cat * floodr_cat * Time'+' + year + month + weekday + PAT_AGE_YEARS + '+' + '.join(['SEX_CODE_M','RACE_white', 'RACE_black','ETHNICITY_Non_Hispanic', 'op_True'])
-    formula=formula+' + Median_H_Income'
+    formula='Outcome'+' ~ '+'SVI_Cat'+' + year + month + weekday' + ' + SEX_CODE  + op'#'  + RACE + ETHNICITY + PAT_AGE_YEARS'
+    if Dis_cat=='ALL': formula='Outcome'+' ~ '+' SVI_Cat'+' + year + month + weekday + '+' + '.join(['SEX_CODE_M','op_True'])#,'RACE_white', 'RACE_black','ETHNICITY_Non_Hispanic','PAT_AGE_YEARS'])
+    #formula=formula+' + Median_H_Income'
     
     model = smf.gee(formula=formula,groups=df[flood_join_field], data=df,offset=offset,missing='drop',family=sm.families.Poisson(link=sm.families.links.log()))
     #model = smf.logit(formula=formula, data=df,missing='drop')
