@@ -244,7 +244,7 @@ def run():
      #counts_outcome=pd.DataFrame(df.Outcome.value_counts())
     outcomes_recs=df.loc[(df.Outcome>0)&(~pd.isna(df.loc[:,['floodr_cat','Time','year','month','weekday' ,'PAT_AGE_YEARS', 
                                                           'SEX_CODE','RACE','ETHNICITY']]).any(axis=1)),]
-    counts_outcome=pd.crosstab(outcomes_recs.AGE_cat ,[outcomes_recs.Time,outcomes_recs.floodr_cat])
+    counts_outcome=pd.crosstab(outcomes_recs.SEX_CODE ,[outcomes_recs.Time,outcomes_recs.floodr_cat])
     counts_outcome.to_csv(Dis_cat+"_aux"+".csv")
     print(counts_outcome)
     del outcomes_recs
@@ -277,7 +277,7 @@ def run():
     
     #change floodr into 0-100
     df.floodr=df.floodr*100
-    formula='Outcome'+' ~ '+'floodr_cat * Time * AGE_cat'+' + year + month + weekday' + '  + op + SEX_CODE + RACE + ETHNICITY'
+    formula='Outcome'+' ~ '+'floodr_cat * Time * SEX_CODE'+' + year + month + weekday' + '  + op + AGE_cat + RACE + ETHNICITY'
     if Dis_cat=='ALL': formula='Outcome'+' ~ '+' floodr_cat * Time'+' + year + month + weekday + '+' + '.join(['SEX_CODE_M','op_True','RACE_white', 'RACE_black','ETHNICITY_Non_Hispanic','PAT_AGE_YEARS'])
     #formula=formula+' + Median_H_Income'
     
