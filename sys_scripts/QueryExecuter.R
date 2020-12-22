@@ -84,17 +84,18 @@ get_match_ccdd<-function(query,ccdd){
 
 
 #read data
-sys_data<-read.csv("H:/SyS data/merged.csv")
+sys_data<-read.csv("Z:/Balaji/SyS data/merged.csv")
 #read queries
 queries<-read.csv("Z:/GRAScripts/sys_scripts/queries.csv")
 
 
-
+#excel read 
+sys_data<-read_xlsx("Z:/Balaji/Sys/Demo_page_data_MJ/Pregancy CCDD/Pregnancy CCDD DataDetails.xlsx")
 
 #testing subsyndrome query
-query<-as.character(queries[queries$Name=="ExcessiveHeat",]$Query[1])
+query<-as.character(queries[queries$Name=="Pregnancy and Pregnancy Loss and Delivery v1 - CDC",]$Query[1])
 #get points for the chief complaints
-points<-get_points_subsyn(query,sys_data$ChiefComplaintOrig)
+points<-get_points_subsyn(query,sys_data$ChiefComplaintParsed)
 #filter records with points >=6
 filtered<-sys_data$ChiefComplaintOrig[points>=6]
 #join points to form a dataframe
@@ -111,14 +112,15 @@ write.csv(filtered_all,"subsyn_filtered_output_all_cols.csv")
 
 
 #test ccdd "Disaster-related Mental Health v1 - Syndrome Definition Committee"	
-query<-as.character(queries[queries$Name=="Disaster-related Mental Health v1 - Syndrome Definition Committee",]$Query[1])
+query<-as.character(queries[queries$Name=="Pregnancy and Pregnancy Loss and Delivery v1 - CDC",]$Query[1])
 
 #join the CC and DD from data
-ccdd<-paste0(sys_data$ChiefComplaintOrig,' ',sys_data$Discharge.Diagnosis)
+ccdd<-paste0(sys_data$ChiefComplaintParsed,' ',sys_data$`Discharge Diagnosis`)
 res<-get_match_ccdd(query,ccdd)
 View(res$subqueries)
 #view the filtered records
-View(ccdd[res$match])
+length(ccdd[res$match])
+length(ccdd[!res$match])
 #write the filtered output to file
 write.csv(ccdd[res$match],"ccdd_filtered_output.csv")
 write.csv(sys_data[res$match,],"ccdd_filtered_output_all_cols.csv")
@@ -129,7 +131,7 @@ ccdd<-paste0(sys_data$ChiefComplaintOrig)
 res<-get_match_ccdd(query,ccdd)
 View(res$subqueries)
 #view the filtered records
-View(ccdd[res$match])
+View(ccdd[!res$match])
 #write the filtered output to file
 write.csv(ccdd[res$match],"cc_filtered_output.csv")
 write.csv(sys_data[res$match,],"cc_filtered_output_all_cols.csv")

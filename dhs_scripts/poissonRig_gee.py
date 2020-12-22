@@ -206,12 +206,14 @@ sp=sp.merge(vists_per_tract,on=['PAT_ADDR_CENSUS_TRACT','STMT_PERIOD_FROM'],how=
 #%%creating day from start for CITS
 day_from_start=pd.DataFrame({'STMT_PERIOD_FROM':pd.date_range('2016-07-01', '2018-12-31', freq='d').astype('str').str.replace('-','').astype('int64')}).reset_index().rename(columns={'index':'DayFromStart'})
 sp=sp.merge(day_from_start,on='STMT_PERIOD_FROM',how='left')
+#%%pat age categoriy based on SVI theme  2  <=17,18-64,>=65
+sp.loc[:,'AGE_cat']=pd.cut(sp.PAT_AGE_YEARS,bins=[-1,17,64,200],labels=['0-17','18-64','>64']).cat.reorder_categories(['18-64','0-17','>64'])
 #%%function for looping
 def run():
     #print(cuts[i])
     #sp.loc[:,'floodr_cat']=pd.cut(sp.floodr,bins=[0,cuts[i],1],right=True,include_lowest=True,labels=FLOOD_QUANTILES)
     #%%filter records for specific outcome
-    df=sp
+    df=sp#[sp.SVI_Cat==SVI_filter]
     if Dis_cat=="DEATH":df.loc[:,'Outcome']=filter_mortality(sp)
     if Dis_cat=="ALL":df.loc[:,'Outcome']=1
     if Dis_cat in outcome_cats.category.to_list():df.loc[:,'Outcome']=get_sp_outcomes(sp, Dis_cat)
@@ -228,7 +230,7 @@ def run():
     df=df.loc[~pd.isna(df.Time),]
     
     #take only control period
-    df=df[df.Time=='control']
+    #df=df[df.Time=='control']
     #%%controling for year month and week of the day
     df['year']=(df.STMT_PERIOD_FROM.astype('int32')//1e4).astype('category')
     df['month']=(df.STMT_PERIOD_FROM.astype('int32')//1e2%100).astype('category')
@@ -240,9 +242,9 @@ def run():
     
     #%% save cross tab
      #counts_outcome=pd.DataFrame(df.Outcome.value_counts())
-    outcomes_recs=df.loc[(df.Outcome>0)&(~pd.isna(df.loc[:,['SVI_Cat','floodr_cat','Time','year','month','weekday' ,'PAT_AGE_YEARS', 
+    outcomes_recs=df.loc[(df.Outcome>0)&(~pd.isna(df.loc[:,['floodr_cat','Time','year','month','weekday' ,'PAT_AGE_YEARS', 
                                                           'SEX_CODE','RACE','ETHNICITY']]).any(axis=1)),]
-    counts_outcome=pd.crosstab(outcomes_recs.Time,outcomes_recs.SVI_Cat)
+    counts_outcome=pd.crosstab(outcomes_recs.AGE_cat ,[outcomes_recs.Time,outcomes_recs.floodr_cat])
     counts_outcome.to_csv(Dis_cat+"_aux"+".csv")
     print(counts_outcome)
     del outcomes_recs
@@ -250,17 +252,19 @@ def run():
     #%%for total ED visits using grouped / coutns
     if Dis_cat=="ALL":
         grouped_tracts=df.loc[:,['STMT_PERIOD_FROM','PAT_AGE_YEARS','PAT_ADDR_CENSUS_TRACT','Outcome']]
-        grouped_tracts=pd.concat([grouped_tracts]+[pd.get_dummies(df[i],prefix=i) for i in ['SEX_CODE','RACE','ETHNICITY','op']],axis=1)
+        grouped_tracts=pd.concat([grouped_tracts]+[pd.get_dummies(df[i],prefix=i) for i in ['SEX_CODE','RACE','ETHNICITY','op','AGE_cat']],axis=1)
         
         grouped_tracts=grouped_tracts.groupby(['STMT_PERIOD_FROM', 'PAT_ADDR_CENSUS_TRACT']).agg({'Outcome':'sum',
                                                                                       'PAT_AGE_YEARS':'mean',
                                                                                       'SEX_CODE_M':'sum','SEX_CODE_F':'sum', 
                                                                                       'RACE_white':'sum','RACE_black':'sum','RACE_other':'sum',
                                                                                       'ETHNICITY_Non_Hispanic':'sum','ETHNICITY_Hispanic':'sum', 
-                                                                                      'op_False':'sum','op_True':'sum'}).reset_index()
+                                                                                      'op_False':'sum','op_True':'sum',
+                                                                                      'AGE_cat_18-64':'sum', 'AGE_cat_0-17':'sum', 'AGE_cat_>64':'sum'
+                                                                                      }).reset_index()
                          
-        grouped_tracts=grouped_tracts.merge(df.drop_duplicates(['STMT_PERIOD_FROM','PAT_ADDR_CENSUS_TRACT']).loc[:,['STMT_PERIOD_FROM','PAT_ADDR_CENSUS_TRACT','floodr_cat','Population','Time','year','month','weekday','SVI_Cat']],how='left',on=["PAT_ADDR_CENSUS_TRACT",'STMT_PERIOD_FROM'])
-        dummy_cols=['SEX_CODE_M', 'SEX_CODE_F', 'RACE_white', 'RACE_black', 'RACE_other','ETHNICITY_Non_Hispanic', 'ETHNICITY_Hispanic', 'op_False', 'op_True']
+        grouped_tracts=grouped_tracts.merge(df.drop_duplicates(['STMT_PERIOD_FROM','PAT_ADDR_CENSUS_TRACT']).loc[:,['STMT_PERIOD_FROM','PAT_ADDR_CENSUS_TRACT','floodr_cat','Population','Time','year','month','weekday','SVI_Cat','floodr']],how='left',on=["PAT_ADDR_CENSUS_TRACT",'STMT_PERIOD_FROM'])
+        dummy_cols=['SEX_CODE_M', 'SEX_CODE_F', 'RACE_white', 'RACE_black', 'RACE_other','ETHNICITY_Non_Hispanic', 'ETHNICITY_Hispanic', 'op_False', 'op_True','AGE_cat_18-64', 'AGE_cat_0-17', 'AGE_cat_>64']
         grouped_tracts.loc[:,dummy_cols]=grouped_tracts.loc[:,dummy_cols].divide(grouped_tracts.Outcome,axis=0)
         del df
         df=grouped_tracts
@@ -271,9 +275,10 @@ def run():
     #offset=None
     if Dis_cat=="ALL":offset=np.log(df.Population)
     
-    
-    formula='Outcome'+' ~ '+'SVI_Cat'+' + year + month + weekday' + ' + SEX_CODE  + op'#'  + RACE + ETHNICITY + PAT_AGE_YEARS'
-    if Dis_cat=='ALL': formula='Outcome'+' ~ '+' SVI_Cat'+' + year + month + weekday + '+' + '.join(['SEX_CODE_M','op_True'])#,'RACE_white', 'RACE_black','ETHNICITY_Non_Hispanic','PAT_AGE_YEARS'])
+    #change floodr into 0-100
+    df.floodr=df.floodr*100
+    formula='Outcome'+' ~ '+'floodr_cat * Time * AGE_cat'+' + year + month + weekday' + '  + op + SEX_CODE + RACE + ETHNICITY'
+    if Dis_cat=='ALL': formula='Outcome'+' ~ '+' floodr_cat * Time'+' + year + month + weekday + '+' + '.join(['SEX_CODE_M','op_True','RACE_white', 'RACE_black','ETHNICITY_Non_Hispanic','PAT_AGE_YEARS'])
     #formula=formula+' + Median_H_Income'
     
     model = smf.gee(formula=formula,groups=df[flood_join_field], data=df,offset=offset,missing='drop',family=sm.families.Poisson(link=sm.families.links.log()))
