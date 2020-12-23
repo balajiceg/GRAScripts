@@ -146,28 +146,31 @@ floodZeroSep="True" # zeros are considered as seperate class
 #flood_data_zip=None
 
 #Dis_cats=["DEATH","Dehydration","Bite-Insect","Dialysis","Asthma_like","Respiratory_All","Infectious_and_parasitic"]
-Dis_cats=[#'ALL',
+Dis_cats=[ 'ALL',
            #'Psychiatric',
-           'Intestinal_infectious_diseases',
-            'ARI',
-            'Bite-Insect',
+            'Intestinal_infectious_diseases',
+           #  'ARI',
+             'Bite-Insect',
            #'DEATH',
            #'Flood_Storms',
-           #'CO_Exposure',
-           #'Drowning',
-           'Heat_Related_But_Not_dehydration',
-           'Hypothermia',
+            'CO_Exposure',
+            'Drowning',
+           #'Heat_Related_But_Not_dehydration',
+            'Hypothermia',
            #'Dialysis',
            #'Medication_Refill',
-           'Asthma',
-            'Pregnancy_complic',
-            'Chest_pain',
-            'Dehydration',
+           # 'Asthma',
+             'Pregnancy_complic',
+           #  'Chest_pain',
+             'Dehydration',
          ]
-cuts=[0.00183,0.01133,0.02668,0.05128,0.08075,0.12103,0.19259]
-for i in range(len(cuts)):
-    os.mkdir('cuts_'+str(i))
-    os.chdir('cuts_'+str(i))
+SVI_CATS=['SVI_Cat', 'SVI_Cat_T1', 'SVI_Cat_T2',
+       'SVI_Cat_T3', 'SVI_Cat_T4']
+
+import os
+for SVI_COL in SVI_CATS:
+    #os.mkdir(SVI_COL)
+    os.chdir(SVI_COL)
     for Dis_cat in Dis_cats:
         try:
             print(Dis_cat)
