@@ -278,8 +278,8 @@ def run():
     
     #change floodr into 0-100
     df.floodr=df.floodr*100
-    formula='Outcome'+' ~ '+'floodr_cat * Time * '+SVI_COL+' + year + month + weekday' + '  + op + SEX_CODE '#'+ PAT_AGE_YEARS + RACE + ETHNICITY'
-    if Dis_cat=='ALL': formula='Outcome'+' ~ '+' floodr_cat * Time * '+SVI_COL+ '+ year + month + weekday + '+' + '.join(['SEX_CODE_M','op_True'])#,'RACE_white', 'RACE_black','ETHNICITY_Non_Hispanic','PAT_AGE_YEARS'])
+    formula='Outcome'+' ~ '+'floodr_cat * Time * '+SVI_COL+' + year + month + weekday' + '  + op + SEX_CODE + RACE + ETHNICITY '#'+ PAT_AGE_YEARS'
+    if Dis_cat=='ALL': formula='Outcome'+' ~ '+' floodr_cat * Time * '+SVI_COL+ '+ year + month + weekday + '+' + '.join(['SEX_CODE_M','op_True','RACE_white', 'RACE_black','ETHNICITY_Non_Hispanic'])#,'PAT_AGE_YEARS'])
     #formula=formula+' + Median_H_Income'
     
     model = smf.gee(formula=formula,groups=df[flood_join_field], data=df,offset=offset,missing='drop',family=sm.families.Poisson(link=sm.families.links.log()))
