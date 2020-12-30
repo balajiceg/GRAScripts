@@ -209,7 +209,7 @@ sp=sp.merge(day_from_start,on='STMT_PERIOD_FROM',how='left')
 #%%pat age categoriy based on SVI theme  2  <=17,18-64,>=65
 sp.loc[:,'AGE_cat']=pd.cut(sp.PAT_AGE_YEARS,bins=[-1,17,64,200],labels=['0-17','18-64','>64']).cat.reorder_categories(['18-64','0-17','>64'])
 #%%function for looping
-SVI_COL='SVI_Cat_T3'
+SVI_COL='SVI_Cat'
 def run():
     #print(cuts[i])
     #sp.loc[:,'floodr_cat']=pd.cut(sp.floodr,bins=[0,cuts[i],1],right=True,include_lowest=True,labels=FLOOD_QUANTILES)
@@ -278,8 +278,8 @@ def run():
     
     #change floodr into 0-100
     df.floodr=df.floodr*100
-    formula='Outcome'+' ~ '+' Time * '+SVI_COL+' + year + month + weekday' + '  + op + SEX_CODE + PAT_AGE_YEARS '#'+ RACE + ETHNICITY'
-    if Dis_cat=='ALL': formula='Outcome'+' ~ '+' Time * '+SVI_COL+ '+ year + month + weekday + '+' + '.join(['SEX_CODE_M','op_True','PAT_AGE_YEARS'])#,'RACE_white', 'RACE_black','ETHNICITY_Non_Hispanic'])
+    formula='Outcome'+' ~ '+' Time * '+SVI_COL+' + year + month + weekday' + '  + op + SEX_CODE'#' + PAT_AGE_YEARS + RACE + ETHNICITY'
+    if Dis_cat=='ALL': formula='Outcome'+' ~ '+' Time * '+SVI_COL+ '+ year + month + weekday + '+' + '.join(['SEX_CODE_M','op_True'])#,'PAT_AGE_YEARS','RACE_white', 'RACE_black','ETHNICITY_Non_Hispanic'])
     #formula=formula+' + Median_H_Income'
     
     model = smf.gee(formula=formula,groups=df[flood_join_field], data=df,offset=offset,missing='drop',family=sm.families.Poisson(link=sm.families.links.log()))
