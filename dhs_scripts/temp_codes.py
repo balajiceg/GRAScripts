@@ -99,13 +99,16 @@ import pandas as pd
 import glob
 import os
 
-files=glob.glob(r'Z:\Balaji\Analysis_out_IPOP\13082020_final1\*_aux.csv')
+files=glob.glob(r'Z:\Balaji\Analysis_out_IPOP\23122020\SVI_Cat_T4\*_aux.csv')
 x=[]
 for f in files:
     df=pd.read_csv(f)
     df["outcome"]=os.path.basename(f).replace("_aux.csv","")
     x.append(df)
 concat_df=pd.concat(x)
+concat_df['folder']='SVI_Cat_T4'
+concat_df.to_clipboard(index=False)
+#%%
 
 result_df=pd.DataFrame({'outcome':concat_df.outcome.unique()})
 flood_cats=['NO','FLood_1']
