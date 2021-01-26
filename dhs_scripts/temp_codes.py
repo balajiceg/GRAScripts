@@ -172,7 +172,7 @@ SVI_CATS=['SVI_Cat', 'SVI_Cat_T1', 'SVI_Cat_T2',
 
 import os
 for SVI_COL in SVI_CATS:
-    #os.mkdir(SVI_COL)
+    os.mkdir(SVI_COL)
     os.chdir(SVI_COL)
     for Dis_cat in Dis_cats:
         try:

@@ -44,7 +44,7 @@ merge_df.to_excel(first_dir+r'\merged.xlsx',index=False)
 #%%combined merge
 import pandas as pd
 import glob, os
-first_dir=r"Z:\Balaji\Analysis_out_IPOP\23122020_1\SVI_Cat"
+first_dir=r"Z:\Balaji\Analysis_out_IPOP\30122020_1\SVI_Cat_T4"
 req_files=glob.glob(first_dir+"\\*_reg.csv")
 
 merge_df=pd.DataFrame()
@@ -59,7 +59,7 @@ for file in req_files:
     
 merge_df.columns=['covar', 'RR', 'P', 'conf25', 'conf95', 'outcome']
 merge_df['covar']=merge_df['covar'].str.replace("\[T.",'_').str.replace('\]','')
-merge_df['folder']='SVI_Cat'
+merge_df['folder']='SVI_Cat_T4'
 
 #% outupt
 merge_df.to_excel(first_dir+r'\merged_flood_cat6.xlsx',index=False)  

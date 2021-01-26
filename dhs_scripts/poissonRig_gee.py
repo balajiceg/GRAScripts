@@ -153,13 +153,13 @@ sp=sp.loc[sp.Population>0,]
 # sp.loc[sp.Median_H_Income=='250,000+',"Median_H_Income"]=250000
 # sp.Median_H_Income=pd.to_numeric(sp.Median_H_Income,errors='coerce')
 #%% merge SVI after recategorization
-svi=recalculateSVI(SVI_df_raw[SVI_df_raw.FIPS.isin(sp.PAT_ADDR_CENSUS_TRACT.unique())])#.loc[:,["FIPS",'SVI',]]
+svi=recalculateSVI(SVI_df_raw[SVI_df_raw.FIPS.isin(sp.PAT_ADDR_CENSUS_TRACT.unique())]).loc[:,["FIPS",'SVI',]]
 sp=sp.merge(svi,left_on="PAT_ADDR_CENSUS_TRACT",right_on="FIPS",how='left').drop("FIPS",axis=1)
 sp['SVI_Cat']=pd.cut(sp.SVI,bins=np.arange(0,1.1,1/4),include_lowest=True,labels=[1,2,3,4])
 
 # #do same for the for cats
-for i in ['1','2','3','4']:
-    sp['SVI_Cat_T'+i]=pd.cut(sp['RPL_THEMES_'+i],bins=np.arange(0,1.1,1/4),include_lowest=True,labels=[1,2,3,4])
+# for i in ['1','2','3','4']:
+#     sp['SVI_Cat_T'+i]=pd.cut(sp['RPL_THEMES_'+i],bins=np.arange(0,1.1,1/4),include_lowest=True,labels=[1,2,3,4])
 
 #%%filter SVI cat for stratified analysis
 #sp=sp[sp.SVI_Cat==4]
@@ -209,7 +209,6 @@ sp=sp.merge(day_from_start,on='STMT_PERIOD_FROM',how='left')
 #%%pat age categoriy based on SVI theme  2  <=17,18-64,>=65
 sp.loc[:,'AGE_cat']=pd.cut(sp.PAT_AGE_YEARS,bins=[-1,17,64,200],labels=['0-17','18-64','>64']).cat.reorder_categories(['18-64','0-17','>64'])
 #%%function for looping
-SVI_COL='SVI_Cat_T2'
 def run():
     #print(cuts[i])
     #sp.loc[:,'floodr_cat']=pd.cut(sp.floodr,bins=[0,cuts[i],1],right=True,include_lowest=True,labels=FLOOD_QUANTILES)
@@ -244,8 +243,8 @@ def run():
     #%% save cross tab
      #counts_outcome=pd.DataFrame(df.Outcome.value_counts())
     outcomes_recs=df.loc[(df.Outcome>0)&(~pd.isna(df.loc[:,['floodr_cat','Time','year','month','weekday' ,'PAT_AGE_YEARS', 
-                                                          'SEX_CODE','RACE','ETHNICITY',SVI_COL]]).any(axis=1)),]
-    counts_outcome=pd.crosstab(outcomes_recs[SVI_COL] ,[outcomes_recs.Time,outcomes_recs.floodr_cat])
+                                                          'SEX_CODE','RACE','ETHNICITY']]).any(axis=1)),]
+    counts_outcome=pd.crosstab(outcomes_recs.ETHNICITY ,[outcomes_recs.Time,outcomes_recs.floodr_cat])
     counts_outcome.to_csv(Dis_cat+"_aux"+".csv")
     print(counts_outcome)
     del outcomes_recs
@@ -264,7 +263,7 @@ def run():
                                                                                       'AGE_cat_18-64':'sum', 'AGE_cat_0-17':'sum', 'AGE_cat_>64':'sum'
                                                                                       }).reset_index()
                          
-        grouped_tracts=grouped_tracts.merge(df.drop_duplicates(['STMT_PERIOD_FROM','PAT_ADDR_CENSUS_TRACT']).loc[:,['STMT_PERIOD_FROM','PAT_ADDR_CENSUS_TRACT','floodr_cat','Population','Time','year','month','weekday',SVI_COL,'floodr']],how='left',on=["PAT_ADDR_CENSUS_TRACT",'STMT_PERIOD_FROM'])
+        grouped_tracts=grouped_tracts.merge(df.drop_duplicates(['STMT_PERIOD_FROM','PAT_ADDR_CENSUS_TRACT']).loc[:,['STMT_PERIOD_FROM','PAT_ADDR_CENSUS_TRACT','floodr_cat','Population','Time','year','month','weekday','SVI_Cat','floodr']],how='left',on=["PAT_ADDR_CENSUS_TRACT",'STMT_PERIOD_FROM'])
         dummy_cols=['SEX_CODE_M', 'SEX_CODE_F', 'RACE_white', 'RACE_black', 'RACE_other','ETHNICITY_Non_Hispanic', 'ETHNICITY_Hispanic', 'op_False', 'op_True','AGE_cat_18-64', 'AGE_cat_0-17', 'AGE_cat_>64']
         grouped_tracts.loc[:,dummy_cols]=grouped_tracts.loc[:,dummy_cols].divide(grouped_tracts.Outcome,axis=0)
         del df
@@ -278,8 +277,8 @@ def run():
     
     #change floodr into 0-100
     df.floodr=df.floodr*100
-    formula='Outcome'+' ~ '+' Time * '+SVI_COL+' + year + month + weekday' + '  + op + SEX_CODE + RACE + ETHNICITY'#' + PAT_AGE_YEARS '
-    if Dis_cat=='ALL': formula='Outcome'+' ~ '+' Time * '+SVI_COL+ '+ year + month + weekday + '+' + '.join(['SEX_CODE_M','op_True','RACE_white', 'RACE_black','ETHNICITY_Non_Hispanic'])#,'PAT_AGE_YEARS'])
+    formula='Outcome'+' ~ '+'floodr_cat * Time * AGE_cat'+' + year + month + weekday' + '  + op + SEX_CODE + RACE + ETHNICITY'
+    if Dis_cat=='ALL': formula='Outcome'+' ~ '+' floodr_cat * Time * SEX_CODE_F'+' + year + month + weekday + '+' + '.join(['op_True','RACE_other', '','ETHNICITY_Hispanic', 'AGE_cat_0_17' ,'AGE_cat_gt_64'])
     #formula=formula+' + Median_H_Income'
     
     model = smf.gee(formula=formula,groups=df[flood_join_field], data=df,offset=offset,missing='drop',family=sm.families.Poisson(link=sm.families.links.log()))
