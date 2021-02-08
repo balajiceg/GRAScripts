@@ -277,7 +277,7 @@ def run():
     
     #change floodr into 0-100
     df.floodr=df.floodr*100
-    formula='Outcome'+' ~ '+'floodr_cat * Time * AGE_cat'+' + year + month + weekday' + '  + op + SEX_CODE + RACE + ETHNICITY'
+    formula='Outcome'+' ~ '+'floodr_cat * Time * SVI_Cat'+' + year + month + weekday' + '  + op + SEX_CODE'
     if Dis_cat=='ALL': formula='Outcome'+' ~ '+' floodr_cat * Time * SEX_CODE_F'+' + year + month + weekday + '+' + '.join(['op_True','RACE_other', '','ETHNICITY_Hispanic', 'AGE_cat_0_17' ,'AGE_cat_gt_64'])
     #formula=formula+' + Median_H_Income'
     

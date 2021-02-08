@@ -86,7 +86,7 @@ sys_sa$flooded[is.na(sys_sa$flooded)] <- F
 sys_sa$flooded[sys_sa$flooded]<-'flooded'
 sys_sa$flooded[sys_sa$flooded=='FALSE']<-'Non flooded'
 sys_sa$flooded<-factor(sys_sa$flooded,levels = c('flooded','Non flooded'))
-
+sys_sa$flooded<-sys_sa$flooded=='flooded'
 ##---- format variables ----
 
 #Age - merge O and U to unknownRa
@@ -116,12 +116,18 @@ sys_sa$period[sys_sa$Date>='2019-09-18' & sys_sa$Date<='2019-09-26'] <-'flood_pe
 sys_sa$period[sys_sa$Date>='2019-09-27' & sys_sa$Date<='2019-10-20'] <-'post_flood'
 sys_sa$period[sys_sa$Date<='2019-07-11'] <-'x_july_flood'
 
-sys_sa<-sys_sa[!(sys_sa$Date>='2019-09-11' & sys_sa$Date<='2019-09-17'),] #washout period
+#sys_sa<-sys_sa[!(sys_sa$Date>='2019-09-11' & sys_sa$Date<='2019-09-17'),] #washout period
 sys_sa$period<-factor(sys_sa$period)
 
+# add week day and month
+
+
+#group by date and create counts column
+ZCTAdaily_count<-sys_sa %>% group_by(crossed_zcta,Date) %>% dplyr::summarise(ZCTAdaily_count=n())
+sys_sa<-merge(sys_sa,ZCTAdaily_count,by=c('crossed_zcta','Date'),all.x=T)
 
 ##------- filter queries -----
-#outcome_match<-read.csv("Z:\\Balaji\\SyS data\\sys_merged_outcomes.csv")
+outcome_match<-read.csv("Z:\\Balaji\\SyS data\\sys_merged_outcomes.csv")
 outcomes_all<-c('Pregnancy_complic', 'Asthma', 'Bite.Insect', 
                 'Dehydration', 'Drowning', 'Hypothermia', 'Chest_pain', 
                 'Heat_Related_But_Not_dehydration', 'CO_Exposure')
@@ -129,13 +135,44 @@ sys_sa<-merge(sys_sa,outcome_match[,c('row_id',outcomes_all)],all.x=T,by='row_id
 
 
 #outcome name
-outcome<-'CO_Exposure'
-
+outcome<-'Bite.Insect'
 sys_sa$outcome<-as.numeric(unlist(sys_sa[outcome]))
 
+
+#------------
+model <-glm(formula = outcome ~ flooded * period + Age + Sex + Race + Ethnicity,
+                    data = sys_sa,#id=crossed_zcta,
+                    family = poisson(link='log'),
+                    #corstr = "ar1", 
+                    offset=log(ZCTAdaily_count))
+
+##update correlation structure
+usmodelnew2 <- update(usmodelnew, corstr = "exch")
+usmodelnew3 <- update(usmodelnew, corstr = "independence")
+
+##select correlation structure based on smallest QIC
+model.sel(usmodelnew, usmodelnew2, usmodelnew3, rank=QIC)
+usmodel.select<- usmodelnew
+
+##get summary from the selected model
+QIC(usmodelnew)
+summary(usmodelnew)
+
+# 'tidy' function to clean results from 'broom' package. 
+tidy(usmodelnew, conf.int = TRUE)
+
+
+
+sys_sa_subset<-sys_sa[,c("outcome","flooded","period","Age","Sex","Race","Ethnicity","ZCTAdaily_count",'crossed_zcta')]
+#remove incomplete rows
+sys_sa_subset<-na.omit(sys_sa_subset)
+
 #run model
-frmla_poi='outcome ~ flooded * period + Age + Sex + Race + Ethnicity'
-model <- glm (frmla_poi, data = sys_sa,family=poisson)
+model <-geeglm(formula = outcome ~ flooded * period + Age + Sex + Race + Ethnicity,
+            data = sys_sa_subset,id=crossed_zcta,
+            family = poisson(link='log'),
+            #corstr = "ar1", 
+            offset=log(ZCTAdaily_count))
 print(summary(model))
 results<-data.frame(exp((summary(model)[["coefficients"]])[,'Estimate']))
 results<-cbind(results,data.frame(exp(confint.default(model))))
@@ -155,12 +192,7 @@ grouped$rolled_count<-rollmean(grouped$count,7,fill=NA)
 fig<-plot_ly(x = grouped$Date, y = grouped$rolled_count, mode='lines',color=factor(grouped$flooded))
 fig
 
-
-grouped<-sys_sa %>% group_by(Date) %>% dplyr::summarise(count=n())
-grouped<-grouped[order(grouped$Date),]
-#rolling window of 7
-grouped$rolled_count<-rollmean(grouped$count,7,fill=NA)
-#plot 
-fig<-plot_ly(x = grouped$Date, y = grouped$rolled_count, mode='lines')
-fig
-
+#see number of hospitals broadcasting data
+grouped_hosp<-sys_sa  %>% group_by(Date) %>% dplyr::summarise(count=n_distinct(HospitalName))
+grouped_hosp$rolled_count<-rollmean(grouped_hosp$count,7,fill=NA)
+plot_ly(x = grouped_hosp$Date, y = grouped_hosp$count, mode='lines')
