@@ -265,7 +265,7 @@ def update_output(n_clicks, flood_cats_in,avg_window,nullAsZero,floodZeroSep,flo
     
     rate=floodedCats.sort_values(by='Date',ignore_index=True)
     rate_avg=rate.copy()
-    rate_avg.iloc[:,1:]=rate_avg.iloc[:,1:].rolling(window=avg_window).mean()
+    #rate_avg.iloc[:,1:]=rate_avg.iloc[:,1:].rolling(window=avg_window).mean()
 
 #%% stanalone plot
     rate_avg=rate_avg.dropna()

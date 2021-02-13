@@ -44,7 +44,7 @@ merge_df.to_excel(first_dir+r'\merged.xlsx',index=False)
 #%%combined merge
 import pandas as pd
 import glob, os
-first_dir=r"Z:\Balaji\Analysis_out_IPOP\30122020_1\SVI_Cat_T4"
+first_dir=r"Z:\Balaji\Analysis_out_IPOP\13082020_final1_manu\WithoutOfset"
 req_files=glob.glob(first_dir+"\\*_reg.csv")
 
 merge_df=pd.DataFrame()

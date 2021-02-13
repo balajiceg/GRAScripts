@@ -139,7 +139,71 @@ rm_df=df.loc[:,['Outcome','floodr','Time','year','month','weekday', 'PAT_AGE_YEA
 rm_df=rm_df.dropna()
 rm_df.PAT_ADDR_CENSUS_TRACT.unique()
 (rm_df.PAT_ADDR_CENSUS_TRACT//1000000).unique()
-#%% generating summary table
+#%% checking how glm and gee poisson models works with offset
+###############################
+import random
+df=pd.DataFrame(np.random.randint(0,2,size=(1000, 2)),columns=['x','y'])
+df.y[df.x==1]=random.choices([0,1], [.2,.8],k= df.y[df.x==1].shape[0])
+ct=pd.crosstab(df.y,df.x).values
+#(390/(104+390))/(263/(263+243))
+print(pd.crosstab(df.x,df.y))
+
+orr= (ct[1,1]/(ct[1,1]+ct[0,1]))/(ct[1,0]/(ct[1,0]+ct[0,0]))
+
+
+
+choices=[1000,4000]
+offset=np.log(random.choices(choices, [.5,.5],k= 1000))
+#%%
+print('overall rr')
+print(orr)
+sub_df=df[offset==np.log(choices[0])]
+ct=pd.crosstab(sub_df.y,sub_df.x).values
+print('subdf 1 rr')
+rr= (ct[1,1]/(ct[1,1]+ct[0,1]))/(ct[1,0]/(ct[1,0]+ct[0,0]))
+print(rr)
+
+sub_df=df[offset==np.log(choices[1])]
+ct=pd.crosstab(sub_df.y,sub_df.x).values
+print('subdf 2 rr')
+rr= (ct[1,1]/(ct[1,1]+ct[0,1]))/(ct[1,0]/(ct[1,0]+ct[0,0]))
+print(rr)
+
+
+model = smf.gee(formula='y~x',groups=df.index, data=df,offset=None,family=sm.families.Poisson(link=sm.families.links.log()))
+results=model.fit()
+results_as_html = results.summary().tables[1].as_html()
+reg_table=pd.read_html(results_as_html, header=0, index_col=0)[0].reset_index()
+reg_table.loc[:,'coef']=np.exp(reg_table.coef)
+reg_table.loc[:,['[0.025', '0.975]']]=np.exp(reg_table.loc[:,['[0.025', '0.975]']])
+print('gee---------------')
+print(reg_table)
+
+
+model = smf.glm(formula='y~x',data=df,offset=None,family=sm.families.Poisson(link=sm.families.links.log()))
+results=model.fit()
+results_as_html = results.summary().tables[1].as_html()
+reg_table=pd.read_html(results_as_html, header=0, index_col=0)[0].reset_index()
+reg_table.loc[:,'coef']=np.exp(reg_table.coef)
+reg_table.loc[:,['[0.025', '0.975]']]=np.exp(reg_table.loc[:,['[0.025', '0.975]']])
+print('glm---------------')
+print(reg_table)
+
+print('with offset glm-------------')
+model = smf.glm(formula='y~x',data=df,offset=offset,family=sm.families.Poisson(link=sm.families.links.log()))
+results=model.fit()
+results_as_html = results.summary().tables[1].as_html()
+reg_table=pd.read_html(results_as_html, header=0, index_col=0)[0].reset_index()
+reg_table.loc[:,'coef']=np.exp(reg_table.coef)
+reg_table.loc[:,['[0.025', '0.975]']]=np.exp(reg_table.loc[:,['[0.025', '0.975]']])
+print(reg_table)
+
+
+ #model = smf.logit(formula=formula, data=df,missing='drop')
+    #model = smf.glm(formula=formula, data=df,missing='drop',family=sm.families.Binomial(sm.families.links.logit()))
+    
+
+
 #%%looping for automatic saving 
 
 
@@ -154,11 +218,11 @@ Dis_cats=[ 'ALL',
             'Intestinal_infectious_diseases',
            #  'ARI',
              'Bite-Insect',
-           #'DEATH',
+           'DEATH',
            #'Flood_Storms',
             'CO_Exposure',
             'Drowning',
-           #'Heat_Related_But_Not_dehydration',
+           'Heat_Related_But_Not_dehydration',
             'Hypothermia',
            #'Dialysis',
            #'Medication_Refill',
