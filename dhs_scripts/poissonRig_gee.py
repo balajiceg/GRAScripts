@@ -222,7 +222,7 @@ def run():
     df=df.loc[~pd.isna(df.Time),]
     
     #take only control period
-    #df=df[df.Time=='control']
+    df=df[df.Time=='control']
     #%%controling for year month and week of the day
     df['year']=(df.STMT_PERIOD_FROM.astype('int32')//1e4).astype('category')
     df['month']=(df.STMT_PERIOD_FROM.astype('int32')//1e2%100).astype('category')
@@ -236,7 +236,7 @@ def run():
      #counts_outcome=pd.DataFrame(df.Outcome.value_counts())
     outcomes_recs=df.loc[(df.Outcome>0)&(~pd.isna(df.loc[:,['floodr_cat','Time','year','month','weekday' ,'PAT_AGE_YEARS', 
                                                           'SEX_CODE','RACE','ETHNICITY']]).any(axis=1)),]
-    counts_outcome=pd.crosstab(outcomes_recs.SVI_Cat ,[outcomes_recs.Time,outcomes_recs.floodr_cat])
+    counts_outcome=pd.crosstab(outcomes_recs.Time,outcomes_recs.SVI_Cat)#,[outcomes_recs.Time,outcomes_recs.floodr_cat])
     counts_outcome.to_csv(Dis_cat+"_aux"+".csv")
     print(counts_outcome)
     del outcomes_recs
@@ -269,8 +269,8 @@ def run():
     
     #change floodr into 0-100
     df.floodr=df.floodr*100
-    formula='Outcome'+' ~ '+'floodr_cat * Time * SVI_Cat'+' + year + month + weekday' + '  + op + SEX_CODE'
-    if Dis_cat=='ALL': formula='Outcome'+' ~ '+' floodr_cat * Time * SVI_Cat'+' + year + month + weekday + '+' + '.join(['op_True','SEX_CODE_F'])
+    formula='Outcome'+' ~ '+'SVI_Cat'+' + year + month + weekday' + '  + op + SEX_CODE'
+    if Dis_cat=='ALL': formula='Outcome'+' ~ '+'SVI_Cat'+' + year + month + weekday + '+' + '.join(['op_True','SEX_CODE_F'])
     #formula=formula+' + Median_H_Income'
     
     model = smf.gee(formula=formula,groups=df[flood_join_field], data=df,offset=offset,missing='drop',family=sm.families.Poisson(link=sm.families.links.log()))
