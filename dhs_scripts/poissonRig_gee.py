@@ -251,7 +251,7 @@ def run():
     #%%running the model
     #if Dis_cat!="ALL":offset=np.log(df.TotalVisits)
     #offset=None
-    offset=None
+    offset=np.log(df.Population)
     
     
     formula='Outcome'+' ~ '+' floodr_cat * Time'+' + year + month + weekday' + ' + PAT_AGE_YEARS + SEX_CODE + RACE + ETHNICITY + op'
