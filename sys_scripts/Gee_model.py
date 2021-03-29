@@ -3,7 +3,6 @@
 Created on Thu Mar 18 22:47:04 2021
 
 @author: balajiramesh
-preg compli
 """
 
 
@@ -45,7 +44,7 @@ outcomes= ['Diarrhea','RespiratorySyndrome','outcomes_any','Asthma',
            'Bite_Insect', 'Dehydration', 'Chest_pain','Heat_Related_But_Not_dehydration',
            'Hypothermia','Pregnancy_complic']
 
-outcome='RespiratorySyndrome'
+outcome='Dehydration'
 #make folder if not exists
 if not os.path.exists(outcome):os.makedirs(outcome)
 os.chdir(outcome)
@@ -157,7 +156,8 @@ for c in ['Black', 'Asian', 'Others']:
     print(c)
     
 #%% Age as modifier
-sys_sa['AgeGrp']=pd.cut(sys_sa.Age,[0,5,17,50,200],labels=['0_5','6_17','18_50','gt50']).cat.reorder_categories(['18_50','0_5','6_17','gt50'])
+#sys_sa['AgeGrp']=pd.cut(sys_sa.Age,[0,5,17,50,64,200],labels=['0_5','6_17','18_50','51_64','gt64']).cat.reorder_categories(['18_50','0_5','6_17','51_64','gt64'])
+sys_sa['AgeGrp']=pd.cut(sys_sa.Age,[0,5,17,50,64,200],labels=['0_5','6_17','18_50','51_64','gt64']).cat.reorder_categories(['18_50','0_5','6_17','51_64','gt64'])
 
 df=sys_sa.copy()
 df.AgeGrp.cat.categories
@@ -169,7 +169,7 @@ counts_outcome.to_csv(outcome+"_Age_aux"+".csv")
 del outcomes_recs
 
 #['White', 'Black', 'Asian', 'Others', 'Unknown']
-for c in ['0_5','6_17','gt50']:
+for c in ['0_5', '6_17', '51_64', 'gt64']:
     df=sys_sa.copy()
     df=df[df.AgeGrp.isin(['18_50',c])]
     df.loc[:,'AgeGrp']=df.AgeGrp.cat.remove_unused_categories()
