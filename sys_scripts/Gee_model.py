@@ -1,0 +1,222 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Thu Mar 18 22:47:04 2021
+
+@author: balajiramesh
+preg compli
+"""
+
+
+import pandas as pd
+import numpy as np
+import statsmodels.api as sm
+import statsmodels.formula.api as smf
+import pyreadr
+import os
+os.chdir(r'Z:\Balaji\Analysis_SyS_data\28032021')
+#%%function to reformat reg table
+def reformat_reg_results(results,model=None,outcome=None,modifier_cat=None):
+    results_as_html = results.summary().tables[1].as_html()
+    reg_table=pd.read_html(results_as_html, header=0, index_col=0)[0].reset_index()
+    reg_table.loc[:,'coef']=np.exp(reg_table.coef)
+    reg_table.loc[:,['[0.025', '0.975]']]=np.exp(reg_table.loc[:,['[0.025', '0.975]']])
+    reg_table=reg_table.loc[~(reg_table['index'].str.contains('weekday')),]
+    reg_table['index']=reg_table['index'].str.replace("\[T.",'_').str.replace('\]','')
+    reg_table_dev=pd.read_html(results.summary().tables[0].as_html())[0]
+    reg_table['outcome']=outcome
+    reg_table['model']=model
+    reg_table['modifier_cat']=modifier_cat
+    
+    return reg_table,reg_table_dev
+#%% read df
+sys_sa= pyreadr.read_r(r"Z:\Balaji\R session_home_dir\sys_sa_df.RData")['sys_sa']
+#change insect bite colname
+sys_sa=sys_sa.rename(columns = {'Bite.Insect':'Bite_Insect'})
+#change comparision group for each categories
+sys_sa.Sex=sys_sa.Sex.cat.reorder_categories(['M','F','Unknown'])
+sys_sa.Race=sys_sa.Race.cat.reorder_categories(['White','Black','Asian','Others','Unknown'])
+sys_sa.Ethnicity=sys_sa.Ethnicity.cat.reorder_categories(['NON HISPANIC','HISPANIC', 'Unknown'])
+
+#remove unknow sex categories:  ( removes 681 records )
+sys_sa=sys_sa[sys_sa.Sex!='Unknown']
+sys_sa.loc[:,'Sex']=sys_sa.Sex.cat.remove_unused_categories()
+
+outcomes= ['Diarrhea','RespiratorySyndrome','outcomes_any','Asthma', 
+           'Bite_Insect', 'Dehydration', 'Chest_pain','Heat_Related_But_Not_dehydration',
+           'Hypothermia','Pregnancy_complic']
+
+outcome='RespiratorySyndrome'
+#make folder if not exists
+if not os.path.exists(outcome):os.makedirs(outcome)
+os.chdir(outcome)
+#%%base model
+df=sys_sa.copy()
+
+#wite cross table
+outcomes_recs=df.loc[(df[outcome]),]
+counts_outcome=pd.crosstab(outcomes_recs.flooded,outcomes_recs.period, dropna=False)
+counts_outcome.to_csv(outcome+"_base_aux"+".csv")
+del outcomes_recs
+
+#run model
+#run geeglm and write the results
+formula=outcome+'.astype(float) ~ '+'flooded * period + Ethnicity + Race + Sex + weekday + Age'  
+model = smf.gee(formula=formula,groups=df.crossed_zcta, data=df,offset=np.log(df.ZCTAdaily_count),missing='drop',family=sm.families.Poisson(link=sm.families.links.log()))
+results=model.fit()
+
+# creating result dataframe tables
+reg_table,reg_table_dev= reformat_reg_results(results,model='base',outcome=outcome,modifier_cat=None)
+
+#write the results
+reg_table.to_csv(outcome+"_base_reg"+".csv")
+reg_table_dev.to_csv(outcome+"_base_dev"+".csv")
+print(outcome)
+
+#%% reduce flood category 
+sys_sa['flood_binary']=pd.Categorical(~(sys_sa.flooded=='Non flooded'))
+
+#%%Sex as modifer
+df=sys_sa.copy()
+
+#wite cross table
+outcomes_recs=df.loc[(df[outcome]),]
+counts_outcome=pd.crosstab(outcomes_recs.flood_binary,[outcomes_recs.period,outcomes_recs.Sex], dropna=False)
+counts_outcome.to_csv(outcome+"_sex_aux"+".csv")
+del outcomes_recs
+
+#run model
+#run geeglm and write the results
+formula=outcome+'.astype(float) ~ '+'flood_binary * period * Sex + Ethnicity + Race + weekday + Age'  
+model = smf.gee(formula=formula,groups=df.crossed_zcta, data=df,offset=np.log(df.ZCTAdaily_count),missing='drop',family=sm.families.Poisson(link=sm.families.links.log()))
+results=model.fit()
+
+# creating result dataframe tables
+reg_table,reg_table_dev= reformat_reg_results(results,model='sex',outcome=outcome,modifier_cat='F')
+
+#write the results
+reg_table.to_csv(outcome+"_sex_reg"+".csv")
+reg_table_dev.to_csv(outcome+"_sex_dev"+".csv")
+print(outcome)
+#%% Ethnicity as modifier
+df=sys_sa.copy()
+df.Ethnicity.cat.categories
+
+#wite cross table
+outcomes_recs=df.loc[(df[outcome]),]
+counts_outcome=pd.crosstab(outcomes_recs.flood_binary,[outcomes_recs.period,outcomes_recs.Ethnicity], dropna=False)
+counts_outcome.to_csv(outcome+"_Ethnictiy_aux"+".csv")
+del outcomes_recs
+
+#['NON HISPANIC', 'Unknown']
+for c in ['HISPANIC', 'Unknown']:
+    df=sys_sa.copy()
+    df=df[df.Ethnicity.isin(['NON HISPANIC',c])]
+    df.loc[:,'Ethnicity']=df.Ethnicity.cat.remove_unused_categories()
+    #run model
+    #run geeglm and write the results
+    formula=outcome+'.astype(float) ~ '+'flood_binary * period * Ethnicity + Sex + Race + weekday + Age'  
+    model = smf.gee(formula=formula,groups=df.crossed_zcta, data=df,offset=np.log(df.ZCTAdaily_count),missing='drop',family=sm.families.Poisson(link=sm.families.links.log()))
+    results=model.fit()
+    
+    # creating result dataframe tables
+    reg_table,reg_table_dev= reformat_reg_results(results,model='ethnicity',modifier_cat=c,outcome=outcome)
+    
+    #write the results
+    reg_table.to_csv(outcome+"_"+c+"_Ethnictiy_reg"+".csv")
+    reg_table_dev.to_csv(outcome+"_"+c+"_Ethnictiy_dev"+".csv")
+    print(c)
+
+#%%Race as modifier
+
+df=sys_sa.copy()
+df.Race.cat.categories
+
+#wite cross table
+outcomes_recs=df.loc[(df[outcome]),]
+counts_outcome=pd.crosstab(outcomes_recs.flood_binary,[outcomes_recs.period,outcomes_recs.Race], dropna=False)
+counts_outcome.to_csv(outcome+"_Race_aux"+".csv")
+del outcomes_recs
+
+#['White', 'Black', 'Asian', 'Others', 'Unknown']
+for c in ['Black', 'Asian', 'Others']:
+    df=sys_sa.copy()
+    df=df[df.Race.isin(['White',c])]
+    df.loc[:,'Race']=df.Race.cat.remove_unused_categories()
+    #run model
+    #run geeglm and write the results
+    formula=outcome+'.astype(float) ~ '+'flood_binary * period * Race + Ethnicity + Sex  + weekday + Age'  
+    model = smf.gee(formula=formula,groups=df.crossed_zcta, data=df,offset=np.log(df.ZCTAdaily_count),missing='drop',family=sm.families.Poisson(link=sm.families.links.log()))
+    results=model.fit()
+    
+    # creating result dataframe tables
+    reg_table,reg_table_dev= reformat_reg_results(results,model='Race',modifier_cat=c,outcome=outcome)
+    
+    #write the results
+    reg_table.to_csv(outcome+"_"+c+"_Race_reg"+".csv")
+    reg_table_dev.to_csv(outcome+"_"+c+"_Race_dev"+".csv")
+    print(c)
+    
+#%% Age as modifier
+sys_sa['AgeGrp']=pd.cut(sys_sa.Age,[0,5,17,50,200],labels=['0_5','6_17','18_50','gt50']).cat.reorder_categories(['18_50','0_5','6_17','gt50'])
+
+df=sys_sa.copy()
+df.AgeGrp.cat.categories
+
+#wite cross table
+outcomes_recs=df.loc[(df[outcome]),]
+counts_outcome=pd.crosstab(outcomes_recs.flood_binary,[outcomes_recs.period,outcomes_recs.AgeGrp], dropna=False)
+counts_outcome.to_csv(outcome+"_Age_aux"+".csv")
+del outcomes_recs
+
+#['White', 'Black', 'Asian', 'Others', 'Unknown']
+for c in ['0_5','6_17','gt50']:
+    df=sys_sa.copy()
+    df=df[df.AgeGrp.isin(['18_50',c])]
+    df.loc[:,'AgeGrp']=df.AgeGrp.cat.remove_unused_categories()
+    #run model
+    #run geeglm and write the results
+    formula=outcome+'.astype(float) ~ '+'flood_binary * period * AgeGrp + Race + Ethnicity + Sex  + weekday'  
+    model = smf.gee(formula=formula,groups=df.crossed_zcta, data=df,offset=np.log(df.ZCTAdaily_count),missing='drop',family=sm.families.Poisson(link=sm.families.links.log()))
+    results=model.fit()
+    
+    # creating result dataframe tables
+    reg_table,reg_table_dev= reformat_reg_results(results,model='Age',modifier_cat=c,outcome=outcome)
+    
+    #write the results
+    reg_table.to_csv(outcome+"_"+c+"_Age_reg"+".csv")
+    reg_table_dev.to_csv(outcome+"_"+c+"_Age_dev"+".csv")
+    print(c)
+
+
+#%% combine the results into a single file
+import glob, os
+req_files=glob.glob("*_reg.csv")
+
+merge_df=pd.DataFrame()
+
+for file in req_files:
+    df=pd.read_csv(file)[['index','coef','P>|z|','[0.025','0.975]']]
+    df=df.round(3)
+    Dis_cat=os.path.basename(file).replace("_reg.csv","")
+    df['outcome']=Dis_cat
+    merge_df=pd.concat([merge_df,df],axis=0)
+    
+merge_df.columns=['covar', 'RR', 'P', 'conf25', 'conf95', 'outcome']
+merge_df.to_excel('merged_Age.xlsx',index=False)  
+#%% combine aux files into single file
+import glob, os
+import pandas as pd
+req_files=glob.glob("*_aux.csv")
+
+merge_df=pd.DataFrame()
+
+for file in req_files:
+    df=pd.read_csv(file)
+    df=df.iloc[2:,]
+    Dis_cat=os.path.basename(file).replace("_aux.csv","")
+    df['outcome']=Dis_cat
+    merge_df=pd.concat([merge_df,df],axis=0)
+merge_df.loc[-1] = pd.read_csv(file).iloc[0,:] # adding a row
+merge_df.index = merge_df.index + 1  # shifting index
+merge_df.sort_index(inplace=True) 
+merge_df.to_excel('merged_eth_aux.xlsx',index=False) 

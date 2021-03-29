@@ -11,8 +11,8 @@ sys_outcomes<-read.csv("Z:\\Balaji\\SyS data\\sys_merged_outcomes.csv")
 queries<-read.csv("Z:/GRAScripts/sys_scripts/queries.csv")
 
 #outcomes to be assigned , names same as in the queries file
-outcomes<-c("CDC Asthma CCDD v1","Bite: Insect","Dehydration 2","DrowningOrSubmersion - Oregon","Hypothermia","Chest Pain","Heat-Related Illness, No Dehydration","CO Exposure (Non-fire, Unintentional)")
-outcomes_cols<-c('Asthma','Bite-Insect','Dehydration','Drowning','Hypothermia','Chest_pain','Heat_Related_But_Not_dehydration','CO_Exposure')
+outcomes<-c("NVD - Diarrhea","Respiratory_Syndrome_RESP")#c("CDC Asthma CCDD v1","Bite: Insect","Dehydration 2","DrowningOrSubmersion - Oregon","Hypothermia","Chest Pain","Heat-Related Illness, No Dehydration","CO Exposure (Non-fire, Unintentional)")
+outcomes_cols<-c("Diarrhea","RespiratorySyndrome")#c('Asthma','Bite-Insect','Dehydration','Drowning','Hypothermia','Chest_pain','Heat_Related_But_Not_dehydration','CO_Exposure')
 for(i in 1:length(outcomes)){
   outcome<-outcomes[i]
   type<-queries$Type[queries$Name==outcome]

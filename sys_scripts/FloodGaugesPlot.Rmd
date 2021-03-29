@@ -1,0 +1,55 @@
+---
+title: "Flood gauges plot for Imeda"
+output: html_notebook
+---
+Load Libraries
+```{r}
+library(dplyr)
+library(ggplot2)
+library(plotly)
+library(scales)
+```
+
+
+Read stream gauage data extracted for gauges that overlap with the 328 zctas in study area
+```{r}
+data<-read.csv("Z:\\Balaji\\stram_flow\\imelda\\data_gagues_ZCTA_study_area.csv")
+data$datetime<-data$datetime_Converted
+head(data)
+```
+Groupby to find counts on days exceeding flood stage/ acation stage
+```{r}
+grouped<-data %>% 
+  group_by(datetime) %>% 
+  summarise(above_floo = sum(na.omit(exceed_flood_stage)))
+grouped$date<-as.Date(grouped$datetime,format='%Y-%m-%d')
+grouped<-grouped[order(grouped$datetime),]
+
+ggplot(data = grouped, aes(x = date, y = above_floo)) +
+  geom_line(size=.5,linetype='dashed') + geom_point(size=2,shape=18) + ylab('Number of guages \nindicating flooding') + xlab('Date') + 
+  ylim(0,8) + scale_x_date(date_breaks = "3 day", 
+                 labels=date_format("%d/%m/%y"),
+                 limits = as.Date(c('2019-09-01','2019-10-19'))) + theme_bw() + 
+                 theme(text = element_text(size=14),axis.text.x = element_text(angle = 45, hjust = 1))
+ggsave('StreamGaugesFloodedAfterImelda.pdf',path=getwd(),height=10,width = 18,units = "cm")
+```
+
+
+zoomed out graph
+```{r}
+ggplot(data = grouped, aes(x = date, y = above_floo)) +
+  geom_line(size=.5,linetype='dashed') + geom_point(size=2,shape=18) + ylab('Number of guages\nindicating flooding') + xlab('Date') + 
+  ylim(0,8) + scale_x_date(date_breaks = "10 day", 
+                 labels=date_format("%d/%m/%y"),
+                 limits = as.Date(c('2019-06-01','2019-12-31'))) + theme_bw() + 
+                 theme(text = element_text(size=14),axis.text.x = element_text(angle = 45, hjust = 1))
+ggsave('StreamGaguesFloddedSinceJune.pdf',path=getwd(),height=10,width = 30,units = "cm")
+```
+
+
+
+
+
+
+
+
