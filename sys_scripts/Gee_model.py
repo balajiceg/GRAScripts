@@ -43,8 +43,8 @@ sys_sa.loc[:,'Sex']=sys_sa.Sex.cat.remove_unused_categories()
 outcomes= ['Diarrhea','RespiratorySyndrome','outcomes_any','Asthma', 
            'Bite_Insect', 'Dehydration', 'Chest_pain','Heat_Related_But_Not_dehydration',
            'Hypothermia','Pregnancy_complic']
-
-outcome='Diarrhea'
+sys_sa=sys_sa_bkp.copy()
+outcome='RespiratorySyndrome'
 #make folder if not exists
 #if not os.path.exists(outcome):os.makedirs(outcome)
 #os.chdir(outcome)
@@ -145,7 +145,7 @@ counts_outcome.T
 del outcomes_recs
 
 #['White', 'Black', 'Asian', 'Others', 'Unknown']
-for c in ['White','Black','Asian', 'Others']:
+for c in ['White','Black','Asian', 'Others','Unknown']:
     df=sys_sa.copy()
     df=df[df.Race.isin([c])]
     df.loc[:,'Race']=df.Race.cat.remove_unused_categories()
@@ -164,7 +164,7 @@ for c in ['White','Black','Asian', 'Others']:
     print(c)
     
 #%% Age as modifier
-sys_sa['AgeGrp']=pd.cut(sys_sa.Age,[0,5,17,64,200],labels=['0_5','6_17','18_64','gt64'])#.cat.reorder_categories(['18_50','0_5','6_17','51_64','gt64'])
+sys_sa['AgeGrp']=pd.cut(sys_sa.Age,[0,5,17,50,64,200],labels=['0_5','6_17','18_50','51_64','gt64'])#.cat.reorder_categories(['18_50','0_5','6_17','51_64','gt64'])
 #sys_sa['AgeGrp']=pd.cut(sys_sa.Age,[0,21,200],labels=['0_21','gt21'])#.cat.reorder_categories(['18_50','0_5','6_17','51_64','gt64'])
 
 df=sys_sa.copy()
