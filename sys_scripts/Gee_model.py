@@ -44,7 +44,7 @@ outcomes= ['Diarrhea','RespiratorySyndrome','outcomes_any','Asthma',
            'Bite_Insect', 'Dehydration', 'Chest_pain','Heat_Related_But_Not_dehydration',
            'Hypothermia','Pregnancy_complic']
 
-outcome='Heat_Related_But_Not_dehydration'
+outcome='Diarrhea'
 #make folder if not exists
 #if not os.path.exists(outcome):os.makedirs(outcome)
 #os.chdir(outcome)
@@ -73,8 +73,8 @@ outcome='Heat_Related_But_Not_dehydration'
 
 #%% reduce flood category 
 sys_sa['flood_binary']=pd.Categorical(~(sys_sa.flooded=='Non flooded'))
-sys_sa=sys_sa[sys_sa['period']!='novAndDec']
-sys_sa.loc[:,'period']=sys_sa.period.cat.remove_unused_categories()
+# sys_sa=sys_sa[sys_sa['period']!='novAndDec']
+# sys_sa.loc[:,'period']=sys_sa.period.cat.remove_unused_categories()
 #%%Sex as modifer
 df=sys_sa.copy()
 
@@ -114,7 +114,7 @@ counts_outcome.T
 del outcomes_recs
 
 #['NON HISPANIC', 'Unknown']
-for c in ['NON HISPANIC','HISPANIC']:
+for c in ['NON HISPANIC','HISPANIC','Unknown']:
     df=sys_sa.copy()
     df=df[df.Ethnicity.isin([c])]
     df.loc[:,'Ethnicity']=df.Ethnicity.cat.remove_unused_categories()
@@ -145,7 +145,7 @@ counts_outcome.T
 del outcomes_recs
 
 #['White', 'Black', 'Asian', 'Others', 'Unknown']
-for c in ['White','Black']:
+for c in ['White','Black','Asian', 'Others']:
     df=sys_sa.copy()
     df=df[df.Race.isin([c])]
     df.loc[:,'Race']=df.Race.cat.remove_unused_categories()
@@ -164,8 +164,8 @@ for c in ['White','Black']:
     print(c)
     
 #%% Age as modifier
-#sys_sa['AgeGrp']=pd.cut(sys_sa.Age,[0,5,17,50,64,200],labels=['0_5','6_17','18_50','51_64','gt64']).cat.reorder_categories(['18_50','0_5','6_17','51_64','gt64'])
-sys_sa['AgeGrp']=pd.cut(sys_sa.Age,[0,21,200],labels=['0_21','gt21'])#.cat.reorder_categories(['18_50','0_5','6_17','51_64','gt64'])
+sys_sa['AgeGrp']=pd.cut(sys_sa.Age,[0,5,17,64,200],labels=['0_5','6_17','18_64','gt64'])#.cat.reorder_categories(['18_50','0_5','6_17','51_64','gt64'])
+#sys_sa['AgeGrp']=pd.cut(sys_sa.Age,[0,21,200],labels=['0_21','gt21'])#.cat.reorder_categories(['18_50','0_5','6_17','51_64','gt64'])
 
 df=sys_sa.copy()
 df.AgeGrp.cat.categories
