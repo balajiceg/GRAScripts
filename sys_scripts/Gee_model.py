@@ -44,7 +44,7 @@ outcomes= ['Diarrhea','RespiratorySyndrome','outcomes_any','Asthma',
            'Bite_Insect', 'Dehydration', 'Chest_pain','Heat_Related_But_Not_dehydration',
            'Hypothermia','Pregnancy_complic']
 
-outcome='Dehydration'
+outcome='Hypothermia'
 #make folder if not exists
 if not os.path.exists(outcome):os.makedirs(outcome)
 os.chdir(outcome)
@@ -189,24 +189,21 @@ for c in ['0_5', '6_17', '51_64', 'gt64']:
 
 
 #%% combine the results into a single file
-import glob, os
-req_files=glob.glob("*_reg.csv")
-
+import glob2, os
+req_files=glob2.glob("./**/*_reg.csv")
 merge_df=pd.DataFrame()
 
 for file in req_files:
-    df=pd.read_csv(file)[['index','coef','P>|z|','[0.025','0.975]']]
+    df=pd.read_csv(file)[['index','coef','P>|z|','[0.025','0.975]','outcome', 'model', 'modifier_cat']]
     df=df.round(3)
-    Dis_cat=os.path.basename(file).replace("_reg.csv","")
-    df['outcome']=Dis_cat
     merge_df=pd.concat([merge_df,df],axis=0)
     
-merge_df.columns=['covar', 'RR', 'P', 'conf25', 'conf95', 'outcome']
+merge_df.columns=['covar', 'RR', 'P', 'conf25', 'conf95','outcome', 'model', 'modifier_cat']
 merge_df.to_excel('merged_Age.xlsx',index=False)  
 #%% combine aux files into single file
-import glob, os
+import glob2, os
 import pandas as pd
-req_files=glob.glob("*_aux.csv")
+req_files=glob2.glob("*_aux.csv")
 
 merge_df=pd.DataFrame()
 
