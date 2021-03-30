@@ -12,7 +12,7 @@ import statsmodels.api as sm
 import statsmodels.formula.api as smf
 import pyreadr
 import os
-os.chdir(r'Z:\Balaji\Analysis_SyS_data\28032021')
+os.chdir(r'Z:\Balaji\Analysis_SyS_data\28032021\stratified')
 #%%function to reformat reg table
 def reformat_reg_results(results,model=None,outcome=None,modifier_cat=None):
     results_as_html = results.summary().tables[1].as_html()
@@ -44,58 +44,64 @@ outcomes= ['Diarrhea','RespiratorySyndrome','outcomes_any','Asthma',
            'Bite_Insect', 'Dehydration', 'Chest_pain','Heat_Related_But_Not_dehydration',
            'Hypothermia','Pregnancy_complic']
 
-outcome='Hypothermia'
+outcome='Heat_Related_But_Not_dehydration'
 #make folder if not exists
-if not os.path.exists(outcome):os.makedirs(outcome)
-os.chdir(outcome)
+#if not os.path.exists(outcome):os.makedirs(outcome)
+#os.chdir(outcome)
 #%%base model
-df=sys_sa.copy()
+# df=sys_sa.copy()
 
-#wite cross table
-outcomes_recs=df.loc[(df[outcome]),]
-counts_outcome=pd.crosstab(outcomes_recs.flooded,outcomes_recs.period, dropna=False)
-counts_outcome.to_csv(outcome+"_base_aux"+".csv")
-del outcomes_recs
+# #wite cross table
+# outcomes_recs=df.loc[(df[outcome]),]
+# counts_outcome=pd.crosstab(outcomes_recs.flooded,outcomes_recs.period, dropna=False)
+# counts_outcome.to_csv(outcome+"_base_aux"+".csv")
+# del outcomes_recs
 
-#run model
-#run geeglm and write the results
-formula=outcome+'.astype(float) ~ '+'flooded * period + Ethnicity + Race + Sex + weekday + Age'  
-model = smf.gee(formula=formula,groups=df.crossed_zcta, data=df,offset=np.log(df.ZCTAdaily_count),missing='drop',family=sm.families.Poisson(link=sm.families.links.log()))
-results=model.fit()
+# #run model
+# #run geeglm and write the results
+# formula=outcome+'.astype(float) ~ '+'flooded * period + Ethnicity + Race + Sex + weekday + Age'  
+# model = smf.gee(formula=formula,groups=df.crossed_zcta, data=df,offset=np.log(df.ZCTAdaily_count),missing='drop',family=sm.families.Poisson(link=sm.families.links.log()))
+# results=model.fit()
 
-# creating result dataframe tables
-reg_table,reg_table_dev= reformat_reg_results(results,model='base',outcome=outcome,modifier_cat=None)
+# # creating result dataframe tables
+# reg_table,reg_table_dev= reformat_reg_results(results,model='base',outcome=outcome,modifier_cat=None)
 
-#write the results
-reg_table.to_csv(outcome+"_base_reg"+".csv")
-reg_table_dev.to_csv(outcome+"_base_dev"+".csv")
-print(outcome)
+# #write the results
+# reg_table.to_csv(outcome+"_base_reg"+".csv")
+# reg_table_dev.to_csv(outcome+"_base_dev"+".csv")
+# print(outcome)
 
 #%% reduce flood category 
 sys_sa['flood_binary']=pd.Categorical(~(sys_sa.flooded=='Non flooded'))
-
+sys_sa=sys_sa[sys_sa['period']!='novAndDec']
+sys_sa.loc[:,'period']=sys_sa.period.cat.remove_unused_categories()
 #%%Sex as modifer
 df=sys_sa.copy()
 
 #wite cross table
 outcomes_recs=df.loc[(df[outcome]),]
 counts_outcome=pd.crosstab(outcomes_recs.flood_binary,[outcomes_recs.period,outcomes_recs.Sex], dropna=False)
-counts_outcome.to_csv(outcome+"_sex_aux"+".csv")
+#counts_outcome.to_csv(outcome+"_sex_aux"+".csv")
+counts_outcome.T
 del outcomes_recs
 
-#run model
-#run geeglm and write the results
-formula=outcome+'.astype(float) ~ '+'flood_binary * period * Sex + Ethnicity + Race + weekday + Age'  
-model = smf.gee(formula=formula,groups=df.crossed_zcta, data=df,offset=np.log(df.ZCTAdaily_count),missing='drop',family=sm.families.Poisson(link=sm.families.links.log()))
-results=model.fit()
+for c in ['M', 'F']:
+    df=sys_sa.copy()
+    df=df[df.Sex.isin([c])]
+    df.loc[:,'Sex']=df.Sex.cat.remove_unused_categories()
+    #run model
+    #run geeglm and write the results
+    formula=outcome+'.astype(float) ~ '+'flood_binary * period + Ethnicity + Race + weekday + Age'  
+    model = smf.gee(formula=formula,groups=df.crossed_zcta, data=df,offset=np.log(df.ZCTAdaily_count),missing='drop',family=sm.families.Poisson(link=sm.families.links.log()))
+    results=model.fit()
 
-# creating result dataframe tables
-reg_table,reg_table_dev= reformat_reg_results(results,model='sex',outcome=outcome,modifier_cat='F')
-
-#write the results
-reg_table.to_csv(outcome+"_sex_reg"+".csv")
-reg_table_dev.to_csv(outcome+"_sex_dev"+".csv")
-print(outcome)
+    # creating result dataframe tables
+    reg_table,reg_table_dev= reformat_reg_results(results,model='sex_strata',outcome=outcome,modifier_cat=c)
+    
+    #write the results
+    reg_table.to_csv(outcome+"_"+c+"_sex_reg"+".csv")
+    reg_table_dev.to_csv(outcome+"_"+c+"_sex_dev"+".csv")
+    print(c)
 #%% Ethnicity as modifier
 df=sys_sa.copy()
 df.Ethnicity.cat.categories
@@ -103,22 +109,23 @@ df.Ethnicity.cat.categories
 #wite cross table
 outcomes_recs=df.loc[(df[outcome]),]
 counts_outcome=pd.crosstab(outcomes_recs.flood_binary,[outcomes_recs.period,outcomes_recs.Ethnicity], dropna=False)
-counts_outcome.to_csv(outcome+"_Ethnictiy_aux"+".csv")
+#counts_outcome.to_csv(outcome+"_Ethnictiy_aux"+".csv")
+counts_outcome.T
 del outcomes_recs
 
 #['NON HISPANIC', 'Unknown']
-for c in ['HISPANIC', 'Unknown']:
+for c in ['NON HISPANIC','HISPANIC']:
     df=sys_sa.copy()
-    df=df[df.Ethnicity.isin(['NON HISPANIC',c])]
+    df=df[df.Ethnicity.isin([c])]
     df.loc[:,'Ethnicity']=df.Ethnicity.cat.remove_unused_categories()
     #run model
     #run geeglm and write the results
-    formula=outcome+'.astype(float) ~ '+'flood_binary * period * Ethnicity + Sex + Race + weekday + Age'  
+    formula=outcome+'.astype(float) ~ '+'flood_binary * period + Sex + Race + weekday + Age'  
     model = smf.gee(formula=formula,groups=df.crossed_zcta, data=df,offset=np.log(df.ZCTAdaily_count),missing='drop',family=sm.families.Poisson(link=sm.families.links.log()))
     results=model.fit()
     
     # creating result dataframe tables
-    reg_table,reg_table_dev= reformat_reg_results(results,model='ethnicity',modifier_cat=c,outcome=outcome)
+    reg_table,reg_table_dev= reformat_reg_results(results,model='ethnicity_strata',modifier_cat=c,outcome=outcome)
     
     #write the results
     reg_table.to_csv(outcome+"_"+c+"_Ethnictiy_reg"+".csv")
@@ -133,22 +140,23 @@ df.Race.cat.categories
 #wite cross table
 outcomes_recs=df.loc[(df[outcome]),]
 counts_outcome=pd.crosstab(outcomes_recs.flood_binary,[outcomes_recs.period,outcomes_recs.Race], dropna=False)
-counts_outcome.to_csv(outcome+"_Race_aux"+".csv")
+#counts_outcome.to_csv(outcome+"_Race_aux"+".csv")
+counts_outcome.T
 del outcomes_recs
 
 #['White', 'Black', 'Asian', 'Others', 'Unknown']
-for c in ['Black', 'Asian', 'Others']:
+for c in ['White','Black']:
     df=sys_sa.copy()
-    df=df[df.Race.isin(['White',c])]
+    df=df[df.Race.isin([c])]
     df.loc[:,'Race']=df.Race.cat.remove_unused_categories()
     #run model
     #run geeglm and write the results
-    formula=outcome+'.astype(float) ~ '+'flood_binary * period * Race + Ethnicity + Sex  + weekday + Age'  
+    formula=outcome+'.astype(float) ~ '+'flood_binary * period + Ethnicity + Sex  + weekday + Age'  
     model = smf.gee(formula=formula,groups=df.crossed_zcta, data=df,offset=np.log(df.ZCTAdaily_count),missing='drop',family=sm.families.Poisson(link=sm.families.links.log()))
     results=model.fit()
     
     # creating result dataframe tables
-    reg_table,reg_table_dev= reformat_reg_results(results,model='Race',modifier_cat=c,outcome=outcome)
+    reg_table,reg_table_dev= reformat_reg_results(results,model='Race_strata',modifier_cat=c,outcome=outcome)
     
     #write the results
     reg_table.to_csv(outcome+"_"+c+"_Race_reg"+".csv")
@@ -157,7 +165,7 @@ for c in ['Black', 'Asian', 'Others']:
     
 #%% Age as modifier
 #sys_sa['AgeGrp']=pd.cut(sys_sa.Age,[0,5,17,50,64,200],labels=['0_5','6_17','18_50','51_64','gt64']).cat.reorder_categories(['18_50','0_5','6_17','51_64','gt64'])
-sys_sa['AgeGrp']=pd.cut(sys_sa.Age,[0,5,17,50,64,200],labels=['0_5','6_17','18_50','51_64','gt64']).cat.reorder_categories(['18_50','0_5','6_17','51_64','gt64'])
+sys_sa['AgeGrp']=pd.cut(sys_sa.Age,[0,21,200],labels=['0_21','gt21'])#.cat.reorder_categories(['18_50','0_5','6_17','51_64','gt64'])
 
 df=sys_sa.copy()
 df.AgeGrp.cat.categories
@@ -165,22 +173,23 @@ df.AgeGrp.cat.categories
 #wite cross table
 outcomes_recs=df.loc[(df[outcome]),]
 counts_outcome=pd.crosstab(outcomes_recs.flood_binary,[outcomes_recs.period,outcomes_recs.AgeGrp], dropna=False)
-counts_outcome.to_csv(outcome+"_Age_aux"+".csv")
+#counts_outcome.to_csv(outcome+"_Age_aux"+".csv")
+counts_outcome.T
 del outcomes_recs
 
 #['White', 'Black', 'Asian', 'Others', 'Unknown']
-for c in ['0_5', '6_17', '51_64', 'gt64']:
+for c in sys_sa.AgeGrp.cat.categories:
     df=sys_sa.copy()
-    df=df[df.AgeGrp.isin(['18_50',c])]
+    df=df[df.AgeGrp.isin([c])]
     df.loc[:,'AgeGrp']=df.AgeGrp.cat.remove_unused_categories()
     #run model
     #run geeglm and write the results
-    formula=outcome+'.astype(float) ~ '+'flood_binary * period * AgeGrp + Race + Ethnicity + Sex  + weekday'  
+    formula=outcome+'.astype(float) ~ '+'flood_binary * period + Race + Ethnicity + Sex  + weekday'  
     model = smf.gee(formula=formula,groups=df.crossed_zcta, data=df,offset=np.log(df.ZCTAdaily_count),missing='drop',family=sm.families.Poisson(link=sm.families.links.log()))
     results=model.fit()
     
     # creating result dataframe tables
-    reg_table,reg_table_dev= reformat_reg_results(results,model='Age',modifier_cat=c,outcome=outcome)
+    reg_table,reg_table_dev= reformat_reg_results(results,model='Age_strata',modifier_cat=c,outcome=outcome)
     
     #write the results
     reg_table.to_csv(outcome+"_"+c+"_Age_reg"+".csv")
@@ -199,7 +208,7 @@ for file in req_files:
     merge_df=pd.concat([merge_df,df],axis=0)
     
 merge_df.columns=['covar', 'RR', 'P', 'conf25', 'conf95','outcome', 'model', 'modifier_cat']
-merge_df.to_excel('merged_Age.xlsx',index=False)  
+merge_df.to_excel('merged_All.xlsx',index=False)  
 #%% combine aux files into single file
 import glob2, os
 import pandas as pd
