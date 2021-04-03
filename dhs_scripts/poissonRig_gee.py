@@ -222,8 +222,8 @@ def run():
     #df=df[df.floodr_cat=="FLood_1"].copy()
     #df=df[df.SEX_CODE==FIL_COL].copy()
     #df=df[df.AGE_cat==FIL_COL].copy()
-    #df=df[df.ETHNICITY==FIL_COL].copy()
-    df=df[df.RACE==FIL_COL].copy()
+    df=df[df.ETHNICITY==FIL_COL].copy()
+    #df=df[df.RACE==FIL_COL].copy()
     #%% bringing in intervention
     df.loc[:,'Time']=pd.cut(df.STMT_PERIOD_FROM,\
                                         bins=[0]+interv_dates+[20190101],\
@@ -280,8 +280,8 @@ def run():
     
     #change floodr into 0-100
     df.floodr=df.floodr*100
-    formula='Outcome'+' ~ '+'floodr_cat * Time '+' + year + month + weekday' + '  + op  + ETHNICITY + SEX_CODE + PAT_AGE_YEARS'
-    if Dis_cat=='ALL': formula='Outcome'+' ~ '+' floodr_cat * Time'+' + year + month + weekday + '+' + '.join(['SEX_CODE_M','op_True','ETHNICITY_Non_Hispanic','PAT_AGE_YEARS'])
+    formula='Outcome'+' ~ '+'floodr_cat * Time '+' + year + month + weekday' + '  + op  + RACE + SEX_CODE + PAT_AGE_YEARS'
+    if Dis_cat=='ALL': formula='Outcome'+' ~ '+' floodr_cat * Time'+' + year + month + weekday + '+' + '.join(['SEX_CODE_M','op_True',,'PAT_AGE_YEARS','RACE_white', 'RACE_black'])
     #if Dis_cat=='ALL': formula='Outcome'+' ~ '+' floodr_cat * Time'+' + year + month + weekday + '+' + '.join(['SEX_CODE_M','op_True','RACE_white', 'RACE_black','ETHNICITY_Non_Hispanic','PAT_AGE_YEARS'])
     #formula=formula+' + Median_H_Income'
     
@@ -307,7 +307,7 @@ def run():
                               
                               ),]
     reg_table['index']=reg_table['index'].str.replace("\[T.",'_').str.replace('\]','')
-    reg_table['model']='RACE'
+    reg_table['model']='ETHNICITY'
     reg_table['modifier_cat']=FIL_COL
     
     reg_table_dev=pd.read_html(results.summary().tables[0].as_html())[0]
