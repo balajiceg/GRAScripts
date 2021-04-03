@@ -1,5 +1,13 @@
 # -*- coding: utf-8 -*-
 """
+Created on Fri May 15 01:55:22 2020
+
+@author: balajiramesh
+"""
+
+
+# -*- coding: utf-8 -*-
+"""
 Created on Fri Apr 10 00:25:12 2020
 
 @author: balajiramesh
@@ -212,7 +220,10 @@ def run():
     
     #%%for filtering flooded or non flooded alone
     #df=df[df.floodr_cat=="FLood_1"].copy()
-
+    #df=df[df.SEX_CODE==FIL_COL].copy()
+    df=df[df.AGE_cat==FIL_COL].copy()
+    #df=df[df.ETHNICITY==FIL_COL].copy()
+    #df=df[df.RACE==FIL_COL].copy()
     #%% bringing in intervention
     df.loc[:,'Time']=pd.cut(df.STMT_PERIOD_FROM,\
                                         bins=[0]+interv_dates+[20190101],\
@@ -222,7 +233,7 @@ def run():
     df=df.loc[~pd.isna(df.Time),]
     
     #take only control period
-    df=df[df.Time=='control']
+    #df=df[df.Time=='control']
     #%%controling for year month and week of the day
     df['year']=(df.STMT_PERIOD_FROM.astype('int32')//1e4).astype('category')
     df['month']=(df.STMT_PERIOD_FROM.astype('int32')//1e2%100).astype('category')
@@ -234,12 +245,12 @@ def run():
     
     #%% save cross tab
      #counts_outcome=pd.DataFrame(df.Outcome.value_counts())
-    outcomes_recs=df.loc[(df.Outcome>0)&(~pd.isna(df.loc[:,['floodr_cat','Time','year','month','weekday' ,'PAT_AGE_YEARS', 
-                                                          'SEX_CODE','RACE','ETHNICITY']]).any(axis=1)),]
-    counts_outcome=pd.crosstab(outcomes_recs.Time,outcomes_recs.SVI_Cat)#,[outcomes_recs.Time,outcomes_recs.floodr_cat])
-    counts_outcome.to_csv(Dis_cat+"_aux"+".csv")
-    print(counts_outcome)
-    del outcomes_recs
+    #outcomes_recs=df.loc[(df.Outcome>0)&(~pd.isna(df.loc[:,['floodr_cat','Time','year','month','weekday' ,'PAT_AGE_YEARS', 
+    #                                                      'SEX_CODE','RACE','ETHNICITY']]).any(axis=1)),]
+    #counts_outcome=pd.crosstab(outcomes_recs.AGE_cat ,[outcomes_recs.Time,outcomes_recs.floodr_cat])
+    #counts_outcome.to_csv(Dis_cat+"_aux"+".csv")
+    #print(counts_outcome)
+    #del outcomes_recs
     
     #%%for total ED visits using grouped / coutns
     if Dis_cat=="ALL":
@@ -263,14 +274,15 @@ def run():
     
     
     #%%running the model
-    #if Dis_cat!="ALL":offset=np.log(df.TotalVisits)
+    if Dis_cat!="ALL":offset=np.log(df.TotalVisits)
     #offset=None
-    offset=np.log(df.Population)
+    if Dis_cat=="ALL":offset=np.log(df.Population)
     
     #change floodr into 0-100
     df.floodr=df.floodr*100
-    formula='Outcome'+' ~ '+'SVI_Cat'+' + year + month + weekday' + '  + op + SEX_CODE'
-    if Dis_cat=='ALL': formula='Outcome'+' ~ '+'SVI_Cat'+' + year + month + weekday + '+' + '.join(['op_True','SEX_CODE_F'])
+    formula='Outcome'+' ~ '+'floodr_cat * Time '+' + year + month + weekday' + '  + op + RACE + ETHNICITY + SEX_CODE'
+    if Dis_cat=='ALL': formula='Outcome'+' ~ '+' floodr_cat * Time'+' + year + month + weekday + '+' + '.join(['SEX_CODE_M','op_True','RACE_white', 'RACE_black','ETHNICITY_Non_Hispanic'])
+    #if Dis_cat=='ALL': formula='Outcome'+' ~ '+' floodr_cat * Time'+' + year + month + weekday + '+' + '.join(['SEX_CODE_M','op_True','RACE_white', 'RACE_black','ETHNICITY_Non_Hispanic','PAT_AGE_YEARS'])
     #formula=formula+' + Median_H_Income'
     
     model = smf.gee(formula=formula,groups=df[flood_join_field], data=df,offset=offset,missing='drop',family=sm.families.Poisson(link=sm.families.links.log()))
@@ -295,6 +307,9 @@ def run():
                               
                               ),]
     reg_table['index']=reg_table['index'].str.replace("\[T.",'_').str.replace('\]','')
+    reg_table['model']='AGE_cat'
+    reg_table['modifier_cat']=FIL_COL
+    
     reg_table_dev=pd.read_html(results.summary().tables[0].as_html())[0]
     
    
@@ -302,6 +317,5 @@ def run():
     # counts_outcome.loc["flood_bins",'Outcome']=str(flood_bins)
     #return reg_table
     #%%write the output
-    reg_table.to_csv(Dis_cat+"_reg"+".csv")
-    reg_table_dev.to_csv(Dis_cat+"_dev"+".csv")
-    
+    reg_table.to_csv(Dis_cat+"_"+FIL_COL+"_reg"+".csv")
+    reg_table_dev.to_csv(Dis_cat+"_"+FIL_COL+"_dev"+".csv")
