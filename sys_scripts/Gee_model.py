@@ -43,13 +43,11 @@ sys_sa.loc[:,'Sex']=sys_sa.Sex.cat.remove_unused_categories()
 outcomes= ['Diarrhea','RespiratorySyndrome','outcomes_any','Asthma', 
            'Bite_Insect', 'Dehydration', 'Chest_pain','Heat_Related_But_Not_dehydration',
            'Hypothermia','Pregnancy_complic']
-sys_sa=sys_sa_bkp.copy()
-outcome='Pregnancy_complic'
+
+outcome='RespiratorySyndrome'
 #make folder if not exists
 #if not os.path.exists(outcome):os.makedirs(outcome)
 #os.chdir(outcome)
-#make males false for preg complication
-sys_sa.loc[sys_sa.Sex=='M','Pregnancy_complic']=False
 #%%base model
 # df=sys_sa.copy()
 
@@ -77,7 +75,33 @@ sys_sa.loc[sys_sa.Sex=='M','Pregnancy_complic']=False
 sys_sa['flood_binary']=pd.Categorical(~(sys_sa.flooded=='Non flooded'))
 # sys_sa=sys_sa[sys_sa['period']!='novAndDec']
 # sys_sa.loc[:,'period']=sys_sa.period.cat.remove_unused_categories()
+#%%Sex as modifer
+df=sys_sa.copy()
 
+#wite cross table
+outcomes_recs=df.loc[(df[outcome]),]
+counts_outcome=pd.crosstab(outcomes_recs.flood_binary,[outcomes_recs.period,outcomes_recs.Sex], dropna=False)
+#counts_outcome.to_csv(outcome+"_sex_aux"+".csv")
+counts_outcome.T
+del outcomes_recs
+
+for c in ['M', 'F']:
+    df=sys_sa.copy()
+    df=df[df.Sex.isin([c])]
+    df.loc[:,'Sex']=df.Sex.cat.remove_unused_categories()
+    #run model
+    #run geeglm and write the results
+    formula=outcome+'.astype(float) ~ '+'flood_binary * period + Ethnicity + Race + weekday + Age'  
+    model = smf.gee(formula=formula,groups=df.crossed_zcta, data=df,offset=np.log(df.ZCTAdaily_count),missing='drop',family=sm.families.Poisson(link=sm.families.links.log()))
+    results=model.fit()
+
+    # creating result dataframe tables
+    reg_table,reg_table_dev= reformat_reg_results(results,model='sex_strata',outcome=outcome,modifier_cat=c)
+    
+    #write the results
+    reg_table.to_csv(outcome+"_"+c+"_sex_reg"+".csv")
+    reg_table_dev.to_csv(outcome+"_"+c+"_sex_dev"+".csv")
+    print(c)
 #%% Ethnicity as modifier
 df=sys_sa.copy()
 df.Ethnicity.cat.categories
@@ -96,7 +120,7 @@ for c in ['NON HISPANIC','HISPANIC','Unknown']:
     df.loc[:,'Ethnicity']=df.Ethnicity.cat.remove_unused_categories()
     #run model
     #run geeglm and write the results
-    formula=outcome+'.astype(float) ~ '+'flood_binary * period + Race + weekday + Age'  
+    formula=outcome+'.astype(float) ~ '+'flood_binary * period + Sex + Race + weekday + Age'  
     model = smf.gee(formula=formula,groups=df.crossed_zcta, data=df,offset=np.log(df.ZCTAdaily_count),missing='drop',family=sm.families.Poisson(link=sm.families.links.log()))
     results=model.fit()
     
@@ -121,13 +145,13 @@ counts_outcome.T
 del outcomes_recs
 
 #['White', 'Black', 'Asian', 'Others', 'Unknown']
-for c in ['White','Black','Asian', 'Others','Unknown']:
+for c in ['White','Black','Asian', 'Others']:
     df=sys_sa.copy()
     df=df[df.Race.isin([c])]
     df.loc[:,'Race']=df.Race.cat.remove_unused_categories()
     #run model
     #run geeglm and write the results
-    formula=outcome+'.astype(float) ~ '+'flood_binary * period + Ethnicity  + weekday + Age'  
+    formula=outcome+'.astype(float) ~ '+'flood_binary * period + Ethnicity + Sex  + weekday + Age'  
     model = smf.gee(formula=formula,groups=df.crossed_zcta, data=df,offset=np.log(df.ZCTAdaily_count),missing='drop',family=sm.families.Poisson(link=sm.families.links.log()))
     results=model.fit()
     
@@ -140,7 +164,7 @@ for c in ['White','Black','Asian', 'Others','Unknown']:
     print(c)
     
 #%% Age as modifier
-sys_sa['AgeGrp']=pd.cut(sys_sa.Age,[0,17,27,35,200],labels=['0_17','18_27','28_35','gt35'])#.cat.reorder_categories(['18_50','0_5','6_17','51_64','gt64'])
+sys_sa['AgeGrp']=pd.cut(sys_sa.Age,[0,5,17,50,64,200],labels=['0_5','6_17','18_50','51_64','gt64'])#.cat.reorder_categories(['18_50','0_5','6_17','51_64','gt64'])
 #sys_sa['AgeGrp']=pd.cut(sys_sa.Age,[0,21,200],labels=['0_21','gt21'])#.cat.reorder_categories(['18_50','0_5','6_17','51_64','gt64'])
 
 df=sys_sa.copy()
@@ -160,7 +184,7 @@ for c in sys_sa.AgeGrp.cat.categories:
     df.loc[:,'AgeGrp']=df.AgeGrp.cat.remove_unused_categories()
     #run model
     #run geeglm and write the results
-    formula=outcome+'.astype(float) ~ '+'flood_binary * period + Race + Ethnicity  + weekday'  
+    formula=outcome+'.astype(float) ~ '+'flood_binary * period + Race + Ethnicity + Sex  + weekday'  
     model = smf.gee(formula=formula,groups=df.crossed_zcta, data=df,offset=np.log(df.ZCTAdaily_count),missing='drop',family=sm.families.Poisson(link=sm.families.links.log()))
     results=model.fit()
     
