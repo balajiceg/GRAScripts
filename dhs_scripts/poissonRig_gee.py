@@ -207,7 +207,7 @@ sp=sp.merge(vists_per_tract,on=['PAT_ADDR_CENSUS_TRACT','STMT_PERIOD_FROM'],how=
 day_from_start=pd.DataFrame({'STMT_PERIOD_FROM':pd.date_range('2016-07-01', '2018-12-31', freq='d').astype('str').str.replace('-','').astype('int64')}).reset_index().rename(columns={'index':'DayFromStart'})
 sp=sp.merge(day_from_start,on='STMT_PERIOD_FROM',how='left')
 #%%pat age categoriy based on SVI theme  2  <=17,18-64,>=65
-sp.loc[:,'AGE_cat']=pd.cut(sp.PAT_AGE_YEARS,bins=[-1,17,64,200],labels=['0-17','18-64','>64']).cat.reorder_categories(['18-64','0-17','>64'])
+sp['AGE_cat']=pd.cut(sp.PAT_AGE_YEARS,bins=[-1,17,64,200],labels=['0-17','18-64','gt64']).cat.reorder_categories(['18-64','0-17','gt64'])
 #%%function for looping
 def run():
     #print(cuts[i])
@@ -221,9 +221,9 @@ def run():
     #%%for filtering flooded or non flooded alone
     #df=df[df.floodr_cat=="FLood_1"].copy()
     #df=df[df.SEX_CODE==FIL_COL].copy()
-    df=df[df.AGE_cat==FIL_COL].copy()
+    #df=df[df.AGE_cat==FIL_COL].copy()
     #df=df[df.ETHNICITY==FIL_COL].copy()
-    #df=df[df.RACE==FIL_COL].copy()
+    df=df[df.RACE==FIL_COL].copy()
     #%% bringing in intervention
     df.loc[:,'Time']=pd.cut(df.STMT_PERIOD_FROM,\
                                         bins=[0]+interv_dates+[20190101],\
@@ -245,10 +245,10 @@ def run():
     
     #%% save cross tab
      #counts_outcome=pd.DataFrame(df.Outcome.value_counts())
-    #outcomes_recs=df.loc[(df.Outcome>0)&(~pd.isna(df.loc[:,['floodr_cat','Time','year','month','weekday' ,'PAT_AGE_YEARS', 
-    #                                                      'SEX_CODE','RACE','ETHNICITY']]).any(axis=1)),]
-    #counts_outcome=pd.crosstab(outcomes_recs.AGE_cat ,[outcomes_recs.Time,outcomes_recs.floodr_cat])
-    #counts_outcome.to_csv(Dis_cat+"_aux"+".csv")
+    outcomes_recs=df.loc[(df.Outcome>0)&(~pd.isna(df.loc[:,['floodr_cat','Time','year','month','weekday' ,'PAT_AGE_YEARS', 
+                                                          'SEX_CODE','RACE','ETHNICITY']]).any(axis=1)),]
+    counts_outcome=pd.crosstab(outcomes_recs.floodr_cat ,outcomes_recs.Time)
+    counts_outcome.to_csv(Dis_cat+"_"+FIL_COL+"_aux"+".csv")
     #print(counts_outcome)
     #del outcomes_recs
     
@@ -263,11 +263,11 @@ def run():
                                                                                       'RACE_white':'sum','RACE_black':'sum','RACE_other':'sum',
                                                                                       'ETHNICITY_Non_Hispanic':'sum','ETHNICITY_Hispanic':'sum', 
                                                                                       'op_False':'sum','op_True':'sum',
-                                                                                      'AGE_cat_18-64':'sum', 'AGE_cat_0-17':'sum', 'AGE_cat_>64':'sum'
+                                                                                      'AGE_cat_18-64':'sum', 'AGE_cat_0-17':'sum', 'AGE_cat_gt64':'sum'
                                                                                       }).reset_index()
                          
         grouped_tracts=grouped_tracts.merge(df.drop_duplicates(['STMT_PERIOD_FROM','PAT_ADDR_CENSUS_TRACT']).loc[:,['STMT_PERIOD_FROM','PAT_ADDR_CENSUS_TRACT','floodr_cat','Population','Time','year','month','weekday','SVI_Cat','floodr']],how='left',on=["PAT_ADDR_CENSUS_TRACT",'STMT_PERIOD_FROM'])
-        dummy_cols=['SEX_CODE_M', 'SEX_CODE_F', 'RACE_white', 'RACE_black', 'RACE_other','ETHNICITY_Non_Hispanic', 'ETHNICITY_Hispanic', 'op_False', 'op_True','AGE_cat_18-64', 'AGE_cat_0-17', 'AGE_cat_>64']
+        dummy_cols=['SEX_CODE_M', 'SEX_CODE_F', 'RACE_white', 'RACE_black', 'RACE_other','ETHNICITY_Non_Hispanic', 'ETHNICITY_Hispanic', 'op_False', 'op_True','AGE_cat_18-64', 'AGE_cat_0-17', 'AGE_cat_gt64']
         grouped_tracts.loc[:,dummy_cols]=grouped_tracts.loc[:,dummy_cols].divide(grouped_tracts.Outcome,axis=0)
         del df
         df=grouped_tracts
@@ -280,8 +280,8 @@ def run():
     
     #change floodr into 0-100
     df.floodr=df.floodr*100
-    formula='Outcome'+' ~ '+'floodr_cat * Time '+' + year + month + weekday' + '  + op + RACE + ETHNICITY + SEX_CODE'
-    if Dis_cat=='ALL': formula='Outcome'+' ~ '+' floodr_cat * Time'+' + year + month + weekday + '+' + '.join(['SEX_CODE_M','op_True','RACE_white', 'RACE_black','ETHNICITY_Non_Hispanic'])
+    formula='Outcome'+' ~ '+'floodr_cat * Time '+' + year + month + weekday' + '  + op  + ETHNICITY + SEX_CODE + PAT_AGE_YEARS'
+    if Dis_cat=='ALL': formula='Outcome'+' ~ '+' floodr_cat * Time'+' + year + month + weekday + '+' + '.join(['SEX_CODE_M','op_True','ETHNICITY_Non_Hispanic','PAT_AGE_YEARS'])
     #if Dis_cat=='ALL': formula='Outcome'+' ~ '+' floodr_cat * Time'+' + year + month + weekday + '+' + '.join(['SEX_CODE_M','op_True','RACE_white', 'RACE_black','ETHNICITY_Non_Hispanic','PAT_AGE_YEARS'])
     #formula=formula+' + Median_H_Income'
     
@@ -307,7 +307,7 @@ def run():
                               
                               ),]
     reg_table['index']=reg_table['index'].str.replace("\[T.",'_').str.replace('\]','')
-    reg_table['model']='AGE_cat'
+    reg_table['model']='RACE'
     reg_table['modifier_cat']=FIL_COL
     
     reg_table_dev=pd.read_html(results.summary().tables[0].as_html())[0]
