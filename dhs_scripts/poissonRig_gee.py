@@ -153,13 +153,13 @@ sp=sp.loc[sp.Population>0,]
 # sp.loc[sp.Median_H_Income=='250,000+',"Median_H_Income"]=250000
 # sp.Median_H_Income=pd.to_numeric(sp.Median_H_Income,errors='coerce')
 #%% merge SVI after recategorization
-svi=recalculateSVI(SVI_df_raw[SVI_df_raw.FIPS.isin(sp.PAT_ADDR_CENSUS_TRACT.unique())]).loc[:,["FIPS",'SVI',]]
+svi=recalculateSVI(SVI_df_raw[SVI_df_raw.FIPS.isin(sp.PAT_ADDR_CENSUS_TRACT.unique())]).loc[:,["FIPS",'SVI','RPL_THEMES_1',"RPL_THEMES_2","RPL_THEMES_3","RPL_THEMES_4"]]
 sp=sp.merge(svi,left_on="PAT_ADDR_CENSUS_TRACT",right_on="FIPS",how='left').drop("FIPS",axis=1)
 sp['SVI_Cat']=pd.cut(sp.SVI,bins=np.arange(0,1.1,1/4),include_lowest=True,labels=[1,2,3,4])
 
-# #do same for the for cats
-# for i in ['1','2','3','4']:
-#     sp['SVI_Cat_T'+i]=pd.cut(sp['RPL_THEMES_'+i],bins=np.arange(0,1.1,1/4),include_lowest=True,labels=[1,2,3,4])
+#do same for the for cats
+for i in ['1','2','3','4']:
+    sp['SVI_Cat_T'+i]=pd.cut(sp['RPL_THEMES_'+i],bins=np.arange(0,1.1,1/4),include_lowest=True,labels=[1,2,3,4])
 
 #%%filter SVI cat for stratified analysis
 #sp=sp[sp.SVI_Cat==4]
@@ -222,7 +222,7 @@ def run():
     #df=df[df.floodr_cat=="FLood_1"].copy()
     #df=df[df.SEX_CODE==FIL_COL].copy()
     #df=df[df.AGE_cat==FIL_COL].copy()
-    df=df[df.ETHNICITY==FIL_COL].copy()
+    df=df[df[SVI_COL]==FIL_COL].copy()
     #df=df[df.RACE==FIL_COL].copy()
     #%% bringing in intervention
     df.loc[:,'Time']=pd.cut(df.STMT_PERIOD_FROM,\
@@ -248,8 +248,8 @@ def run():
     outcomes_recs=df.loc[(df.Outcome>0)&(~pd.isna(df.loc[:,['floodr_cat','Time','year','month','weekday' ,'PAT_AGE_YEARS', 
                                                           'SEX_CODE','RACE','ETHNICITY']]).any(axis=1)),]
     counts_outcome=pd.crosstab(outcomes_recs.floodr_cat ,outcomes_recs.Time)
-    counts_outcome.to_csv(Dis_cat+"_"+FIL_COL+"_aux"+".csv")
-    #print(counts_outcome)
+    #counts_outcome.to_csv(Dis_cat+"_"+FIL_COL+"_aux"+".csv")
+    print(counts_outcome)
     #del outcomes_recs
     
     #%%for total ED visits using grouped / coutns
@@ -280,8 +280,8 @@ def run():
     
     #change floodr into 0-100
     df.floodr=df.floodr*100
-    formula='Outcome'+' ~ '+'floodr_cat * Time '+' + year + month + weekday' + '  + op  + RACE + SEX_CODE + PAT_AGE_YEARS'
-    if Dis_cat=='ALL': formula='Outcome'+' ~ '+' floodr_cat * Time'+' + year + month + weekday + '+' + '.join(['SEX_CODE_M','op_True',,'PAT_AGE_YEARS','RACE_white', 'RACE_black'])
+    formula='Outcome'+' ~ '+'floodr_cat * Time '+' + year + month + weekday' + '  + op  + RACE + SEX_CODE + PAT_AGE_YEARS + ETHNICITY'
+    if Dis_cat=='ALL': formula='Outcome'+' ~ '+' floodr_cat * Time'+' + year + month + weekday + '+' + '.join(['SEX_CODE_M','op_True','PAT_AGE_YEARS','RACE_white', 'RACE_black','ETHNICITY_Non_Hispanic'])
     #if Dis_cat=='ALL': formula='Outcome'+' ~ '+' floodr_cat * Time'+' + year + month + weekday + '+' + '.join(['SEX_CODE_M','op_True','RACE_white', 'RACE_black','ETHNICITY_Non_Hispanic','PAT_AGE_YEARS'])
     #formula=formula+' + Median_H_Income'
     
@@ -307,8 +307,8 @@ def run():
                               
                               ),]
     reg_table['index']=reg_table['index'].str.replace("\[T.",'_').str.replace('\]','')
-    reg_table['model']='ETHNICITY'
-    reg_table['modifier_cat']=FIL_COL
+    reg_table['model']=SVI_COL
+    reg_table['SVI_Quantile']=FIL_COL
     
     reg_table_dev=pd.read_html(results.summary().tables[0].as_html())[0]
     
@@ -317,5 +317,5 @@ def run():
     # counts_outcome.loc["flood_bins",'Outcome']=str(flood_bins)
     #return reg_table
     #%%write the output
-    reg_table.to_csv(Dis_cat+"_"+FIL_COL+"_reg"+".csv")
-    reg_table_dev.to_csv(Dis_cat+"_"+FIL_COL+"_dev"+".csv")
+    reg_table.to_csv(Dis_cat+"_"+SVI_COL+"_Q"+str(FIL_COL)+"_reg"+".csv")
+    reg_table_dev.to_csv(Dis_cat+"_"+SVI_COL+"_Q"+str(FIL_COL)+"_dev"+".csv")

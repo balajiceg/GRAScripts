@@ -216,38 +216,37 @@ floodZeroSep="True" # zeros are considered as seperate class
 Dis_cats=[ 'ALL',
            #'Psychiatric',
             'Intestinal_infectious_diseases',
-             'ARI',
-             'Bite-Insect',
-           'DEATH',
-           #'Flood_Storms',
-            'CO_Exposure',
-            'Drowning',
-           'Heat_Related_But_Not_dehydration',
-            'Hypothermia',
-           #'Dialysis',
-           #'Medication_Refill',
-            'Asthma',
-             'Pregnancy_complic',
-             'Chest_pain',
+           #   'ARI',
+              'Bite-Insect',
+           # 'DEATH',
+           # #'Flood_Storms',
+           #  'CO_Exposure',
+           #  'Drowning',
+           # 'Heat_Related_But_Not_dehydration',
+             'Hypothermia',
+           # #'Dialysis',
+           # #'Medication_Refill',
+           #  'Asthma',
+              'Pregnancy_complic',
+           #   'Chest_pain',
              'Dehydration',
          ]
-SVI_CATS=['SVI_Cat', 'SVI_Cat_T1', 'SVI_Cat_T2',
-       'SVI_Cat_T3', 'SVI_Cat_T4']
-
+SVI_COLS=['SVI_Cat','SVI_Cat_T1', 'SVI_Cat_T2', 'SVI_Cat_T3', 'SVI_Cat_T4']
 import os
-for SVI_COL in SVI_CATS:
-    os.mkdir(SVI_COL)
-    os.chdir(SVI_COL)
-    for Dis_cat in Dis_cats:
-        try:
-            print(Dis_cat)
-            print("-"*50)
-            run()
-        except Exception as e: print(e)
-    os.chdir('..')
-   
+for SVI_COL in SVI_COLS:
+    for FIL_COL in [1,2,3,4]:
+        #os.mkdir(SVI_COL)
+        #os.chdir(SVI_COL)
+        for Dis_cat in Dis_cats:
+            try:
+                print(Dis_cat)
+                print("-"*50)
+                run()
+            except Exception as e: print(e)
+        #os.chdir('..')
+       
+        
+        
+        
     
     
-    
-
-

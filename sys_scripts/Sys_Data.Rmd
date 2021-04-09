@@ -3,8 +3,8 @@ title: "Syndromic surveillance analysis"
 output: html_notebook
 ---
 tropical strom imelda http://floodobservatory.colorado.edu/Events/4797/2019USA4797.html  
-<!--
 
+<!--
 #### Load packages
 ```{r Load packages, message=FALSE}
 library(GISTools)
@@ -234,6 +234,11 @@ sys_sa$Race<-recode(sys_sa$Race,`American Indian`='Others',Hawaiian='Others')
 sys_sa<-sys_sa[complete.cases(sys_sa),]
 #check if all columns are cmplete
 #colSums(is.na(sys_sa))
+"incomplet records = 3751"; 
+#remove unknown sex records
+sys_sa<-sys_sa[sys_sa$Sex!='Unknown',]
+"unknown sex records 681"
+
 ```
 
 #### Threshould for creating binary flood variable
@@ -241,8 +246,12 @@ sys_sa<-sys_sa[complete.cases(sys_sa),]
 sys_sa$flooded <- cut(sys_sa$ZCT_f_R,c(0,quantile(inun_zcta$ZCT_f_R[inun_zcta$ZCT_f_R>0],
                       probs = seq(0,1,1/2))),include.lowest = T,right = F)
 labels <- c('Non flooded','moderately flooded','highly flooded')
-"Categories and intervals:";labels; levels(sys_sa$flooded)
+"Categories and intervals and ZCTA counts :";labels;table(sys_sa$flooded[!duplicated(sys_sa$crossed_zcta)])
 levels(sys_sa$flooded)<-labels
+
+"Records in each category"
+table(sys_sa$flooded)
+
 ```
 
 
@@ -254,6 +263,7 @@ sys_sa$period[sys_sa$Date>='2019-09-19' & sys_sa$Date<='2019-10-01'] <-'floodPer
 sys_sa$period[sys_sa$Date>='2019-10-02' & sys_sa$Date<='2019-11-01'] <-'monthAfterFlood'
 sys_sa$period[sys_sa$Date>='2019-11-02' & sys_sa$Date<='2019-12-31'] <-'novAndDec'
 
+table(sys_sa$period)
 #remove washout period
 sys_sa<-subset(sys_sa,period!='washoutPeriod')
 
@@ -272,12 +282,14 @@ lag_df<-sys_sa[!duplicated(sys_sa$Date),c('Date','period')]
 lag_df<-lag_df[order(lag_df$Date),]
 row.names(lag_df) <- NULL
 #define the peiod of exposure
-lag_df$period[lag_df$Date>'2019-09-22']<-'controlPeriod'
+lag_df$period[lag_df$Date>'2019-10-01']<-'controlPeriod'
 lag_df$period<-droplevels(lag_df$period)
 levels(lag_df$period)<-c(0,1)
 #run cross basis
-cb<-crossbasis(lag_df$period,lag=40,argvar=list(fun="strata",breaks=1),
-  arglag=list(fun="strata",breaks=c(1,9)))
+cb<-crossbasis(lag_df$period,lag=44,argvar=list(fun="strata",breaks=1),
+  arglag=list(fun="strata",breaks=c(1,14)))
+#fill na with 0
+cb[is.na(cb)]<-0
 #bind date to the lag df and drop the binary exposure and keep lag
 lag_df<-cbind(lag_df,cb)
 lag_df<-subset(lag_df,select=-period)
@@ -320,7 +332,7 @@ new_names=old_names.str.replace("\.","_")
 sys_sa.rename(columns=dict(zip(old_names, new_names)),inplace=True)
 
 #define outcome
-outcome='Pregnancy_complic'
+outcome='Bite_Insect'
 #run gee glm
 formula=outcome+'.astype(float) ~ '+ ' + '.join(lag_cols.str.replace('\.','_') + ' * flooded') + ' + Ethnicity + Race + Sex + Age + weekday' 
 model = smf.gee(formula=formula,groups=sys_sa.crossed_zcta, data = sys_sa,offset=np.log(sys_sa.ZCTAdaily_count),missing='drop',family=sm.families.Poisson(link=sm.families.links.log()))
@@ -546,7 +558,7 @@ summary(group_model)
 #### Group by date and plot between flooded and non flooded
 ```{r}
 
-grouped<-sys_sa %>% group_by(Date,flooded) %>% dplyr::summarise(count=sum(Pregnancy_complic))
+grouped<-sys_sa %>% group_by(Date,flooded) %>% dplyr::summarise(count=sum(Bite.Insect))
 grouped<-grouped[order(grouped$flooded, grouped$Date),]
 grouped$count<-as.numeric(grouped$count)
 
@@ -580,7 +592,7 @@ grouped_fg=merge(grouped,grouped_fg,by.x='Date',by.y='date', all.x=T)
 #blind frinedly pallete
 cbbPalette <- c( "#009E73","#0072B2", "#D55E00", "#CC79A7", "#000000", "#E69F00", "#56B4E9", "#F0E442")
 # To use for fills, add
-scale_fac=1500
+scale_fac=10
 scale_fill_manual(values=cbbPalette)
 ggplot(grouped_fg, aes(x=Date)) +
   
@@ -591,7 +603,7 @@ ggplot(grouped_fg, aes(x=Date)) +
     # Features of the first axis
     name = "ED visits per day",
     # Add a second axis and specify its features
-    sec.axis = sec_axis(~./scale_fac, name="Number of guages \nindicating flooding")
+    sec.axis = sec_axis(~./scale_fac, name="Number of stream guages \nindicating flooding")
   ) + 
   scale_x_date(date_breaks = "15 day", expand = c(0,0),
                  labels=date_format("%d/%m/%y"),
@@ -600,10 +612,12 @@ ggplot(grouped_fg, aes(x=Date)) +
   theme(
     text = element_text(size=14),
     axis.text.x = element_text(angle = 45, hjust = 1),
+    axis.title.y = element_text(size=13),
+    axis.title.y.right = element_text(color = '#56B4E9', size=13),
     legend.position="bottom",
     legend.title =element_blank()
   )+ scale_color_manual(values=cbbPalette) + ggtitle('Overall ED visits')
-ggsave('SysWithGaugesAll.pdf',path=getwd(),height=10,width = 20,units = "cm")
+ggsave('SysWithGaugesAll.pdf',plot = p,path=getwd(),height=10,width = 20,units = "cm")
 
 ```
 

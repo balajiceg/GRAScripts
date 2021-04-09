@@ -42,8 +42,8 @@ make_chart<-function (df,column='flood',legend='none'){
     geom_errorbar(aes(ymax = conf25, ymin = conf95), size = LINE_WIDTH, width = 
                     ERROR_BAR_TOP,position = position_dodge(width = DODGE_WIDTH)) +
     geom_point(size = POINT_WIDTH,position = position_dodge(width = DODGE_WIDTH)) +
-    scale_shape_manual(values=c(15,17,16,18,8))+
-    scale_color_manual(values=c( "#009E73","#D55E00","#0072B2", "#F0E442","#CC79A7","#E69F00"))+
+    scale_shape_manual(values=c(15,17,16,18,8,16,17,15,18,8,9))+
+    scale_color_manual(values=c( "#009E73","#D55E00","#0072B2",  "#E69F00","#F0E442","#CC79A7","#E69F00","#999999","#000000","#009E73"))+
     geom_hline(aes(yintercept = 1), size = DASH_WIDTH, linetype = "dashed")+
     scale_y_log10(breaks = trans_breaks("log10", function(x) 10^x),
                   labels = trans_format("log10", function(x) round(10^x,1)))+ 
@@ -71,8 +71,8 @@ merge_charts<-function (df,filename,column='flood',width=6,height=7,format='.pdf
   loutcomes[[2]]<-c("Insect Bite", "Dehydration",'Chest Pain','Heat Related Illness')
   
   outcomes<-loutcomes[[1]]
-  sub_df<-subset(df,outcome %in% outcomes,column=column)
-  p1<-make_chart(sub_df,legend='none')
+  sub_df<-subset(df,outcome %in% outcomes)
+  p1<-make_chart(sub_df,legend='none',column=column)
   
   outcomes<-loutcomes[[2]]
   sub_df<-subset(df,outcome %in% outcomes)
@@ -108,5 +108,55 @@ df<-subset(all_df,model=='ethnicity')
 df<-df[grep('flood_binary_True:period_.*:Ethnicity_.*',df$covar),]
 #assign period coulumn
 df$period<-gsub(':Ethnicity_.*','',gsub('flood_.*:period_','',df$covar))
-
 merge_charts(df,'ethnicity',column = 'modifier_cat',width = 8,height = 6)
+
+#---- for race model ----
+df<-subset(all_df,model=='Race')
+#subset requried estimaes
+df<-df[grep('flood_binary_True:period_.*:Race_.*',df$covar),]
+#assign period coulumn
+df$period<-gsub(':Race_.*','',gsub('flood_.*:period_','',df$covar))
+merge_charts(df,'race',column = 'modifier_cat',width = 8,height = 6)
+
+#---- for sex model ----
+df<-subset(all_df,model=='sex')
+#subset requried estimaes
+df<-df[grep('flood_binary_True:period_.*:Sex_.*',df$covar),]
+#assign period coulumn
+df$period<-gsub(':Sex_.*','',gsub('flood_.*:period_','',df$covar))
+merge_charts(df,'sex',column = 'modifier_cat',width = 8,height = 6)
+
+##---- for stratified models ----
+
+#---- for ethnicity model ----
+df<-subset(all_df,model=='ethnicity_strata')
+#subset requried estimaes
+df<-df[grep('flood_binary_True:period_.*',df$covar),]
+#assign period coulumn
+df$period<-gsub('flood_.*:period_','',df$covar)
+merge_charts(df,'ethnicity_strata',column = 'modifier_cat',width = 9,height = 6)
+
+#---- for race model ----
+df<-subset(all_df,model=='Race_strata')
+#subset requried estimaes
+df<-df[grep('flood_binary_True:period_.*',df$covar),]
+#assign period coulumn
+df$period<-gsub('flood_.*:period_','',df$covar)
+merge_charts(df,'race_strata',column = 'modifier_cat',width = 10,height = 6)
+
+#---- for sex model ----
+df<-subset(all_df,model=='sex_strata')
+#subset requried estimaes
+df<-df[grep('flood_binary_True:period_.*',df$covar),]
+#assign period coulumn
+df$period<-gsub('flood_.*:period_','',df$covar)
+merge_charts(df,'sex_strata',column = 'modifier_cat',width = 8,height = 6)
+
+#---- for age model ----
+df<-subset(all_df,model=='Age_strata')
+#subset requried estimaes
+df<-df[grep('flood_binary_True:period_.*',df$covar),]
+#assign period coulumn
+df$period<-gsub('flood_.*:period_','',df$covar)
+df$modifier_cat<-gsub('gt','>',df$modifier_cat)
+merge_charts(df,'age_strata',column = 'modifier_cat',width = 10,height = 8)

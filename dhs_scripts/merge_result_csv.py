@@ -44,20 +44,21 @@ merge_df.to_excel(first_dir+r'\merged.xlsx',index=False)
 #%%combined merge
 import pandas as pd
 import glob, os
-first_dir=r"Z:\Balaji\Analysis_out_IPOP\08112020_svi_overbaseline\offset_population"
+first_dir=r"Z:\Balaji\Analysis_out_IPOP\22082020_SVI_important\updated"
 req_files=glob.glob(first_dir+"\\*_reg.csv")
 
 merge_df=pd.DataFrame()
 
 for file in req_files:
-    df=pd.read_csv(file)[['index','coef','P>|z|','[0.025','0.975]']]
+    df=pd.read_csv(file)[['index','coef','P>|z|','[0.025','0.975]','model', 'SVI_Quantile']]
     df=df.round(3)
     Dis_cat=os.path.basename(file).replace("_reg.csv","")
+    Dis_cat=Dis_cat.split('_')[0]
     df['outcome']=Dis_cat
     
     merge_df=pd.concat([merge_df,df],axis=0)
     
-merge_df.columns=['covar', 'RR', 'P', 'conf25', 'conf95', 'outcome']
+merge_df.columns=['covar', 'RR', 'P', 'conf25', 'conf95','model', 'SVI_Quantile', 'outcome']
 merge_df['covar']=merge_df['covar'].str.replace("\[T.",'_').str.replace('\]','')
 #merge_df['folder']='SVI_Cat_T4'
 
