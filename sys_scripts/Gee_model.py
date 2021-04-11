@@ -12,6 +12,7 @@ import statsmodels.api as sm
 import statsmodels.formula.api as smf
 import pyreadr
 import os
+import datetime
 os.chdir(r'Z:\Balaji\Analysis_SyS_data\28032021\stratified')
 #%%function to reformat reg table
 def reformat_reg_results(results,model=None,outcome=None,modifier_cat=None):
@@ -36,40 +37,46 @@ sys_sa.Sex=sys_sa.Sex.cat.reorder_categories(['M','F','Unknown'])
 sys_sa.Race=sys_sa.Race.cat.reorder_categories(['White','Black','Asian','Others','Unknown'])
 sys_sa.Ethnicity=sys_sa.Ethnicity.cat.reorder_categories(['NON HISPANIC','HISPANIC', 'Unknown'])
 
+#remove records falling into june AER observed flood [June 7-8] and one month after that
+sys_sa=sys_sa[(sys_sa.Date<datetime.date(2019, 6, 7)) | (sys_sa.Date>datetime.date(2019, 7, 9))]
+
 #remove unknow sex categories:  ( removes 681 records )
 sys_sa=sys_sa[sys_sa.Sex!='Unknown']
 sys_sa.loc[:,'Sex']=sys_sa.Sex.cat.remove_unused_categories()
 
 outcomes= ['Diarrhea','RespiratorySyndrome','outcomes_any','Asthma', 
-           'Bite_Insect', 'Dehydration', 'Chest_pain','Heat_Related_But_Not_dehydration',
-           'Hypothermia','Pregnancy_complic']
+           'Bite_Insect', 'Dehydration', 'Chest_pain','Heat_Related_But_Not_dehydration','Pregnancy_complic']
 
-outcome='RespiratorySyndrome'
+outcome='Heat_Related_But_Not_dehydration'
+sys_sa=sys_sa[sys_sa['period']!='novAndDec']
+sys_sa.loc[:,'period']=sys_sa.period.cat.remove_unused_categories()
 #make folder if not exists
 #if not os.path.exists(outcome):os.makedirs(outcome)
 #os.chdir(outcome)
 #%%base model
-# df=sys_sa.copy()
+df=sys_sa.copy()
 
-# #wite cross table
-# outcomes_recs=df.loc[(df[outcome]),]
-# counts_outcome=pd.crosstab(outcomes_recs.flooded,outcomes_recs.period, dropna=False)
-# counts_outcome.to_csv(outcome+"_base_aux"+".csv")
-# del outcomes_recs
+#wite cross table
+outcomes_recs=df.loc[(df[outcome]),]
+counts_outcome=pd.crosstab(outcomes_recs.flooded,outcomes_recs.period, dropna=False)
+counts_outcome.to_csv(outcome+"_base_aux"+".csv")
+print(counts_outcome)
+del outcomes_recs
 
-# #run model
-# #run geeglm and write the results
-# formula=outcome+'.astype(float) ~ '+'flooded * period + Ethnicity + Race + Sex + weekday + Age'  
-# model = smf.gee(formula=formula,groups=df.crossed_zcta, data=df,offset=np.log(df.ZCTAdaily_count),missing='drop',family=sm.families.Poisson(link=sm.families.links.log()))
-# results=model.fit()
+#run model
+#run geeglm and write the results
+formula=outcome+'.astype(float) ~ '+'flooded * period + Ethnicity + Race + Sex + weekday + Age'  
+model = smf.gee(formula=formula,groups=df.crossed_zcta, data=df,offset=np.log(df.ZCTAdaily_count),missing='drop',family=sm.families.Poisson(link=sm.families.links.log()))
+results=model.fit()
 
-# # creating result dataframe tables
-# reg_table,reg_table_dev= reformat_reg_results(results,model='base',outcome=outcome,modifier_cat=None)
+# creating result dataframe tables
+reg_table,reg_table_dev= reformat_reg_results(results,model='base',outcome=outcome,modifier_cat=None)
 
-# #write the results
-# reg_table.to_csv(outcome+"_base_reg"+".csv")
-# reg_table_dev.to_csv(outcome+"_base_dev"+".csv")
-# print(outcome)
+#write the results
+reg_table.to_csv(outcome+"_base_reg"+".csv")
+reg_table_dev.to_csv(outcome+"_base_dev"+".csv")
+print(results.params)
+print(outcome)
 
 #%% reduce flood category 
 sys_sa['flood_binary']=pd.Categorical(~(sys_sa.flooded=='Non flooded'))
