@@ -13,6 +13,7 @@ import statsmodels.formula.api as smf
 import pyreadr
 import os
 import datetime
+import winsound
 os.chdir(r'Z:\Balaji\Analysis_SyS_data\28032021\stratified')
 #%%function to reformat reg table
 def reformat_reg_results(results,model=None,outcome=None,modifier_cat=None):
@@ -38,7 +39,7 @@ sys_sa.Race=sys_sa.Race.cat.reorder_categories(['White','Black','Asian','Others'
 sys_sa.Ethnicity=sys_sa.Ethnicity.cat.reorder_categories(['NON HISPANIC','HISPANIC', 'Unknown'])
 
 #remove records falling into june AER observed flood [June 7-8] and one month after that
-sys_sa=sys_sa[(sys_sa.Date<datetime.date(2019, 6, 7)) | (sys_sa.Date>datetime.date(2019, 7, 9))]
+#sys_sa=sys_sa[(sys_sa.Date<datetime.date(2019, 6, 7)) | (sys_sa.Date>datetime.date(2019, 7, 9))]
 
 #remove unknow sex categories:  ( removes 681 records )
 sys_sa=sys_sa[sys_sa.Sex!='Unknown']
@@ -54,30 +55,31 @@ sys_sa.loc[:,'period']=sys_sa.period.cat.remove_unused_categories()
 #if not os.path.exists(outcome):os.makedirs(outcome)
 #os.chdir(outcome)
 #%%base model
+#for outcome in ['Diarrhea','RespiratorySyndrome','Asthma','Bite_Insect', 'Dehydration', 'Chest_pain']:
 df=sys_sa.copy()
 
 #wite cross table
 outcomes_recs=df.loc[(df[outcome]),]
-counts_outcome=pd.crosstab(outcomes_recs.flooded,outcomes_recs.period, dropna=False)
+counts_outcome=pd.crosstab(outcomes_recs.flood_binary,outcomes_recs.period, dropna=False)
 counts_outcome.to_csv(outcome+"_base_aux"+".csv")
 print(counts_outcome)
 del outcomes_recs
 
 #run model
 #run geeglm and write the results
-formula=outcome+'.astype(float) ~ '+'flooded * period + Ethnicity + Race + Sex + weekday + Age'  
+formula=outcome+'.astype(float) ~ '+'flood_binary * period + Ethnicity + Race + Sex + weekday + Age'  
 model = smf.gee(formula=formula,groups=df.crossed_zcta, data=df,offset=np.log(df.ZCTAdaily_count),missing='drop',family=sm.families.Poisson(link=sm.families.links.log()))
 results=model.fit()
 
 # creating result dataframe tables
-reg_table,reg_table_dev= reformat_reg_results(results,model='base',outcome=outcome,modifier_cat=None)
+reg_table,reg_table_dev= reformat_reg_results(results,model='base_binary',outcome=outcome,modifier_cat=None)
 
 #write the results
-reg_table.to_csv(outcome+"_base_reg"+".csv")
-reg_table_dev.to_csv(outcome+"_base_dev"+".csv")
+reg_table.to_csv(outcome+"_base_binary_reg"+".csv")
+reg_table_dev.to_csv(outcome+"_base_binary_dev"+".csv")
 print(results.params)
 print(outcome)
-
+winsound.Beep(1000,1000)
 #%% reduce flood category 
 sys_sa['flood_binary']=pd.Categorical(~(sys_sa.flooded=='Non flooded'))
 # sys_sa=sys_sa[sys_sa['period']!='novAndDec']
