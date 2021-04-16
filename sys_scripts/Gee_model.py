@@ -45,12 +45,17 @@ sys_sa.Ethnicity=sys_sa.Ethnicity.cat.reorder_categories(['NON HISPANIC','HISPAN
 sys_sa=sys_sa[sys_sa.Sex!='Unknown']
 sys_sa.loc[:,'Sex']=sys_sa.Sex.cat.remove_unused_categories()
 
+#merge asian and others 
+sys_sa.loc[sys_sa.Race=='Asian','Race']='Others'
+sys_sa.loc[:,'Race']=sys_sa.Race.cat.remove_unused_categories().cat.rename_categories({'Others':'AsianAndOthers'})
+
+
 outcomes= ['Diarrhea','RespiratorySyndrome','outcomes_any','Asthma', 
            'Bite_Insect', 'Dehydration', 'Chest_pain','Heat_Related_But_Not_dehydration','Pregnancy_complic']
 
-outcome='Heat_Related_But_Not_dehydration'
-sys_sa=sys_sa[sys_sa['period']!='novAndDec']
-sys_sa.loc[:,'period']=sys_sa.period.cat.remove_unused_categories()
+outcome='RespiratorySyndrome'
+#sys_sa=sys_sa[sys_sa['period']!='novAndDec']
+#sys_sa.loc[:,'period']=sys_sa.period.cat.remove_unused_categories()
 #make folder if not exists
 #if not os.path.exists(outcome):os.makedirs(outcome)
 #os.chdir(outcome)
@@ -61,7 +66,7 @@ df=sys_sa.copy()
 #wite cross table
 outcomes_recs=df.loc[(df[outcome]),]
 counts_outcome=pd.crosstab(outcomes_recs.flood_binary,outcomes_recs.period, dropna=False)
-counts_outcome.to_csv(outcome+"_base_aux"+".csv")
+#counts_outcome.to_csv(outcome+"_base_aux"+".csv")
 print(counts_outcome)
 del outcomes_recs
 
@@ -75,8 +80,8 @@ results=model.fit()
 reg_table,reg_table_dev= reformat_reg_results(results,model='base_binary',outcome=outcome,modifier_cat=None)
 
 #write the results
-reg_table.to_csv(outcome+"_base_binary_reg"+".csv")
-reg_table_dev.to_csv(outcome+"_base_binary_dev"+".csv")
+#reg_table.to_csv(outcome+"_base_binary_reg"+".csv")
+#reg_table_dev.to_csv(outcome+"_base_binary_dev"+".csv")
 print(results.params)
 print(outcome)
 winsound.Beep(1000,1000)
@@ -142,7 +147,8 @@ for c in ['NON HISPANIC','HISPANIC','Unknown']:
     print(c)
 
 #%%Race as modifier
-
+#for outcome in ['Diarrhea','RespiratorySyndrome','Asthma','Bite_Insect', 'Dehydration', 'Chest_pain']:
+    
 df=sys_sa.copy()
 df.Race.cat.categories
 
@@ -153,8 +159,8 @@ counts_outcome=pd.crosstab(outcomes_recs.flood_binary,[outcomes_recs.period,outc
 counts_outcome.T
 del outcomes_recs
 
-#['White', 'Black', 'Asian', 'Others', 'Unknown']
-for c in ['White','Black','Asian', 'Others']:
+#['White', 'Black', 'Asian', 'Others', 'Unknown','AsianAndOthers']
+for c in ['AsianAndOthers']:
     df=sys_sa.copy()
     df=df[df.Race.isin([c])]
     df.loc[:,'Race']=df.Race.cat.remove_unused_categories()
