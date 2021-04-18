@@ -237,7 +237,7 @@ levels(sys_sa$flooded)[2]<-'flooded'
 library(dlnm)
 sys_sa_bkp<-sys_sa
 ## -------------------------------------------------------------------
-for (df in c("unconstrained")){
+for (df in c(3,4,5,6,7,8)){
     
 sys_sa<-sys_sa_bkp
 #library(dlnm)
@@ -253,8 +253,8 @@ lag_df$period<-droplevels(lag_df$period)
 levels(lag_df$period)<-c(0,1,0)
 #run cross basis
 cb<-crossbasis(lag_df$period,lag=13,argvar=list(fun="strata",breaks=c(1)),
-  arglag=list(fun='integer'))
-  #arglag=list(df=df))
+    #arglag=list(fun='integer'))
+  arglag=list(df=df))
   #arglag=list(fun='strata',breaks=breaks))
 
 #fill na with 0
