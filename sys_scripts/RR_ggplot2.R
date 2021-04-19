@@ -160,3 +160,42 @@ df<-df[grep('flood_binary_True:period_.*',df$covar),]
 df$period<-gsub('flood_.*:period_','',df$covar)
 df$modifier_cat<-gsub('gt','>',df$modifier_cat)
 merge_charts(df,'age_strata',column = 'modifier_cat',width = 10,height = 8)
+
+
+#---- sensitivity base model ------
+
+#----- read data ----
+all_df<-read_excel("Z:\\Balaji\\Analysis_SyS_data\\28032021\\sensitivity_remove_june\\merged_All_sens.xlsx")
+all_df$outcome<-mapvalues(all_df$outcome,from = c( "Bite_Insect", "Dehydration", "Diarrhea", "Pregnancy_complic","RespiratorySyndrome","Asthma",'Chest_pain','Heat_Related_But_Not_dehydration'),
+                          to= c("Insect Bite", "Dehydration", "Diarrhea","Pregnancy Complications","Respiratory Syndrome","Asthma",'Chest Pain','Heat Related Illness'))
+
+
+#---- for base model ---
+df<-all_df
+#subset requried estimaes
+df<-df[grep('flooded_.*:period_.*',df$covar),]
+#assign flooding column
+df$flood<-gsub('flooded_',"",gsub(":period_.*",'',df$covar))
+#assign period coulumn
+df$period<-gsub('flooded_.*:period_','',df$covar)
+
+df$flood<-factor(df$flood,levels = c("moderately flooded", "highly flooded" ))
+merge_charts(df,'base_sensitivity',column = 'flood',width = 8,height = 6)
+
+#------ binaray model
+all_df<-read_excel("Z:\\Balaji\\Analysis_SyS_data\\28032021\\sensitivity_binary\\merged_All.xlsx")
+all_df$outcome<-mapvalues(all_df$outcome,from = c( "Bite_Insect", "Dehydration", "Diarrhea", "Pregnancy_complic","RespiratorySyndrome","Asthma",'Chest_pain','Heat_Related_But_Not_dehydration'),
+                          to= c("Insect Bite", "Dehydration", "Diarrhea","Pregnancy Complications","Respiratory Syndrome","Asthma",'Chest Pain','Heat Related Illness'))
+
+
+#---- for base model ---
+df<-all_df
+#subset requried estimaes
+df<-df[grep('flood_binary_True:period_.*',df$covar),]
+#assign flooding column
+df$flood<-'flooded'
+#assign period coulumn
+df$period<-gsub('flood_binary_True:period_','',df$covar)
+
+merge_charts(df,'base_binary',column = 'flood',width = 8,height = 6)
+
