@@ -1,3 +1,5 @@
+# Author guideline on artwork Health and place
+# https://www.elsevier.com/authors/policies-and-guidelines/artwork-and-media-instructions/artwork-sizing
 #install.packages('tidyverse')
 #install.packages('readxl')
 library(ggplot2)
@@ -100,7 +102,7 @@ df$flood<-gsub('flooded_',"",gsub(":period_.*",'',df$covar))
 df$period<-gsub('flooded_.*:period_','',df$covar)
 
 df$flood<-factor(df$flood,levels = c("moderately flooded", "highly flooded" ))
-merge_charts(df,'base',column = 'flood',width = 8,height = 6)
+merge_charts(df,'base',column = 'flood',width = 8,height = 6) # try to keep it <=9cm for single column
 
 #---- for ethnicity model ----
 df<-subset(all_df,model=='ethnicity')
@@ -142,7 +144,7 @@ df<-subset(all_df,model=='Race_strata')
 df<-df[grep('flood_binary_True:period_.*',df$covar),]
 #assign period coulumn
 df$period<-gsub('flood_.*:period_','',df$covar)
-merge_charts(df,'race_strata',column = 'modifier_cat',width = 10,height = 6)
+merge_charts(df,'race_strata',column = 'modifier_cat',width = 11,height = 6)
 
 #---- for sex model ----
 df<-subset(all_df,model=='sex_strata')

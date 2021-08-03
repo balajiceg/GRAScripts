@@ -216,19 +216,19 @@ floodZeroSep="True" # zeros are considered as seperate class
 Dis_cats=[ 'ALL',
            #'Psychiatric',
             'Intestinal_infectious_diseases',
-           #   'ARI',
+              'ARI',
               'Bite-Insect',
-           # 'DEATH',
+            'DEATH',
            # #'Flood_Storms',
-           #  'CO_Exposure',
-           #  'Drowning',
-           # 'Heat_Related_But_Not_dehydration',
+             'CO_Exposure',
+             'Drowning',
+            'Heat_Related_But_Not_dehydration',
              'Hypothermia',
            # #'Dialysis',
            # #'Medication_Refill',
-           #  'Asthma',
+             'Asthma',
               'Pregnancy_complic',
-           #   'Chest_pain',
+              'Chest_pain',
              'Dehydration',
          ]
 SVI_COLS=['SVI_Cat','SVI_Cat_T1', 'SVI_Cat_T2', 'SVI_Cat_T3', 'SVI_Cat_T4']
@@ -246,7 +246,42 @@ for SVI_COL in SVI_COLS:
         #os.chdir('..')
        
         
-        
-        
-    
-    
+#%% pivot table for counts merge
+outcomes=['Asthma','Bite_Insect','CardiovascularDiseases','Dehydration','Diarrhea','Pregnancy_complic','Heat_Related_But_Not_dehydration']
+sex=pd.pivot_table(data=df,index=['period','flood_binary'],values=outcomes,aggfunc='sum',columns=['Sex']).T.rename(columns=str).reset_index().rename(columns={'Sex':'cats'})
+
+Ethnicity=pd.pivot_table(data=df,index=['period','flood_binary'],values=outcomes,aggfunc='sum',columns=['Ethnicity']).T.rename(columns=str).reset_index().rename(columns={'Ethnicity':'cats'})
+
+Race=pd.pivot_table(data=df,index=['period','flood_binary'],values=outcomes,aggfunc='sum',columns=['Race']).T.rename(columns=str).reset_index().rename(columns={'Race':'cats'})
+
+start=-1
+df['AgeGrp']=pd.cut(df.Age,[start,5,17,50,64,200],labels=['0_5','6_17','18_50','51_64','gt64'])
+age1=pd.pivot_table(data=df,index=['period','flood_binary'],values=['Dehydration'],aggfunc='sum',columns=['AgeGrp']).T.rename(columns=str).reset_index().rename(columns={'AgeGrp':'cats'})
+
+df['AgeGrp']=pd.cut(df.Age,[start,5,17,50,200],labels=['0_5','6_17','18_50','gt50'])
+age2=pd.pivot_table(data=df,index=['period','flood_binary'],values=['Asthma'],aggfunc='sum',columns=['AgeGrp']).T.rename(columns=str).reset_index().rename(columns={'AgeGrp':'cats'})
+
+df['AgeGrp']=pd.cut(df.Age,[start,5,17,200],labels=['0_5','6_17','gt17'])
+age3=pd.pivot_table(data=df,index=['period','flood_binary'],values=['Bite_Insect'],aggfunc='sum',columns=['AgeGrp']).T.rename(columns=str).reset_index().rename(columns={'AgeGrp':'cats'})
+
+#df['AgeGrp']=pd.cut(df.Age,[start,17,50,64,200],labels=['0_17','18_50','51_64','gt64'])
+#age4=pd.pivot_table(data=df,index=['period','flood_binary'],values=['Chest_pain'],aggfunc='sum',columns=['AgeGrp']).T.rename(columns=str).reset_index().rename(columns={'AgeGrp':'cats'})
+
+df['AgeGrp']=pd.cut(df.Age,[start,5,17,64,200],labels=['0_5','6_17','18_64','gt64'])
+age5=pd.pivot_table(data=df,index=['period','flood_binary'],values=['Diarrhea'],aggfunc='sum',columns=['AgeGrp']).T.rename(columns=str).reset_index().rename(columns={'AgeGrp':'cats'})
+
+df['AgeGrp']=pd.cut(df.Age,[start,21,200],labels=['0_21','gt21'])
+age6=pd.pivot_table(data=df,index=['period','flood_binary'],values=['Heat_Related_But_Not_dehydration'],aggfunc='sum',columns=['AgeGrp']).T.rename(columns=str).reset_index().rename(columns={'AgeGrp':'cats'})
+
+df['AgeGrp']=pd.cut(df.Age,[-1,0,19,27,35,200],labels=['0','1_19','20_27','28_35','gt35'])
+age7=pd.pivot_table(data=df,index=['period','flood_binary'],values=['Pregnancy_complic'],aggfunc='sum',columns=['AgeGrp']).T.rename(columns=str).reset_index().rename(columns={'AgeGrp':'cats'})
+
+df['AgeGrp']=pd.cut(df.Age,[-1,17,50,64,200],labels=['0_17','18_50','51_64','gt64'])
+age8=pd.pivot_table(data=df,index=['period','flood_binary'],values=['CardiovascularDiseases'],aggfunc='sum',columns=['AgeGrp']).T.rename(columns=str).reset_index().rename(columns={'AgeGrp':'cats'})
+
+
+merg=pd.concat([sex,Ethnicity,Race,age1,age2,age3,age7,age5,age6,age8]).reset_index()
+merg['ind']=merg.index
+merg=merg.sort_values(['level_0','ind'])
+
+

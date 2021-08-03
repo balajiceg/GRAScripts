@@ -44,13 +44,13 @@ merge_df.to_excel(first_dir+r'\merged.xlsx',index=False)
 #%%combined merge
 import pandas as pd
 import glob, os
-first_dir=r"Z:\Balaji\Analysis_out_IPOP\22082020_SVI_important\updated"
+first_dir=r"Z:\Balaji\Analysis_out_IPOP\13082020_final1_manu\SVI_adjusted_res"
 req_files=glob.glob(first_dir+"\\*_reg.csv")
 
 merge_df=pd.DataFrame()
 
 for file in req_files:
-    df=pd.read_csv(file)[['index','coef','P>|z|','[0.025','0.975]','model', 'SVI_Quantile']]
+    df=pd.read_csv(file)[['index','coef','P>|z|','[0.025','0.975]','model']]
     df=df.round(3)
     Dis_cat=os.path.basename(file).replace("_reg.csv","")
     Dis_cat=Dis_cat.split('_')[0]
@@ -58,12 +58,12 @@ for file in req_files:
     
     merge_df=pd.concat([merge_df,df],axis=0)
     
-merge_df.columns=['covar', 'RR', 'P', 'conf25', 'conf95','model', 'SVI_Quantile', 'outcome']
+merge_df.columns=['covar', 'RR', 'P', 'conf25', 'conf95','model', 'outcome']
 merge_df['covar']=merge_df['covar'].str.replace("\[T.",'_').str.replace('\]','')
 #merge_df['folder']='SVI_Cat_T4'
 
 #% outupt
-merge_df.to_excel(first_dir+r'\merged_flood_cat6.xlsx',index=False)  
+merge_df.to_excel(first_dir+r'\merged_flood_cat7.xlsx',index=False)  
 #%%writ pivot table
 pmerge_df=merge_df.loc[merge_df.covar.isin(['floodr_cat_FLood_1:Time_flood',
        'floodr_cat_FLood_1:Time_PostFlood1',

@@ -1,168 +1,168 @@
-# ## ----Load packages, message=FALSE-----------------------------------
-# library(GISTools)
-# library(rgdal)
-# library(dplyr)
-# library(plotly)
-# library(zoo)
-# #library(zipcodeR)
-# library(ggplot2)
-# library(sf)
-# library(readxl)
-# library(plyr)
-# library(knitr)
-# library(hrbrthemes)
-# 
-# 
-# ## ----echo=FALSE-----------------------------------------------------
-# #data("zip_code_db")
-# #zipcode and state
-# #zip_st<-zip_code_db[,c('zipcode','state')]
-# 
-# #tropical strom imelda http://floodobservatory.colorado.edu/Events/4797/2019USA4797.html
-# 
-# 
+## ----Load packages, message=FALSE-----------------------------------
+library(GISTools)
+library(rgdal)
+library(dplyr)
+library(plotly)
+library(zoo)
+#library(zipcodeR)
+library(ggplot2)
+library(sf)
+library(readxl)
+library(plyr)
+library(knitr)
+library(hrbrthemes)
+
+
+## ----echo=FALSE-----------------------------------------------------
+#data("zip_code_db")
+#zipcode and state
+#zip_st<-zip_code_db[,c('zipcode','state')]
+
+#tropical strom imelda http://floodobservatory.colorado.edu/Events/4797/2019USA4797.html
+
+
+## -------------------------------------------------------------------
+sys_raw<-read.csv("Z:\\Balaji\\SyS data\\merged_with_rowid.csv")
+#remove the text diagnosits fields
+sys_raw<-subset(sys_raw,select=-c(ChiefComplaintOrig,Discharge.Diagnosis,ProviderDiagnosis))
+recs_raw<-dim(sys_raw)[1]
+
+
+## -------------------------------------------------------------------
+zip_zcta_crosswalk<-read_excel('Z:\\Balaji\\Census_data_texas\\Crosswalk\\Zip_to_zcta_crosswalk_2020.xlsx')
+sys_raw$zip_5c<-substr(sys_raw$Zipcode,1,5)
+sys_raw<-merge(sys_raw, zip_zcta_crosswalk[,c('ZIP_CODE','ZCTA')],by.x='zip_5c',by.y='ZIP_CODE',all.y=F,all.x=T)
+colnames(sys_raw)[colnames(sys_raw)=='ZCTA']<-'crossed_zcta'
+
+
+## ----echo=FALSE-----------------------------------------------------
+####  Find the how many records in how many states
+# sys_raw<-merge(sys_raw,zip_st,by.x='zip_5c',by.y='zipcode',all.y=FALSE,all.x=TRUE)
+# a<-data.frame(table(sys_raw$state))
+#98.86% records from TX, 0.3% from LA
+
+
+## ----echo=False-----------------------------------------------------
+####  Map of tracts and ed counts using both direct and crosswalk ----
+# zctas_all<-readOGR(dsn='Z:\\Balaji\\Census_data_texas\\tl_2019_us_zcta510',layer = 'tl_2019_us_zcta510')
+# #counts as per mapped zctas
+# counts_df_zcta<-sys_raw %>% group_by(crossed_zcta) %>% summarise(count_zcta=n())
+# #counts as per directs zips
+# counts_df_zips<-sys_raw %>% group_by(zip_5c) %>% summarise(count_zips=n())
+#
+# #merge counts to zctas shp
+# zctas_all_merg<-merge(zctas_all,counts_df_zcta,by.x='ZCTA5CE10', by.y='crossed_zcta',all.x=T )
+# zctas_all_merg<-merge(zctas_all_merg,counts_df_zips,by.x='ZCTA5CE10', by.y='zip_5c',all.x=T)
+#
+# #drop the unused boundries
+# zctas_all_merg<-zctas_all_merg[((!is.na(zctas_all_merg$count_zcta)) | (!is.na(zctas_all_merg$count_zips))),]
+#
+# #extract texass alone
+# texas_bound<-readOGR(dsn="Z:\\Balaji\\Census_data_texas\\texas_boundry_extrc_census",layer = 'texas_bound_census')
+# intersections<-st_intersects(st_as_sf(zctas_all_merg),st_as_sf(texas_bound))
+# zctas_txla<-zctas_all_merg[as.logical(unlist(lapply(intersections,length))),]
+#
+# #subset boundries with ed counts > 10
+# zctas_txla<-subset(zctas_txla,count_zcta>10)
+# #calcuate diff between direct zip code linking and through croww walk
+# zctas_txla$DIFF<-zctas_txla$count_zcta - zctas_txla$count_zips
+# mapView(zctas_txla,zcol='DIFF')
+#
+
+
+## -------------------------------------------------------------------
+#zctas_all<-readOGR(dsn='Z:\\Balaji\\Census_data_texas\\tl_2019_us_zcta510',layer = 'tl_2019_us_zcta510')
+#texas_bound<-readOGR(dsn="Z:\\Balaji\\Census_data_texas\\texas_boundry_extrc_census",layer = 'texas_bound_census')
+#check intersection
+#intersections<-st_intersects(st_as_sf(zctas_all),st_as_sf(texas_bound))
+#zctas_txla<-zctas_all$ZCTA5CE10[as.logical(unlist(lapply(intersections,length)))]
+#write this to file so as not to repeat
+#write.csv(zctas_txla,"Z:\\Balaji\\Census_data_texas\\Zctas_in_texas_list\\zctzs_texas.csv",row.names = F)
+zctas_txla<-as.list(read.csv("Z:\\Balaji\\Census_data_texas\\Zctas_in_texas_list\\zctzs_texas.csv"))[[1]]
+
+
+
+## ----warning=FALSE--------------------------------------------------
+# read and plot percentiles of flood ratio
+inun_zcta<-readOGR(dsn='Z:\\Balaji\\FloodInun_zcta_imelda_v2',layer = 'FloodInun_zcta_imelda')
+spplot(inun_zcta,zcol='ZCT_f_R')
+#round off to 3 decimal points
+#inun_zcta@data$ZCT_f_R<-round(inun_zcta@data$ZCT_f_R,3)
+#plot
+plot(seq(0,1,by=0.1),quantile(inun_zcta$ZCT_f_R,seq(0,1,by=0.1)),type='b',ylab='flood Ratio',xlab='percentile')
+axis(side=1, at=seq(0,1,by=0.1))
+
+
+## -------------------------------------------------------------------
+sys_sa<-sys_raw[sys_raw$crossed_zcta %in% zctas_txla ,]
+sys_sa$Date<-as.Date(sys_sa$Date, format= "%m/%d/%Y")
+sys_sa<-sys_sa[sys_sa$Date > '2018-12-31',]
+recs_tx<-dim(sys_sa)[1]
+
+
+## -------------------------------------------------------------------
+sys_sa<-merge(sys_sa, inun_zcta@data[,c('ZCTA5CE10','ZCT_f_R')], by.x='crossed_zcta', by.y='ZCTA5CE10', all.x=TRUE)
+#filter records in study arean -
+sys_sa<-sys_sa[!is.na(sys_sa$ZCT_f_R),]
+recs_sa<-dim(sys_sa)[1]
+
+
+## -------------------------------------------------------------------
+#Age - merge O and U to unknownRa
+sys_sa$Sex [!(sys_sa$Sex %in% c('M','F'))] <- 'Unknown'
+sys_sa$Sex <- factor(sys_sa$Sex, levels = c("M","F",'Unknown'))
+
+#Ethnicity
+sys_sa$Ethnicity[sys_sa$Ethnicity %in% c("1", "2135-2","2161-8", "2178-2")]<- "HISPANIC"  #hispanic or latino code to hispanic
+sys_sa$Ethnicity[sys_sa$Ethnicity %in% c("2","2186-5")]<- "NON HISPANIC"   #not hispanic or latino code to non hispanic
+# Unknown -> 1, 2, 2161-8 (Salvadoran)(only 3recs), 2178-2 (Latin American)(only3 recs), 3, 4, 48039, 48201, ASKU, NR, Refused, UNK
+sys_sa$Ethnicity[sys_sa$Ethnicity %in% c("3", "4","48039","48201","ASKU", "NR", "Refused", "UNK")]<- 'Unknown'
+sys_sa$Ethnicity<-factor(sys_sa$Ethnicity,levels = c("NON HISPANIC", "HISPANIC", "Unknown"))
+
+#Race
+sys_sa$Race[sys_sa$Race %in% c( "1002-5", "American Indian or Alaska Native", "AMIN" )] <- "American Indian"
+sys_sa$Race[sys_sa$Race %in% c( "Asian", "2028-9","A","AI" )] <- "Asian"
+sys_sa$Race[sys_sa$Race %in% c( "2054-5", "B", "Black or African American" )] <- "Black"
+sys_sa$Race[sys_sa$Race %in% c( "2106-3", "White", "W" )] <- "White"
+sys_sa$Race[sys_sa$Race %in% c( "2076-8", "2079-2", "Native Hawaiian or Other Pacific Islander", "H", "Hawaiian", "T" )] <- "Hawaiian"
+sys_sa$Race[sys_sa$Race %in% c( "2118-8", "2129-5", "2131-1", "Other", "Other Race" )] <- "Others"
+sys_sa$Race[sys_sa$Race %in% c( "ASKU",  "DECLINED",  "M",  "NR", "O", "UNK",  "X" )] <- "Unknown"
+sys_sa$Race<-factor(sys_sa$Race,levels = c("White","Black","Asian","American Indian","Hawaiian","Others","Unknown"))
+summary(sys_sa[,c('Sex','Ethnicity','Race')])
+
+
+
+## -------------------------------------------------------------------
+sys_sa$weekday<-as.factor(weekdays(sys_sa$Date,abbreviate=T))
+sys_sa$month<-as.factor(months(sys_sa$Date,abbreviate = T))
+sys_sa$day<-as.factor(format(sys_sa$Date, "%d"))
+
+
+## -------------------------------------------------------------------
+
+ZCTAdaily_count<-sys_sa %>% group_by(crossed_zcta,Date) %>% dplyr::summarise(ZCTAdaily_count=n())
+sys_sa<-merge(sys_sa,ZCTAdaily_count,by=c('crossed_zcta','Date'),all.x=T)
+
+
 # ## -------------------------------------------------------------------
-# sys_raw<-read.csv("Z:\\Balaji\\SyS data\\merged_with_rowid.csv")
-# #remove the text diagnosits fields
-# sys_raw<-subset(sys_raw,select=-c(ChiefComplaintOrig,Discharge.Diagnosis,ProviderDiagnosis))
-# recs_raw<-dim(sys_raw)[1]
-# 
-# 
-# ## -------------------------------------------------------------------
-# zip_zcta_crosswalk<-read_excel('Z:\\Balaji\\Census_data_texas\\Crosswalk\\Zip_to_zcta_crosswalk_2020.xlsx')
-# sys_raw$zip_5c<-substr(sys_raw$Zipcode,1,5)
-# sys_raw<-merge(sys_raw, zip_zcta_crosswalk[,c('ZIP_CODE','ZCTA')],by.x='zip_5c',by.y='ZIP_CODE',all.y=F,all.x=T)
-# colnames(sys_raw)[colnames(sys_raw)=='ZCTA']<-'crossed_zcta'
-# 
-# 
-# ## ----echo=FALSE-----------------------------------------------------
-# ####  Find the how many records in how many states
-# # sys_raw<-merge(sys_raw,zip_st,by.x='zip_5c',by.y='zipcode',all.y=FALSE,all.x=TRUE)
-# # a<-data.frame(table(sys_raw$state))
-# #98.86% records from TX, 0.3% from LA
-# 
-# 
-# ## ----echo=False-----------------------------------------------------
-# ####  Map of tracts and ed counts using both direct and crosswalk ----
-# # zctas_all<-readOGR(dsn='Z:\\Balaji\\Census_data_texas\\tl_2019_us_zcta510',layer = 'tl_2019_us_zcta510')
-# # #counts as per mapped zctas
-# # counts_df_zcta<-sys_raw %>% group_by(crossed_zcta) %>% summarise(count_zcta=n())
-# # #counts as per directs zips
-# # counts_df_zips<-sys_raw %>% group_by(zip_5c) %>% summarise(count_zips=n())
-# # 
-# # #merge counts to zctas shp
-# # zctas_all_merg<-merge(zctas_all,counts_df_zcta,by.x='ZCTA5CE10', by.y='crossed_zcta',all.x=T )
-# # zctas_all_merg<-merge(zctas_all_merg,counts_df_zips,by.x='ZCTA5CE10', by.y='zip_5c',all.x=T)
-# # 
-# # #drop the unused boundries
-# # zctas_all_merg<-zctas_all_merg[((!is.na(zctas_all_merg$count_zcta)) | (!is.na(zctas_all_merg$count_zips))),]
-# # 
-# # #extract texass alone
-# # texas_bound<-readOGR(dsn="Z:\\Balaji\\Census_data_texas\\texas_boundry_extrc_census",layer = 'texas_bound_census')
-# # intersections<-st_intersects(st_as_sf(zctas_all_merg),st_as_sf(texas_bound))
-# # zctas_txla<-zctas_all_merg[as.logical(unlist(lapply(intersections,length))),]
-# # 
-# # #subset boundries with ed counts > 10
-# # zctas_txla<-subset(zctas_txla,count_zcta>10)
-# # #calcuate diff between direct zip code linking and through croww walk
-# # zctas_txla$DIFF<-zctas_txla$count_zcta - zctas_txla$count_zips
-# # mapView(zctas_txla,zcol='DIFF')
-# # 
-# 
-# 
-# ## -------------------------------------------------------------------
-# #zctas_all<-readOGR(dsn='Z:\\Balaji\\Census_data_texas\\tl_2019_us_zcta510',layer = 'tl_2019_us_zcta510')
-# #texas_bound<-readOGR(dsn="Z:\\Balaji\\Census_data_texas\\texas_boundry_extrc_census",layer = 'texas_bound_census')
-# #check intersection
-# #intersections<-st_intersects(st_as_sf(zctas_all),st_as_sf(texas_bound))
-# #zctas_txla<-zctas_all$ZCTA5CE10[as.logical(unlist(lapply(intersections,length)))]
-# #write this to file so as not to repeat
-# #write.csv(zctas_txla,"Z:\\Balaji\\Census_data_texas\\Zctas_in_texas_list\\zctzs_texas.csv",row.names = F)
-# zctas_txla<-as.list(read.csv("Z:\\Balaji\\Census_data_texas\\Zctas_in_texas_list\\zctzs_texas.csv"))[[1]]
-# 
-# 
-# 
-# ## ----warning=FALSE--------------------------------------------------
-# # read and plot percentiles of flood ratio
-# inun_zcta<-readOGR(dsn='Z:\\Balaji\\FloodInun_zcta_imelda_v2',layer = 'FloodInun_zcta_imelda')
-# spplot(inun_zcta,zcol='ZCT_f_R')
-# #round off to 3 decimal points
-# #inun_zcta@data$ZCT_f_R<-round(inun_zcta@data$ZCT_f_R,3)
-# #plot
-# plot(seq(0,1,by=0.1),quantile(inun_zcta$ZCT_f_R,seq(0,1,by=0.1)),type='b',ylab='flood Ratio',xlab='percentile')
-# axis(side=1, at=seq(0,1,by=0.1))
-# 
-# 
-# ## -------------------------------------------------------------------
-# sys_sa<-sys_raw[sys_raw$crossed_zcta %in% zctas_txla ,]
-# sys_sa$Date<-as.Date(sys_sa$Date, format= "%m/%d/%Y")
-# sys_sa<-sys_sa[sys_sa$Date > '2018-12-31',]
-# recs_tx<-dim(sys_sa)[1]
-# 
-# 
-# ## -------------------------------------------------------------------
-# sys_sa<-merge(sys_sa, inun_zcta@data[,c('ZCTA5CE10','ZCT_f_R')], by.x='crossed_zcta', by.y='ZCTA5CE10', all.x=TRUE)
-# #filter records in study arean - 
-# sys_sa<-sys_sa[!is.na(sys_sa$ZCT_f_R),]
-# recs_sa<-dim(sys_sa)[1]
-# 
-# 
-# ## -------------------------------------------------------------------
-# #Age - merge O and U to unknownRa
-# sys_sa$Sex [!(sys_sa$Sex %in% c('M','F'))] <- 'Unknown'
-# sys_sa$Sex <- factor(sys_sa$Sex, levels = c("M","F",'Unknown'))
-# 
-# #Ethnicity 
-# sys_sa$Ethnicity[sys_sa$Ethnicity=="2135-2"]<- "HISPANIC"  #hispanic or latino code to hispanic
-# sys_sa$Ethnicity[sys_sa$Ethnicity=="2186-5"]<- "NON HISPANIC"   #not hispanic or latino code to non hispanic
-# # Unknown -> 1, 2, 2161-8 (Salvadoran)(only 3recs), 2178-2 (Latin American)(only3 recs), 3, 4, 48039, 48201, ASKU, NR, Refused, UNK  
-# sys_sa$Ethnicity<-mapvalues(sys_sa$Ethnicity,c("1", "2", "2161-8", "2178-2", "3", "4","48039","48201","ASKU", "NR", "Refused", "UNK"), rep('Unknown',12))
-# sys_sa$Ethnicity<-factor(sys_sa$Ethnicity,levels = c("NON HISPANIC", "HISPANIC", "Unknown"))
-# 
-# #Race
-# sys_sa$Race[sys_sa$Race %in% c( "1002-5",  "AI", "American Indian or Alaska Native", "AMIN" )] <- "American Indian"
-# sys_sa$Race[sys_sa$Race %in% c( "Asian", "2028-9" )] <- "Asian"
-# sys_sa$Race[sys_sa$Race %in% c( "2054-5", "B", "Black or African American" )] <- "Black"
-# sys_sa$Race[sys_sa$Race %in% c( "2106-3", "White", "W" )] <- "White"
-# sys_sa$Race[sys_sa$Race %in% c( "2076-8", "2079-2", "Native Hawaiian or Other Pacific Islander", "H", "Hawaiian" )] <- "Hawaiian"
-# sys_sa$Race[sys_sa$Race %in% c( "2118-8", "2129-5", "2131-1", "Other", "Other Race" )] <- "Others"
-# sys_sa$Race[sys_sa$Race %in% c( "A",  "ASKU",  "DECLINED",  "M",  "NR", "O", "T", "UNK",  "X" )] <- "Unknown"
-# sys_sa$Race<-factor(sys_sa$Race,levels = c("White","Black","Asian","American Indian","Hawaiian","Others","Unknown"))
-# summary(sys_sa[,c('Sex','Ethnicity','Race')])
-# 
-# 
-# 
-# ## -------------------------------------------------------------------
-# sys_sa$weekday<-as.factor(weekdays(sys_sa$Date,abbreviate=T))
-# sys_sa$month<-as.factor(months(sys_sa$Date,abbreviate = T))
-# sys_sa$day<-as.factor(format(sys_sa$Date, "%d"))
-# 
-# 
-# ## -------------------------------------------------------------------
-# 
-# ZCTAdaily_count<-sys_sa %>% group_by(crossed_zcta,Date) %>% dplyr::summarise(ZCTAdaily_count=n())
-# sys_sa<-merge(sys_sa,ZCTAdaily_count,by=c('crossed_zcta','Date'),all.x=T)
-# 
-# 
-# ## -------------------------------------------------------------------
-# outcome_match<-read.csv("Z:\\Balaji\\SyS data\\sys_merged_outcomes.csv")
-# outcomes_all<-c('Pregnancy_complic', 'Asthma', 'Bite.Insect', 
-#                 'Dehydration', 'Drowning', 'Hypothermia', 'Chest_pain', 
-#                 'Heat_Related_But_Not_dehydration', 
-#                 'CO_Exposure','Diarrhea','RespiratorySyndrome')
-# sys_sa<-merge(sys_sa,outcome_match[,c('row_id',outcomes_all)],all.x=T,by='row_id')
-# 
-# #creat a collective column
-# sys_sa$outcomes_any<-sys_sa[,outcomes_all] %>% head %>% apply(1,FUN=any)
-# 
-# #remove duplicate dfs
-# remove(sys_raw)
-# remove(outcome_match)
-# remove(ZCTAdaily_count)
-# remove(zip_zcta_crosswalk)
-# #make a copy of sys_sa
-# sys_sa_bkp<-sys_sa
-# remove(sys_sa)
+outcome_match<-read.csv("Z:\\Balaji\\SyS data\\sys_merged_outcomes.csv")
+outcomes_all<-c('Pregnancy_complic', 'Asthma', 'Bite.Insect',
+                'Dehydration', 'Drowning', 'Hypothermia', 'Chest_pain',
+                'Heat_Related_But_Not_dehydration',
+                'CO_Exposure','Diarrhea','RespiratorySyndrome','CardiovascularDiseases')
+sys_sa<-merge(sys_sa,outcome_match[,c('row_id',outcomes_all)],all.x=T,by='row_id')
+
+#creat a collective column
+sys_sa$outcomes_any<-sys_sa[,outcomes_all] %>% apply(1,FUN=any)
+
+#remove duplicate dfs
+remove(sys_raw)
+remove(outcome_match)
+remove(ZCTAdaily_count)
+remove(zip_zcta_crosswalk)
+#make a copy of sys_sa
+sys_sa_bkp<-sys_sa
+remove(sys_sa)
 
 
 ## ---- message=FALSE-------------------------------------------------
@@ -178,6 +178,7 @@ library(readxl)
 library(plyr)
 library(knitr)
 library(hrbrthemes)
+library(stringr)
 #configure reticulate
 library(reticulate)
 reticulate::use_condaenv(conda='C:\\Users\\balajiramesh\\Anaconda3\\condabin\\conda.bat',required = T,condaenv = 'r-reticulate')
@@ -187,7 +188,7 @@ reticulate::use_condaenv(conda='C:\\Users\\balajiramesh\\Anaconda3\\condabin\\co
 sys_sa<-subset(sys_sa_bkp,select=-c(zip_5c, Time, Zipcode, HospitalName, HospitalZipCode))
 
 #reduce race categories [combine American Indian and Hawaiian into others]
-sys_sa$Race<-recode(sys_sa$Race,`American Indian`='Others',Hawaiian='Others')
+sys_sa$Race<-recode(sys_sa$Race,`American Indian`='Others',Hawaiian='Others',Asian='Others')
 #remove incomplete recs
 sys_sa<-sys_sa[complete.cases(sys_sa),]
 #check if all columns are cmplete
@@ -203,7 +204,7 @@ sys_sa$Sex<-droplevels(sys_sa$Sex)
 ## -------------------------------------------------------------------
 sys_sa$flooded <- cut(sys_sa$ZCT_f_R,c(0,quantile(inun_zcta$ZCT_f_R[inun_zcta$ZCT_f_R>0],
                       probs = seq(0,1,1/2))),include.lowest = T,right = F)
-labels <- c('Non flooded','moderately flooded','highly flooded')
+labels <- c('Non flooded','Moderately flooded','Highly flooded')
 "Categories and intervals and ZCTA counts :";labels;table(sys_sa$flooded[!duplicated(sys_sa$crossed_zcta)])
 levels(sys_sa$flooded)<-labels
 
@@ -227,6 +228,8 @@ sys_sa<-subset(sys_sa,period!='washoutPeriod')
 sys_sa$period<-factor(sys_sa$period)
 levels(sys_sa$period)
 
+## ----write output for python code ----
+save(sys_sa,file = "Z:/Balaji/R session_home_dir/sys_sa_df.RData")
 
 ## -------------------------------------------------------------------
 #merge flooded categories
@@ -237,7 +240,7 @@ levels(sys_sa$flooded)[2]<-'flooded'
 library(dlnm)
 sys_sa_bkp<-sys_sa
 ## -------------------------------------------------------------------
-for (df in c(3,4,5,6,7,8)){
+for (nk in c(1,2,3,4,5,6)){
     
 sys_sa<-sys_sa_bkp
 #library(dlnm)
@@ -254,7 +257,7 @@ levels(lag_df$period)<-c(0,1,0)
 #run cross basis
 cb<-crossbasis(lag_df$period,lag=13,argvar=list(fun="strata",breaks=c(1)),
     #arglag=list(fun='integer'))
-  arglag=list(df=df))
+  arglag=list(knots=logknots(13,nk=nk)))
   #arglag=list(fun='strata',breaks=breaks))
 
 #fill na with 0
@@ -334,28 +337,30 @@ pred7 <- crosspred(lag_df_all,coef =  gee_coeff[indxs,],vcov =gee_cov[indxs,indx
 
 tablag2 <- with(pred7,t(rbind(matRRfit,matRRlow,matRRhigh)))
 colnames(tablag2) <- c("RR","ci.low","ci.hi")
-tablag2
+#tablag2
 #tablag2[c(1,2,10),]
 
+knots=logknots(13,nk)
+
+pdf(paste0('graphs//',outcome,'_nk_',nk,'_cons_contrlPrePost.pdf'),width =6 ,height=4.5)
+plot(pred7,var=1,type="p",ci="bars",col=1,pch=19,#ylim=c(0.7,1.4),
+  main=paste0(outcome,' knots: ',paste0(round(knots,3),collapse=', ')),xlab="Lag (days)",cumul=F,
+  ylab="RR")
+dev.off()
+
 #plo
-# pdf(paste0('graphs//',outcome,'_df_',df,'_unc_contrlPrePost.pdf'),width =6 ,height=4.5)
-# plot(pred7,var=1,type="p",ci="bars",col=1,pch=19,#ylim=c(0.7,1.4),
-#   main=paste0(outcome,' Df: ',df),xlab="Lag (days)",cumul=F,
-#   ylab="RR")
-# dev.off()
-# 
-# #plo
-# pdf(paste0('graphs//',outcome,'_df_',df,'_unc_contrlPrePost_Cuml.pdf'),width =6 ,height=4.5)
-# plot(pred7,var=1,type="p",ci="bars",col=1,pch=19,#ylim=c(0.7,1.4),
-#      main=paste0(outcome,' Df: ',df,' Cumulative'),xlab="Lag (days)",cumul=T,
-#      ylab="RR")
-# dev.off()
-print(paste0(outcome,' ',df))
+pdf(paste0('graphs//',outcome,'_nk_',nk,'_cons_contrlPrePost_Cuml.pdf'),width =6 ,height=4.5)
+plot(pred7,var=1,type="p",ci="bars",col=1,pch=19,#ylim=c(0.7,1.4),
+     main=paste0(outcome,' knots: ',paste0(round(knots,3),collapse=', '),' Cumulative'),xlab="Lag (days)",cumul=T,
+     ylab="RR")
+dev.off()
+
+print(paste0(outcome,' ',nk))
 print(results$qic(scale=1000))
 winsound$Beep(as.integer(800),as.integer(500))
 
 
-#save(pred7,file=paste0(outcome,'_df_',df,'_unc_contrlPrePost.RData'))
+save(pred7,knots,file=paste0(outcome,'_nk_',nk,'_cons_contrlPrePost.RData'))
   }
 }
 # 
@@ -539,66 +544,112 @@ winsound$Beep(as.integer(800),as.integer(500))
 # 
 # ## -------------------------------------------------------------------
 # 
-# grouped<-sys_sa %>% group_by(Date,flooded) %>% dplyr::summarise(count=sum(Bite.Insect))
-# grouped<-grouped[order(grouped$flooded, grouped$Date),]
-# grouped$count<-as.numeric(grouped$count)
+
+
+grouped<-sys_sa %>% group_by(Date,flooded) %>% dplyr::summarise(count=sum(Diarrhea),total_visits=n(),period=first(period))
+grouped<-grouped[order(grouped$flooded, grouped$Date),]
+grouped$count<-as.numeric(grouped$count)
 # 
 # #min max scale
 # normalize <- function(x){return((x- min(x)) /(max(x)-min(x)))}
 # for(i in levels(grouped$flooded)){
 # grouped[grouped$flooded==i,'count']=normalize(grouped[grouped$flooded==i,'count'])}
 # 
-# #rolling window of 7
-# grouped$rolled_count<-rollmean(grouped$count,7,fill=NA)
-# #plot 
-# fig<-plot_ly(x = grouped$Date, y = grouped$rolled_count, mode='lines',color=factor(grouped$flooded))
-# fig
+grouped$count<-grouped$count/grouped$total_visits
+#rolling window of 7
+grouped$rolled_count<-rollmean(grouped$count,7,fill=NA)
+grouped$rolled_count[grouped$Date %in% grouped$Date[is.na(grouped$rolled_count)]]<-NA
 # 
 # 
 # ## ----warning=FALSE--------------------------------------------------
-# library(scales)
+#merge flood category to population data
+population<-read.csv("Z:\\Balaji\\Census_data_texas\\ZCTA population\\ACSDT5Y2019.B01003_data_with_overlays_2021-05-31T125325.csv")
+population$zcta<-str_sub(population$GEO_ID,10)
+population<-merge(population,sys_sa[!duplicated(sys_sa$crossed_zcta),],by.x='zcta',by.y="crossed_zcta",all.x=F,all.y=F)
+population$B01003_001E<-as.integer(population$B01003_001E)
+flood_pop<-population %>% group_by(flooded) %>% dplyr::summarise(pop=sum(B01003_001E))
+
+library(scales)
 # data<-read.csv("Z:\\Balaji\\stram_flow\\imelda\\data_gagues_ZCTA_study_area.csv")
 # data$datetime<-data$datetime_Converted
-# grouped_fg<-data %>% 
-#   group_by(datetime) %>% 
+# grouped_fg<-data %>%
+#   group_by(datetime) %>%
 #   dplyr::summarise(above_floo = sum(na.omit(exceed_flood_stage)))
 # grouped_fg$date<-as.Date(grouped_fg$datetime,format='%Y-%m-%d')
 # grouped_fg<-grouped_fg[order(grouped_fg$datetime),]
 # 
-# #merge sys_groupd counts
+# #merge sys_groupd counts and flood population
 # grouped_fg=merge(grouped,grouped_fg,by.x='Date',by.y='date', all.x=T)
-# 
-# #plot
-# #blind frinedly pallete
-# cbbPalette <- c( "#009E73","#0072B2", "#D55E00", "#CC79A7", "#000000", "#E69F00", "#56B4E9", "#F0E442")
-# # To use for fills, add
-# scale_fac=10
-# scale_fill_manual(values=cbbPalette)
-# ggplot(grouped_fg, aes(x=Date)) +
-#   
-#   geom_bar( aes(y=above_floo*scale_fac), stat="sum",size=.1, fill='#56B4E9',alpha=.6) + 
-#   geom_line( aes(y=rolled_count,colour=flooded), size=0.8) +
-#   xlab('Date') +
-#   scale_y_continuous(
-#     # Features of the first axis
-#     name = "ED visits per day",
-#     # Add a second axis and specify its features
-#     sec.axis = sec_axis(~./scale_fac, name="Number of stream guages \nindicating flooding")
-#   ) + 
-#   scale_x_date(date_breaks = "15 day", expand = c(0,0),
-#                  labels=date_format("%d/%m/%y"),
-#                  limits = as.Date(c('2019-06-01','2019-12-31'))) +
-#   #theme_ipsum() +
-#   theme(
-#     text = element_text(size=14),
-#     axis.text.x = element_text(angle = 45, hjust = 1),
-#     axis.title.y = element_text(size=13),
-#     axis.title.y.right = element_text(color = '#56B4E9', size=13),
-#     legend.position="bottom",
-#     legend.title =element_blank()
-#   )+ scale_color_manual(values=cbbPalette) + ggtitle('Overall ED visits')
-# ggsave('SysWithGaugesAll.pdf',plot = p,path=getwd(),height=10,width = 20,units = "cm")
-# 
+
+
+grouped_fg<-merge(grouped,flood_pop,by='flooded',all.x=T)
+
+
+#standardise by population
+#grouped_fg$rolled_count<-(grouped_fg$rolled_count/grouped_fg$pop)*1e6
+#compute percentage
+#grouped_fg<-grouped_fg[order(grouped_fg$Date),]
+#plot
+fig<-plot_ly(x = grouped_fg$Date, y = grouped_fg$rolled_count, mode='lines',color=factor(grouped_fg$flooded))
+fig
+
+#plot
+#blind frinedly pallete
+cbbPalette <- c( "#009E73","#0072B2", "#D55E00", "#CC79A7", "#000000", "#E69F00", "#56B4E9", "#F0E442")
+# To use for fills, add
+h=max(grouped_fg$rolled_count,na.rm = T)-0.001
+scale_fill_manual(values=cbbPalette)
+vj=0.5
+lwd= unit(0.1,'lines')
+myarrow=arrow(length=unit(0.01,'npc'),ends = 'both')
+
+
+#scale_fac=30
+ggplot(grouped_fg, aes(x=Date)) +
+
+  #geom_bar( aes(y=above_floo*scale_fac), stat="sum",size=.1, fill='#56B4E9',alpha=.6) +
+  geom_line( aes(y=rolled_count,colour=flooded), size=0.6) +
+  
+  geom_segment(aes(x=as.Date('2019-06-02'),xend=as.Date('2019-09-11'),y=h,yend=h),size=lwd,arrow=myarrow) +
+  geom_label(aes(as.Date('2019-08-01'),h,label = 'Control period', vjust = -vj),label.size =NA,label.padding = unit(0, "cm"))+
+  
+  geom_segment(aes(x=as.Date('2019-09-19'),xend=as.Date('2019-10-01'),y=h,yend=h),size=lwd,colour='blue',arrow=myarrow) +
+  geom_label(aes(as.Date('2019-09-22'),h,label = 'Flood period', vjust = 1+vj),colour='blue',label.size =NA,label.padding = unit(0, "cm"))+
+  
+  geom_segment(aes(x=as.Date('2019-10-02'),xend=as.Date('2019-11-01'),y=h,yend=h),size=lwd,arrow=myarrow) +
+  geom_label(aes(as.Date('2019-10-17'),h,label = 'Acute phase', vjust = -vj),label.size =NA,label.padding = unit(0, "cm"))+
+  
+  geom_segment(aes(x=as.Date('2019-11-02'),xend=as.Date('2019-12-31'),y=h,yend=h),size=lwd,arrow=myarrow) +
+  geom_label(aes(as.Date('2019-12-01'),h,label = 'Protracted phase', vjust = -vj),label.size =NA,label.padding = unit(0, "cm"))+
+  
+  xlab(element_blank()) +
+  scale_y_continuous(
+    # Features of the first axis
+    name = "% of Total ED visits",
+    labels = scales::percent_format(accuracy =0.1)
+    # Add a second axis and specify its features
+    #sec.axis = sec_axis(~./scale_fac, name="Number of stream guages \nindicating flooding")
+  ) +
+  scale_x_date(date_breaks = "15 day", expand = c(0,0),
+                 labels=date_format("%d-%b-%Y"),
+                 limits = as.Date(c('2019-06-01','2019-12-31'))) +
+  theme(
+    text = element_text(size=12),
+    axis.text.x = element_text(angle = 45, hjust = 1,size=10),
+    axis.title.y = element_text(size=13),
+    axis.title.y.right = element_text(color = '#3e89b3', size=13),
+    legend.position="bottom",
+    legend.title =element_blank(),
+    panel.background = element_rect(fill = "white", colour = "grey40",
+                                    size = 0.5, linetype = "solid"),
+    panel.grid.major = element_line(size = 0.25, linetype = 'solid',
+                                    colour = "grey70"),
+    panel.grid.minor = element_line(size = 0.1, linetype = 'solid',
+                                    colour = "grey90")
+  )+ scale_color_manual(values=cbbPalette) #+ ggtitle('ED visits related to diarrhea')
+
+ggsave('SysWithGaugesDiarrhea_percent.pdf',path=getwd(),height=12,width = 20,units = "cm")
+
 # 
 # 
 # ## -------------------------------------------------------------------
