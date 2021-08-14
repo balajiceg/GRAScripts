@@ -3,6 +3,8 @@
 Created on Sat Aug 15 23:18:33 2020
 
 @author: balajiramesh
+
+Computing average distance travelled to ED visit from each block group along with confidence intervals
 """
 
 import pandas as pd

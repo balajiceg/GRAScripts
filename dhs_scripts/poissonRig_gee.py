@@ -28,7 +28,7 @@ from datetime import timedelta, date,datetime
 from dateutil import parser
 import glob
 import sys
-sys.path.insert(1, r'Z:\GRAScripts\dhs_scripts')
+sys.path.insert(1, r'H:\Balaji\GRAScripts\dhs_scripts')
 from recalculate_svi import recalculateSVI
 
 #%%functions
@@ -42,7 +42,7 @@ def get_sp_outcomes(sp,Dis_cat):
     return sp.merge(sp_outcomes.loc[:,['RECORD_ID','op',Dis_cat]],on=['RECORD_ID','op'],how='left')[Dis_cat].values
 
 #%%read ip op data
-INPUT_IPOP_DIR=r'Z:\Balaji\DSHS ED visit data\CleanedMergedJoined'
+INPUT_IPOP_DIR=r'H:\Balaji\DSHS ED visit data(PII)\CleanedMergedJoined'
 #read_op
 op=pd.read_pickle(INPUT_IPOP_DIR+'\\op')
 op=op.loc[:,['RECORD_ID','STMT_PERIOD_FROM','PAT_ADDR_CENSUS_BLOCK_GROUP','PAT_AGE_YEARS','SEX_CODE','RACE','PAT_STATUS','ETHNICITY','PAT_ZIP','LCODE']]
@@ -62,32 +62,32 @@ del op,ip
 sp_outcomes=pd.read_csv(INPUT_IPOP_DIR+'\\ip_op_outcomes.csv')
 
 #read flood ratio data
-flood_data=geopandas.read_file(r'Z:/Balaji/FloodRatioJoinedAll_v1/FloodInund_AllJoined_v1.gpkg').drop('geometry',axis=1)
+flood_data=geopandas.read_file(r'H:/Balaji/indundation_harvey/FloodRatioJoinedAll_v1/FloodInund_AllJoined_v1.gpkg').drop('geometry',axis=1)
 
 #read zip code flood ratio data
-flood_data_zip=geopandas.read_file(r"Z:/Balaji/FloodInund_Zip_v1/FloodInund_Zip_v1.shp").loc[:,['ZCTA5CE10','DFO_R200']]
+flood_data_zip=geopandas.read_file(r"H:/Balaji/indundation_harvey/FloodInund_Zip_v1/FloodInund_Zip_v1.shp").loc[:,['ZCTA5CE10','DFO_R200']]
 flood_data_zip.rename(columns={'ZCTA5CE10':'GEOID'},inplace=True)
 
 #read svi data
-SVI_df_raw=geopandas.read_file(r'Z:/Balaji/SVI_Raw/TEXAS.shp').drop('geometry',axis=1)
+SVI_df_raw=geopandas.read_file(r'H:/Balaji/SVI_Raw/TEXAS.shp').drop('geometry',axis=1)
 SVI_df_raw.FIPS=pd.to_numeric(SVI_df_raw.FIPS)
 
 #read population data
-demos=pd.read_csv(r'Z:/Balaji/Census_data_texas/ACS_17_5YR_DP05_with_ann.csv',low_memory=False,skiprows=1)
+demos=pd.read_csv(r'H:/Balaji/Census_data_texas/ACS_17_5YR_DP05_with_ann.csv',low_memory=False,skiprows=1)
 demos.Id2=demos.Id2.astype("Int64")
 
 #read household income data 
-income=pd.read_csv(r'Z:/Balaji/Census_data_texas/ACSST5Y2017.S1903_data_with_overlays_2020-10-14T202327.csv',low_memory=False,skiprows=1)
+income=pd.read_csv(r'H:/Balaji/Census_data_texas/ACSST5Y2017.S1903_data_with_overlays_2020-10-14T202327.csv',low_memory=False,skiprows=1)
 income.id=pd.to_numeric(income.id.str.replace("1400000US",'')).astype("Int64")
 
 #read study area counties
-#county_to_filter=pd.read_csv('Z:/Balaji/counties_evacu_order.csv').GEOID.to_list()
-county_to_filter=pd.read_csv('Z:/Balaji/counties_inun.csv').GEOID.to_list()
+#county_to_filter=pd.read_csv('H:/Balaji/counties_evacu_order.csv').GEOID.to_list()
+county_to_filter=pd.read_csv('H:\Balaji\DSHS ED visit data(PII)\contiesInStudyArea.csv').County_FIPS.to_list()
 
-zip_to_filter=pd.read_csv('Z:/Balaji/DSHS ED visit data/AllZip_codes_in_study_area.csv').ZCTA5CE10.to_list()
+zip_to_filter=pd.read_csv('H:/Balaji/DSHS ED visit data(PII)/AllZip_codes_in_study_area.csv').ZCTA5CE10.to_list()
 
 #%%read the categories file
-outcome_cats=pd.read_csv('Z:/GRAScripts/dhs_scripts/categories.csv')
+outcome_cats=pd.read_csv('H:/Balaji/GRAScripts/dhs_scripts/categories.csv')
 outcome_cats.fillna('',inplace=True)
 #%%predefine variable 
 flood_cats_in=1
@@ -217,11 +217,9 @@ sp=sp.merge(day_from_start,on='STMT_PERIOD_FROM',how='left')
 #%%pat age categoriy based on SVI theme  2  <=17,18-64,>=65
 sp['AGE_cat']=pd.cut(sp.PAT_AGE_YEARS,bins=[-1,1,5,12,17,45,64,200],labels=['lte1','2-5','6-12','13-17','18-45','46-64','gt64']).cat.reorder_categories(['lte1','2-5','6-12','13-17','18-45','46-64','gt64'])
 #%%function for looping
-def run():
-    #print(cuts[i])
-    #sp.loc[:,'floodr_cat']=pd.cut(sp.floodr,bins=[0,cuts[i],1],right=True,include_lowest=True,labels=FLOOD_QUANTILES)
+def run():   
     #%%filter records for specific outcome
-    df=sp#[sp.SVI_Cat==SVI_filter]
+    df=sp#[sp.SVI_Cat=='SVI_filter']  #--------------Edit here for stratified model
     if Dis_cat=="DEATH":df.loc[:,'Outcome']=filter_mortality(sp)
     if Dis_cat=="ALL":df.loc[:,'Outcome']=1
     if Dis_cat in outcome_cats.category.to_list():df.loc[:,'Outcome']=get_sp_outcomes(sp, Dis_cat)
@@ -247,9 +245,9 @@ def run():
     df['month']=(df.STMT_PERIOD_FROM.astype('int32')//1e2%100).astype('category')
     df['weekday']=pd.to_datetime(df.STMT_PERIOD_FROM.astype('str'),format='%Y%m%d').dt.dayofweek.astype('category')
     
-    #%%stratified model steps
-    df=df.loc[df.Time.isin(['control', 'flood']),]
-    df.Time.cat.remove_unused_categories(inplace=True)
+    #%%stratified model for each period
+    #df=df.loc[df.Time.isin(['control', 'flood']),]
+    #df.Time.cat.remove_unused_categories(inplace=True)
     
     #%% save cross tab
      #counts_outcome=pd.DataFrame(df.Outcome.value_counts())

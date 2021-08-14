@@ -30,70 +30,6 @@ def groupAndCat(df):
     #remove zero counts groups
     grouped_tracts=grouped_tracts.loc[grouped_tracts['Counts']>0,]
     
-#%% population in 2881 tracts
-
-x=pd.read_csv(r"Z:/Balaji/DSHS ED visit data/tractsInStudyArea.csv")
-
-y=x.merge(demos,left_on='CensusTractFIPS',right_on='Id2',how='left')
-
-y.loc[:,'Estimate; SEX AND AGE - Total population'].sum()
-#%% chi square test
-from scipy import stats
-cols_to_check=["SEX_CODE","ETHNICITY","RACE","PAT_AGE_YEARS"]
-
-#sex code
-mfilt=["F","M"]
-ch_var="SEX_CODE"
-tractS=sp[ch_var][~pd.isnull(sp.PAT_ADDR_CENSUS_BLOCK_GROUP)]
-zipS=sp[ch_var][~pd.isnull(sp.PAT_ZIP)]
-
-zipS_counts=zipS.value_counts().to_frame()
-tractS_counts=tractS.value_counts().to_frame()
-table=zipS_counts.join(tractS_counts,rsuffix='_tract',lsuffix='_zip')
-table=table.loc[mfilt,:].transpose()
-res=stats.chi2_contingency(table)
-print(res)
-pd.DataFrame(res[3],index=table.index,columns=table.columns)
-
-#race
-mfilt=list(range(1,6))
-tractS=pd.to_numeric(sp.RACE,errors="coerce")[~pd.isnull(sp.PAT_ADDR_CENSUS_BLOCK_GROUP)]
-zipS=pd.to_numeric(sp.RACE,errors="coerce")[~pd.isnull(sp.PAT_ZIP)]
-
-zipS_counts=zipS.value_counts().to_frame()
-tractS_counts=tractS.value_counts().to_frame()
-table=zipS_counts.join(tractS_counts,rsuffix='_tract',lsuffix='_zip')
-table=table.loc[mfilt,:].transpose()
-res=stats.chi2_contingency(table)
-print(res)
-pd.DataFrame(res[3],index=table.index,columns=table.columns)
-
-
-#ethinicity
-mfilt=[1,2]
-tractS=pd.to_numeric(sp.ETHNICITY,errors="coerce")[~pd.isnull(sp.PAT_ADDR_CENSUS_BLOCK_GROUP)]
-zipS=pd.to_numeric(sp.ETHNICITY,errors="coerce")[~pd.isnull(sp.PAT_ZIP)]
-
-zipS_counts=zipS.value_counts().to_frame()
-tractS_counts=tractS.value_counts().to_frame()
-table=zipS_counts.join(tractS_counts,rsuffix='_tract',lsuffix='_zip')
-table=table.loc[mfilt,:].transpose()
-res=stats.chi2_contingency(table)
-print(res)
-pd.DataFrame(res[3],index=table.index,columns=table.columns)
-
-#age
-bins=sp.PAT_AGE_YEARS.quantile(np.arange(0,1.01,1/10))
-tractS=pd.cut(sp.PAT_AGE_YEARS,bins=bins,include_lowest=True)[~pd.isnull(sp.PAT_ADDR_CENSUS_BLOCK_GROUP)]
-zipS=pd.cut(sp.PAT_AGE_YEARS,bins=bins,include_lowest=True)[~pd.isnull(sp.PAT_ZIP)]
-
-zipS_counts=zipS.value_counts().to_frame()
-tractS_counts=tractS.value_counts().to_frame()
-table=zipS_counts.join(tractS_counts,rsuffix='_tract',lsuffix='_zip')
-table=table.transpose()
-res=stats.chi2_contingency(table)
-print(res)
-pd.DataFrame(res[3],index=table.index,columns=table.columns)
 #%% merge aux files to see the counts
 import pandas as pd
 import glob
@@ -246,7 +182,7 @@ for SVI_COL in SVI_COLS:
         #os.chdir('..')
        
         
-#%% pivot table for counts merge
+#%% pivot table for counts  and mergingt the pivot tables
 outcomes=['Asthma','Bite_Insect','CardiovascularDiseases','Dehydration','Diarrhea','Pregnancy_complic','Heat_Related_But_Not_dehydration']
 sex=pd.pivot_table(data=df,index=['period','flood_binary'],values=outcomes,aggfunc='sum',columns=['Sex']).T.rename(columns=str).reset_index().rename(columns={'Sex':'cats'})
 

@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 """
 Created on Sun May 24 15:12:03 2020
-
+Code for reformating the raw html data from USGS water watch page
+Futher the code reads the NWS flood stages and merges it to the daily records
 @author: balajiramesh
 """
 import pandas as pd

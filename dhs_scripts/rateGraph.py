@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on Thu Jun 11 16:34:26 2020
-
+For drawing graph of number of ED visits per day from flooded/ nonflood tracts or the four quantiles of SVI categories
 @author: balajiramesh
 """
 

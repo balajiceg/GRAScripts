@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 """
 Created on Fri Jun 18 13:59:49 2021
-For Dr.Samarth
+For Dr.Samarth- using evacuation points provided, computed the number of ED visits travelled from each census tract to the 
+provider near the evacuation points
 @author: balajiramesh
 """
 import pandas as pd

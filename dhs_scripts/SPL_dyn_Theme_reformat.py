@@ -3,6 +3,7 @@
 Created on Thu Jun 11 21:24:29 2020
 
 @author: balajiramesh
+reformating dynaic SVI provided by Anna .  The values are fliterd for period between 11am to 2pm
 """
 
 import pandas as pd
@@ -13,7 +14,7 @@ def rerank(x):
         return ((ranks - ranks.min())/(ranks.max() - ranks.min())).round(6)
 
 for j in ['1','2','3']:
-    dyn_svi_raw=pd.read_csv('Z:/Balaji/Dynamic_SVI/spl'+j+'_theme_raw.csv')
+    dyn_svi_raw=pd.read_csv('Z:/Balaji/Dynamic_SVI_samarth/spl'+j+'_theme_raw.csv')
     
     tracts_to_filter=pd.read_csv('Z:/Balaji/DSHS ED visit data/CensusTractsInData.csv').GEOID.to_list()
     dyn_svi=dyn_svi_raw[(dyn_svi_raw.FIPS).isin(tracts_to_filter)].copy()
