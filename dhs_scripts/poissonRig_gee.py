@@ -73,7 +73,7 @@ SVI_df_raw=geopandas.read_file(r'H:/Balaji/SVI_Raw/TEXAS.shp').drop('geometry',a
 SVI_df_raw.FIPS=pd.to_numeric(SVI_df_raw.FIPS)
 
 #read population data
-demos=pd.read_csv(r'H:/Balaji/Census_data_texas/ACS_17_5YR_DP05_with_ann.csv',low_memory=False,skiprows=1)
+demos=pd.read_csv(r'H:/Balaji/Census_data_texas/population/ACS_17_5YR_DP05_with_ann.csv',low_memory=False,skiprows=1)
 demos.Id2=demos.Id2.astype("Int64")
 
 #read household income data 
