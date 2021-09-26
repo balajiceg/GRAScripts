@@ -115,7 +115,7 @@ sys_sa$Sex <- factor(sys_sa$Sex, levels = c("M","F",'Unknown'))
 #Ethnicity
 sys_sa$Ethnicity[sys_sa$Ethnicity %in% c("1", "2135-2","2161-8", "2178-2")]<- "HISPANIC"  #hispanic or latino code to hispanic
 sys_sa$Ethnicity[sys_sa$Ethnicity %in% c("2","2186-5")]<- "NON HISPANIC"   #not hispanic or latino code to non hispanic
-# Unknown -> 1, 2, 2161-8 (Salvadoran)(only 3recs), 2178-2 (Latin American)(only3 recs), 3, 4, 48039, 48201, ASKU, NR, Refused, UNK
+# Unknown -> 
 sys_sa$Ethnicity[sys_sa$Ethnicity %in% c("3", "4","48039","48201","ASKU", "NR", "Refused", "UNK")]<- 'Unknown'
 sys_sa$Ethnicity<-factor(sys_sa$Ethnicity,levels = c("NON HISPANIC", "HISPANIC", "Unknown"))
 
@@ -193,11 +193,11 @@ sys_sa$Race<-recode(sys_sa$Race,`American Indian`='Others',Hawaiian='Others',Asi
 sys_sa<-sys_sa[complete.cases(sys_sa),]
 #check if all columns are cmplete
 #colSums(is.na(sys_sa))
-"incomplet records = 3751"; 
+
 #remove unknown sex records
 sys_sa<-sys_sa[sys_sa$Sex!='Unknown',]
 sys_sa$Sex<-droplevels(sys_sa$Sex)
-"unknown sex records 681"
+
 
 
 
