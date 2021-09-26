@@ -14,6 +14,8 @@ import pyreadr
 import os
 import datetime
 import winsound
+import statsmodels.genmod.generalized_estimating_equations as gee
+
 #os.chdir(r'Z:\Balaji\Analysis_SyS_data\28032021\stratified')
 #%%function to reformat reg table
 def reformat_reg_results(results,model=None,outcome=None,modifier_cat=None):
@@ -42,6 +44,7 @@ sys_sa.flooded=sys_sa.flooded.cat.reorder_categories(["Non flooded", "Moderately
 #remove the records with ages > 119
 sys_sa=sys_sa[sys_sa.Age<120]
 
+
 # reduce flood category 
 sys_sa['flood_binary']=pd.Categorical(~(sys_sa.flooded=='Non flooded'))
 #remove pregnancy complication match for  male entries for age other than 0 (remvoe 186)
@@ -60,8 +63,89 @@ for outcome in ['Asthma','Bite_Insect','CardiovascularDiseases','Dehydration','D
         #remove second post flood period
         sys_sa=sys_sa[sys_sa['period']!='novAndDec']
         sys_sa.loc[:,'period']=sys_sa.period.cat.remove_unused_categories()
+    #%% additional models for review purpose - exposure as linear predictor
     
-    #%%base model
+    #exposure as linear predictor
+    df=sys_sa.copy()
+    #multiply flood ratio by 100
+    df["ZCT_f_R"]=df.ZCT_f_R * 100
+    
+    #run model
+    #run geeglm and write the results
+    formula=outcome+'.astype(float) ~ '+'ZCT_f_R * period + Ethnicity + Race + weekday + Age'
+    formula= formula+' + Sex' if outcome!='Pregnancy_complic' else formula
+    model = smf.gee(formula=formula,groups=df.crossed_zcta, data=df,offset=np.log(df.ZCTAdaily_count),missing='drop',family=sm.families.Poisson(link=sm.families.links.log()))
+    results=model.fit()
+    
+    #save model and load to check
+    results.save(outcome+'_review_linearFlood.pickle',remove_data=True)
+    loadedRes= gee.GEEResults.load(outcome+'_review_linearFlood.pickle')
+    
+    # creating result dataframe tables
+    reg_table,reg_table_dev= reformat_reg_results(results,model='review_linearFlood',outcome=outcome,modifier_cat=None)
+    
+    
+    #write the results
+    reg_table.to_csv(outcome+"_review_linearFlood_reg"+".csv")
+    reg_table_dev.to_csv(outcome+"_review_linearFlood_dev"+".csv")
+    print(results.params)
+    
+    #%% additional models for review purpose - exposure as muliplte one percent categorical
+    
+    #exposure as linear predictor
+    df=sys_sa.copy()
+    #multiply flood ratio by 100 and round it and change to categorical
+    df["ZCT_f_R"]=pd.Categorical(np.round(df.ZCT_f_R * 100))
+    
+    outcomes_recs=df.loc[(df[outcome]),]
+    counts_outcome=pd.crosstab(outcomes_recs.ZCT_f_R,outcomes_recs.period, dropna=False)
+    print(counts_outcome)
+    
+    #run model
+    #run geeglm and write the results
+    formula=outcome+'.astype(float) ~ '+'ZCT_f_R * period + Ethnicity + Race + weekday + Age'
+    formula= formula+' + Sex' if outcome!='Pregnancy_complic' else formula
+    model = smf.gee(formula=formula,groups=df.crossed_zcta, data=df,offset=np.log(df.ZCTAdaily_count),missing='drop',family=sm.families.Poisson(link=sm.families.links.log()))
+    results=model.fit()
+    
+    #save model and load to check
+    results.save(outcome+'_review_multiCatFlood.pickle',remove_data=True)
+    
+    # creating result dataframe tables
+    reg_table,reg_table_dev= reformat_reg_results(results,model='_review_multiCatFlood',outcome=outcome,modifier_cat=None)
+    
+    #write the results
+    reg_table.to_csv(outcome+"_review_multiCatFlood"+".csv")
+    reg_table_dev.to_csv(outcome+"_review_multiCatFlood"+".csv")
+    print(results.params)
+    
+    #%%base binary model
+    df=sys_sa.copy()
+    #wite cross table
+    outcomes_recs=df.loc[(df[outcome]),]
+    counts_outcome=pd.crosstab(outcomes_recs.flood_binary,outcomes_recs.period, dropna=False)
+    print(counts_outcome)
+    del outcomes_recs
+    
+    #run model
+    #run geeglm and write the results
+    formula=outcome+'.astype(float) ~ '+'flood_binary * period + Ethnicity + Race + weekday + Age'  
+    formula= formula+' + Sex' if outcome!='Pregnancy_complic' else formula
+    
+    model = smf.gee(formula=formula,groups=df.crossed_zcta, data=df,offset=np.log(df.ZCTAdaily_count),missing='drop',family=sm.families.Poisson(link=sm.families.links.log()))
+    results=model.fit()
+    
+    #save model and load to check
+    results.save(outcome+'_base_binary.pickle',remove_data=True)
+    
+    # creating result dataframe tables
+    reg_table,reg_table_dev= reformat_reg_results(results,model='base_binary',outcome=outcome,modifier_cat=None)
+    
+    #write the results
+    reg_table.to_csv(outcome+"_base_binary_reg"+".csv")
+    reg_table_dev.to_csv(outcome+"_base_binary_dev"+".csv")
+    print(results.params)
+    #%%base model - 3 flood categories - non flooded , moderate, high
     #for outcome in ['Diarrhea','RespiratorySyndrome','Asthma','Bite_Insect', 'Dehydration', 'Chest_pain','Pregnancy_complic','Heat_Related_But_Not_dehydration']:
     df=sys_sa.copy()
     #wite cross table
@@ -84,30 +168,7 @@ for outcome in ['Asthma','Bite_Insect','CardiovascularDiseases','Dehydration','D
     reg_table.to_csv(outcome+"_base_reg"+".csv")
     reg_table_dev.to_csv(outcome+"_base_dev"+".csv")
     print(results.params)
-
-    #%%base binary model
-    df=sys_sa.copy()
-    #wite cross table
-    outcomes_recs=df.loc[(df[outcome]),]
-    counts_outcome=pd.crosstab(outcomes_recs.flood_binary,outcomes_recs.period, dropna=False)
-    print(counts_outcome)
-    del outcomes_recs
     
-    #run model
-    #run geeglm and write the results
-    formula=outcome+'.astype(float) ~ '+'flood_binary * period + Ethnicity + Race + weekday + Age'  
-    formula= formula+' + Sex' if outcome!='Pregnancy_complic' else formula
-    
-    model = smf.gee(formula=formula,groups=df.crossed_zcta, data=df,offset=np.log(df.ZCTAdaily_count),missing='drop',family=sm.families.Poisson(link=sm.families.links.log()))
-    results=model.fit()
-    
-    # creating result dataframe tables
-    reg_table,reg_table_dev= reformat_reg_results(results,model='base_binary',outcome=outcome,modifier_cat=None)
-    
-    #write the results
-    reg_table.to_csv(outcome+"_base_binary_reg"+".csv")
-    reg_table_dev.to_csv(outcome+"_base_binary_dev"+".csv")
-    print(results.params)
     
     #%%base binary sensitivity model
     df=sys_sa.copy()
