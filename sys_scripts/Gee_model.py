@@ -94,8 +94,14 @@ for outcome in ['Asthma','Bite_Insect','CardiovascularDiseases','Dehydration','D
     
     #exposure as linear predictor
     df=sys_sa.copy()
-    #multiply flood ratio by 100 and round it and change to categorical
-    df["ZCT_f_R"]=pd.Categorical(np.round(df.ZCT_f_R * 100))
+    #check the quantiles after remove zero flooding
+    df["ZCT_f_R"]=df.ZCT_f_R * 100
+    ZctaFloodr=sp.loc[~df.duplicated(df.ZCTA),[ZCTA,'ZCT_f_R']]
+    s=ZctaFloodr.loc[ZctaFloodr.ZCT_f_R>0,'ZCT_f_R']  
+    flood_bins=s.quantile(np.arange(0,1.1,1/4))).to_numpy()
+    flood_bins[0]=1e-6
+    flood_bins=np.append([0],flood_bins)
+    df["ZCT_f_R"]=pd.cut(df.ZCT_f_R,bins=flood_bins,right=True,include_lowest=True,labels=['low','med','high','veryHigh'])
     
     outcomes_recs=df.loc[(df[outcome]),]
     counts_outcome=pd.crosstab(outcomes_recs.ZCT_f_R,outcomes_recs.period, dropna=False)
@@ -115,8 +121,8 @@ for outcome in ['Asthma','Bite_Insect','CardiovascularDiseases','Dehydration','D
     reg_table,reg_table_dev= reformat_reg_results(results,model='_review_multiCatFlood',outcome=outcome,modifier_cat=None)
     
     #write the results
-    reg_table.to_csv(outcome+"_review_multiCatFlood"+".csv")
-    reg_table_dev.to_csv(outcome+"_review_multiCatFlood"+".csv")
+    reg_table.to_csv(outcome+"_review_multiCatFlood_reg"+".csv")
+    reg_table_dev.to_csv(outcome+"_review_multiCatFlood_dev"+".csv")
     print(results.params)
     
     #%%base binary model
