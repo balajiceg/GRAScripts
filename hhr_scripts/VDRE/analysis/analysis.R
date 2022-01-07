@@ -18,7 +18,7 @@ library(openxlsx)
 library(sf)
 
 #output file location
-outputDir<-"K:\\Projects\\FY2020-018_HHR_Outcomes\\EoFloodHealth\\Output\\Draft\\analysisOutput\\"
+outputDir<-"K:\\Projects\\FY2020-018_HHR_Outcomes\\EoFloodHealth\\Output\\Draft\\analysisOutput07012022\\"
 
 #functions
 mQIC<-function (x){as.numeric(QIC(x)['QIC'])}
@@ -56,12 +56,14 @@ subDf<-subDf[!is.na(subDf$fScanMaxFloodRatio),]
 subDf$Age<-as.numeric(difftime( as.Date('2017-08-26'),as.Date(subDf$DOB,'%m/%d/%Y'), unit="weeks"))/52.25
 subDf$Age<-round(subDf$Age)
 
-
 #remove records without basic persnoal infor - n=19592
 subDf<-subDf[complete.cases(subDf[,c("Male", "RaceGroup", "Age")]),] #HIspanic not used as it is integrated in race
 
 #remove blank education group n=19472
 subDf<-subDf[(subDf$EducGroup!='') & !is.na(subDf$EducGroup),]
+
+#check age below 17
+table(subDf[subDf$Age<18,'Age'],subDf[subDf$Age<18,'EducGroup'])
 
 #remove age less than 17 - n=19402
 subDf<-subDf[subDf$Age>17,]
@@ -85,6 +87,7 @@ levels(subDf$Hispanic)<-c('Non_Hispanic','Hispanic')
 
 subDf$RaceGroup<-factor(subDf$RaceGroup,levels=c(1,2,3,4,5))
 levels(subDf$RaceGroup)<-c("Non_Hispanic_White","Non_Hispanic_Black", "Hispanic", "Non_Hispanic_Asian","Non_Hispanic_Other")
+
 
 subDf$EducGroup<-factor(subDf$EducGroup,levels=c("eighth","high_school", "ged", "college", "associates",  "bachelors", "graduate" ))
 subDf$EducGroup<-recode(subDf$EducGroup,"c('eighth', 'high_school', 'ged')='highSchoolOrLess';c('college', 'associates') = 'collegeOrAssociates';c('bachelors','graduate')='bachelorsOrHigher'")
@@ -131,6 +134,12 @@ for (i in c("HomeFlooded","Contact_Water", "HomeDamaged", "OtherHomesFlooded", "
 #create any symptom from no symptom variable
 subDf$AnySymptoms<-as.integer(subDf$NoSymptoms==0)
 
+#create variable OnlyOtherHomesFlooded
+subDf <- subDf %>% mutate(OnlyOtherHomesFlooded=case_when(
+  HomeFlooded==F ~ OtherHomesFlooded,
+  TRUE ~ NA
+))
+
 #remove duplicate responses from the same point  -  removes 1333 records
 #subDf<-subDf[!duplicated(paste0(subDf$X,subDf$Y,sep='')),]
 
@@ -139,14 +148,14 @@ sfPoints<-st_transform(st_as_sf(subDf[,c('SurveyResponseID','X','Y')], coords = 
 subDf[,c('X','Y')]<-st_coordinates(sfPoints)
 
 
-summary(subDf)
+#summary(subDf)
 remove(all_df)
 #---------------------  data cleaning ends here N=18922 without removing responses from same point---------
 #xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 ##-------------write demographic table using base mode ------
-df<-subDf[,c('fScanFlooded','cat_SVI',
-  "HomeFlooded",
+df<-subDf[,c('fScanFlooded','cat_SVI', 
+  "HomeFlooded",'OnlyOtherHomesFlooded',"Contact_Water", "OtherHomesFlooded",
   'AgeGrp',"Male", "RaceGroup", "Hispanic", "EducGroup","SelfAssess",
   "Illness", "Injury","Hospital",  "Concentrate", "Headaches", "RunnyNose", "ShortBreath", "SkinRash","AnySymptoms")]
 #df<-df[complete.cases(df),] #n= 19217
@@ -156,7 +165,20 @@ library(pubh)
 demoCT<-cross_tab(df,fScanFlooded~., label='fscanFlooded') 
 print(demoCT)
 write.table(demoCT, "clipboard", sep="\t")
+
+
+summary(df)
 remove(df)
+#missing data summary
+library(mice)
+miss=md.pattern(df)
+
+
+#check a few things
+#check factor references
+subDf %>% select(where(is.factor)) %>% head %>% str
+
+table(df$HomeFlooded,df$OnlyOtherHomesFlooded)
 
 ##--------------- intial analysis --- comparission between home flooded and other x variables withbar ,----
 # graphDF<-data.frame(percent=NA,conf25=NA,conf95=NA,p_val=NA,major_cat=NA,bar_cat=NA,comp_var=NA)
@@ -201,6 +223,7 @@ remove(df)
 # 
 # 
 
+
 ##--------------- comparing similar columns  ------------
 # compCols<-c("Contact_Water", "HomeDamaged", "HomeFlooded", "OtherHomesFlooded", "LosePower", "TrashOnBlock", "LeaveHome",  "VehicleDamaged" )
 # compDf<-data.frame()
@@ -221,7 +244,7 @@ remove(df)
 
 covariates<- c('Male','AgeGrp', 'RaceGroup', 'EducGroup',"SelfAssess") #,'Hispanic'
 outcomes<- c("Illness", "Injury","Hospital",  "Concentrate", "Headaches", "RunnyNose", "ShortBreath", "SkinRash","AnySymptoms")
-exposures<-c("OtherHomesFlooded","HomeFlooded","fScanFlooded","fScanInunDisCat","fScanNdaysCat" ,"fScanDepthCat","fScanDepthFt","fScanInundDist","fScanNdays")
+exposures<-c("OnlyOtherHomesFlooded")#,"Contact_Water","OtherHomesFlooded","HomeFlooded","fScanFlooded","fScanInunDisCat","fScanNdaysCat" ,"fScanDepthCat","fScanDepthFt","fScanInundDist","fScanNdays")
 print(paste0(c('outcomes-> ',outcomes),collapse = ', '))
 print(paste0(c('exposures-> ',exposures),collapse = ', '))
 print(paste0(c('covariates-> ',covariates),collapse = ', '))
@@ -732,8 +755,8 @@ cat(allSumm,file = paste0(outputDir,'baseModelNotCntrlAnything.txt'))
 
 covariates<- c('Male','AgeGrp', 'RaceGroup', 'EducGroup',"SelfAssess") #,'Hispanic'
 outcomes<- c("Illness", "Injury","Hospital",  "Concentrate", "Headaches", "RunnyNose", "ShortBreath", "SkinRash","AnySymptoms")
-exposures<-c("OtherHomesFlooded","HomeFlooded","fScanFlooded","fScanInunDisCat","fScanNdaysCat" ,"fScanDepthCat")
-inters<-c('Male','AgeGrp', 'RaceGroup', 'EducGroup')
+exposures<-c("OnlyOtherHomesFlooded","OtherHomesFlooded","HomeFlooded","fScanFlooded","Contact_Water")#,"fScanInunDisCat","fScanNdaysCat" ,"fScanDepthCat")
+inters<-c('RaceGroup','Male','AgeGrp',  'EducGroup')
 print(paste0(c('outcomes-> ',outcomes),collapse = ', '))
 print(paste0(c('exposures-> ',exposures),collapse = ', '))
 print(paste0(c('covariates-> ',covariates),collapse = ', '))
@@ -750,7 +773,7 @@ for(inter in inters){
       df<-subDf[complete.cases(subDf[,c(outcome,exposure,covariates,inter,'tractID10')]),]
       #combine race - asian and others
       df$RaceGroup<-recode(df$RaceGroup,"c('Non_Hispanic_Asian', 'Non_Hispanic_Other')='Non_Hispanic_AsianNOthers'")
-
+      df <- df %>% mutate(RaceGroup=relevel(RaceGroup,ref='Non_Hispanic_White'))
       #create cross table if intersection columns are not factor
       if (is.factor(df[,inter])){
         ftab<-data.frame(ftable(df[,outcome],df[,exposure],df[,inter],dnn=c(outcome,exposure,inter)),stringsAsFactors = F)
