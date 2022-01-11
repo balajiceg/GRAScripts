@@ -30,7 +30,7 @@ def reformat_reg_results(results,model=None,outcome=None,modifier_cat=None):
     
     return reg_table,reg_table_dev
 #%% read df
-sys_sa= pyreadr.read_r(r"Z:\Balaji\R session_home_dir\sys_sa_df.RData")['sys_sa']
+sys_sa= pyreadr.read_r(r"Z:\Balaji\R session_home_dir (PII)\sys_sa_df.RData")['sys_sa']
 #change insect bite colname
 sys_sa=sys_sa.rename(columns = {'Bite.Insect':'Bite_Insect'})
 #change comparision group for each categories
@@ -317,6 +317,7 @@ for outcome in ['Asthma','Bite_Insect','CardiovascularDiseases','Dehydration','D
         'Diarrhea':{'age_bins':[-1,5,17,64,200],'labels':["0_5","6_17","18_64","gt64"],'order':["18_64","0_5","6_17","gt64"]},
     #    'Heat_Related_But_Not_dehydration':{'age_bins':[-1,21,200],'labels':['0_21','gt21'],'order':['0_21']},
         'Pregnancy_complic':{'age_bins':[-1,0,19,27,35,200],'labels':['0','1_19','20_27','28_35','gt35'],'order':['20_27','0','1_19','28_35','gt35']},    
+        'total':{'age_bins':[-1,5,17,50,64,200],'labels':["0_5","6_17","18_50",'50_64',"gt64"],'order':["0_5","6_17","18_50",'50_64',"gt64"]},
         }    
     age_bins,age_lab,age_order=age_dict[outcome].values()
     
