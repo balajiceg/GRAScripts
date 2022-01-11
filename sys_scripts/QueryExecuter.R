@@ -1,8 +1,7 @@
-
 library(stringr)
 library(dplyr)
-#functions
 
+#for subsyndrome type qureries
 get_points_subsyn<-function(query,chief_c){
   #trim the query and remove double spaces
   query<-str_trim(query)
@@ -30,12 +29,12 @@ get_points_subsyn<-function(query,chief_c){
   total_points<-rowSums(apply(words_pts,1,function(x){
     return(as.integer(regexpr(x['words'],chief_c,ignore.case = T)>0) * as.integer(x['points']))
   }))
-  
+  # return total match points for each record
   return(total_points)
 }
 
 
-#for ccdd query
+#for ccdd queries
 get_match_ccdd<-function(query,ccdd){
   #trim double spaces and front and back spaces of ccdd
   ccdd<-str_trim(ccdd)
@@ -78,6 +77,7 @@ get_match_ccdd<-function(query,ccdd){
   
   query2<-as.matrix(query2)
   result<-apply(query2,1,function(x) {return(eval(parse(text=x)))})
+  #return the math (true or false) for each record pased and also a subquery string list
   return(list(match=result,subqueries=list_subq))
 }
 
