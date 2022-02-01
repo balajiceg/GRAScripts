@@ -12,7 +12,7 @@ library(openxlsx)
 library(corrplot)
 library(lmtest)
 
-outputDir = '//vetmed2/Blitzer/NASA project/Balaji/AnaysisIPOPdrSamarth/23122021/'
+outputDir = '//vetmed2/Blitzer/NASA project/Balaji/AnaysisIPOPdrSamarth/31012021/'
 
 select = dplyr::select
 #----read Ed visites from cleaned file----
@@ -33,7 +33,17 @@ AerMFED = AerMFED %>% select(-WmaxFloodRatio) %>% pivot_longer(cols = ends_with(
             dplyr::rename(AERMaxfRatio=WmaxFloodRatio)
 
 #----read evacuation data----
-evacDf_raw=read_csv('//vetmed2/Blitzer/NASA project/Balaji//EvacuationDataDrSamarth//all_feature_values.csv')
+#create evacDf_raw from all files in repo
+evacFiles= list.files(path='//vetmed2/Blitzer/NASA project/Balaji//EvacuationDataDrSamarth//updated_feature_values//')
+evacDf_raw=tibble()
+for(evacFile in evacFiles){
+  fileDf <- read_csv(paste0('//vetmed2/Blitzer/NASA project/Balaji//EvacuationDataDrSamarth//updated_feature_values//',evacFile))
+  fileDf$date = gsub('.csv','',gsub('feature_values_2017_','',evacFile))
+  evacDf_raw = rbind(evacDf_raw,fileDf)
+}
+  
+
+#evacDf_raw=read_csv('//vetmed2/Blitzer/NASA project/Balaji//EvacuationDataDrSamarth//all_feature_values.csv')
 print(colnames(evacDf_raw))
 evacDf=evacDf_raw %>% dplyr::rename(floodDur=flooding_duration_hr,
                              triProxDur=tri_close_proximity_duration_hr, triDist=tri_distance_mi,
