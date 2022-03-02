@@ -12,6 +12,7 @@ library(openxlsx)
 library(corrplot)
 library(lmtest)
 
+source("Z:\\Balaji\\GRAScripts\\dhs_scripts\\ReCalcSVI_func.R")
 outputDir = '//vetmed2/Blitzer/NASA project/Balaji/AnaysisIPOPdrSamarth/31012021/'
 
 select = dplyr::select
@@ -38,7 +39,7 @@ evacFiles= list.files(path='//vetmed2/Blitzer/NASA project/Balaji//EvacuationDat
 evacDf_raw=tibble()
 for(evacFile in evacFiles){
   fileDf <- read_csv(paste0('//vetmed2/Blitzer/NASA project/Balaji//EvacuationDataDrSamarth//updated_feature_values//',evacFile))
-  fileDf$date = gsub('.csv','',gsub('feature_values_2017_','',evacFile))
+  #fileDf$date = gsub('.csv','',gsub('feature_values_2017_','',evacFile))
   evacDf_raw = rbind(evacDf_raw,fileDf)
 }
   
@@ -436,6 +437,185 @@ write.xlsx(resTab, file=paste0(outputDir,'baseModelAER.xlsx'), sheetName = "Shee
 cat(sumTxt,file = paste0(outputDir,'baseModelAER.txt'))
 write.csv(allCrosTabs,file = paste0(outputDir,'baseModelAER.csv'))
 
+# _____SVI  merge and analysis____ ----
+
+#read reranked SVI
+SVI_df <- read_csv('Z:\\Balaji\\SVI_Study_Area_Reranked\\SVI_Harris_County\\SVI_HoustonRerank.csv')
+SVI_df <- SVI_df %>% filter(FIPS %in% unique(EdEvac$PAT_ADDR_CENSUS_TRACT)) %>%
+          recalcSVI %>% select(FIPS,reRankSVI, reRankSVI_T1, reRankSVI_T2,
+                                       reRankSVI_T3, reRankSVI_T4)
+grpEdEvac <- grpEdEvac %>% left_join(SVI_df,by=c('PAT_ADDR_CENSUS_TRACT'='FIPS'))
+
+
+# keep only complete records
+grpEdEvac <- grpEdEvac %>% filter(complete.cases(.))
+
+# _____base model only  overall SVI alone ----
+
+mformula= "DailyED ~ reRankSVI * EvacPeriod + year + month + weekday +  RACE_other + RACE_black + SEX_CODE_F + PAT_AGE_YEARS + ETHNICITY_Hispanic + op" # + hvyRainDur'
+model=glm(data=grpEdEvac, formula=as.formula(mformula),family = poisson(),
+          offset = log(grpEdEvac$Population))
+summary(model)
+aic = AIC(model)
+#broom results
+resTab = tidy(model, exponentiate = T)
+resTab = bind_cols(resTab , confint.default(model) %>% exp %>% as_tibble)
+resTab<-resTab[,c("term", "estimate","2.5 %",  "97.5 %","p.value", "std.error")]
+#insert exposure,outcome and formula and Aic
+resTab$aic<-aic
+resTab$formula<-mformula
+#prepare raw summary file
+sumTxt<-paste0(c(capture.output(summary(model)),
+                 'Time:',as.character(Sys.time()),'\n'),collapse = '\n')
+#replace formula with orginal formula
+sumTxt<-gsub('mformula',mformula,sumTxt)
+
+write.xlsx(resTab, file=paste0(outputDir,'baseModeSVI.xlsx'), sheetName = "Sheet1",col.names = TRUE, row.names = TRUE, append = FALSE)
+cat(sumTxt,file = paste0(outputDir,'baseModelSVI.txt'))
+
+
+# _____base model only  thems of  SVI alone ----
+
+mformula= "DailyED ~ reRankSVI_T1 * EvacPeriod + reRankSVI_T2 * EvacPeriod + reRankSVI_T3 * EvacPeriod + reRankSVI_T4 * EvacPeriod + year + month + weekday +  RACE_other + RACE_black + SEX_CODE_F + PAT_AGE_YEARS + ETHNICITY_Hispanic + op" # + hvyRainDur'
+model=glm(data=grpEdEvac, formula=as.formula(mformula),family = poisson(),
+          offset = log(grpEdEvac$Population))
+summary(model)
+aic = AIC(model)
+#broom results
+resTab = tidy(model, exponentiate = T)
+resTab = bind_cols(resTab , confint.default(model) %>% exp %>% as_tibble)
+resTab<-resTab[,c("term", "estimate","2.5 %",  "97.5 %","p.value", "std.error")]
+#insert exposure,outcome and formula and Aic
+resTab$aic<-aic
+resTab$formula<-mformula
+#prepare raw summary file
+sumTxt<-paste0(c(capture.output(summary(model)),
+                 'Time:',as.character(Sys.time()),'\n'),collapse = '\n')
+#replace formula with orginal formula
+sumTxt<-gsub('mformula',mformula,sumTxt)
+
+write.xlsx(resTab, file=paste0(outputDir,'baseModeSVIthemes.xlsx'), sheetName = "Sheet1",col.names = TRUE, row.names = TRUE, append = FALSE)
+cat(sumTxt,file = paste0(outputDir,'baseModelSVIthemes.txt'))
+
+
+# ____overall SVI using max values of the evacuation models controlling for summed evac rate----
+
+#model.matrix(~SVI* totRainSum,data=grpEdEvac) %>% as_tibble%>% select(-`(Intercept)`)  %>% cor %>% corrplot(method='pie')
+evacVarsWithOutEvacRate <- evacVars[evacVars!='evacRate']
+allRes<- NA
+allSum=''
+allCrosTabs<-data.frame()
+evacVarType = 'linear'
+  
+for(formula_add in c(" * reRankSVI",""))
+    for(evacVar in paste0(evacVarsWithOutEvacRate,'Sum')){
+      mformula= paste0('DailyED ~ ',evacVar,' * EvacPeriod',formula_add," + evacRateSum  + year + month + weekday +  RACE_other + RACE_black + SEX_CODE_F + PAT_AGE_YEARS + ETHNICITY_Hispanic + op") # + hvyRainDur'
+      model=glm(data=grpEdEvac, formula=as.formula(mformula),family = poisson(),
+                offset = log(grpEdEvac$Population))
+      summary(model)
+      aic = AIC(model)
+      
+      #broom results
+      resTab = tidy(model, exponentiate = T)
+      resTab = bind_cols(resTab , confint.default(model) %>% exp %>% as_tibble)
+      resTab<-resTab[,c("term", "estimate","2.5 %",  "97.5 %","p.value", "std.error")]
+      #insert exposure,outcome and formula and Aic
+      resTab$aic<-aic
+      
+      resTab$evacVar<-evacVar
+      resTab$formula<-mformula
+      resTab$model<-paste0("MaxEvacVariable",ifelse(formula_add=="","",'_InterWithSVI'))
+      
+      #prepare raw summary file
+      sumTxt<-paste0(c(capture.output(summary(model)),
+                       'Time:',as.character(Sys.time()),'\n'),collapse = '\n')
+      #replace formula with orginal formula
+      sumTxt<-gsub('mformula',mformula,sumTxt)
+      
+      
+      lrtest_pval=NA
+      #lrt test if AER flood 
+      if(formula_add!=''){
+        mformula_reduced= "DailyED ~ reRankSVI * EvacPeriod + year + month + weekday +  RACE_other + RACE_black + SEX_CODE_F + PAT_AGE_YEARS + ETHNICITY_Hispanic + op" # + hvyRainDur'
+        model_reduced=glm(data=grpEdEvac, formula=as.formula(mformula_reduced),family = poisson(),
+                          offset = log(grpEdEvac$Population))
+        res=lrtest(model,model_reduced)
+        lrtest_pval=res$`Pr(>Chisq)`[2]
+        sumTxt<-paste0(sumTxt,paste0(capture.output(res),collapse='\n'),'\n')
+      }
+      resTab$lrtest_pval<-lrtest_pval
+      
+      #add to all output stored df and str
+      if(all(is.na(allRes))) allRes<-resTab else allRes<-rbind(allRes,resTab)
+      allSum<-paste0(allSum,sumTxt,sep=paste0(rep('=',100),collapse=''))
+      
+      print(mformula)
+    }
+resTab$outcome<-'TotalED'
+write.xlsx(allRes, file=paste0(outputDir,'GroupedEdSVI_MaxEvacSimul.xlsx'), sheetName = "Sheet1",col.names = TRUE, row.names = TRUE, append = FALSE)
+cat(allSum,file = paste0(outputDir,'GroupedEdSVI_MaxEvacSimul.txt'))
+
+
+# ____themes of SVI using max values of the evacuation models controlling for summed evac rate----
+
+evacVarsWithOutEvacRate <- evacVars[evacVars!='evacRate']
+allRes<- NA
+allSum=''
+allCrosTabs<-data.frame()
+evacVarType = 'linear'
+
+  for(evacVar in paste0(evacVarsWithOutEvacRate,'Sum')){
+    mformula= paste0('DailyED ~ ',evacVar,' * EvacPeriod * reRankSVI_T1 + ',
+                     evacVar,' * EvacPeriod * reRankSVI_T2 + ',
+                     evacVar,' * EvacPeriod * reRankSVI_T3 + ',
+                     evacVar,' * EvacPeriod * reRankSVI_T4 + ',
+                     " evacRateSum  + year + month + weekday +  RACE_other + RACE_black + SEX_CODE_F + PAT_AGE_YEARS + ETHNICITY_Hispanic + op") # + hvyRainDur'
+    model=glm(data=grpEdEvac, formula=as.formula(mformula),family = poisson(),
+              offset = log(grpEdEvac$Population))
+    summary(model)
+    aic = AIC(model)
+    
+    #broom results
+    resTab = tidy(model, exponentiate = T)
+    resTab = bind_cols(resTab , confint.default(model) %>% exp %>% as_tibble)
+    resTab<-resTab[,c("term", "estimate","2.5 %",  "97.5 %","p.value", "std.error")]
+    #insert exposure,outcome and formula and Aic
+    resTab$aic<-aic
+    
+    resTab$evacVar<-evacVar
+    resTab$formula<-mformula
+    resTab$model<-paste0("MaxEvacVariable",'_InterWithSVIthemes')
+    
+    #prepare raw summary file
+    sumTxt<-paste0(c(capture.output(summary(model)),
+                     'Time:',as.character(Sys.time()),'\n'),collapse = '\n')
+    #replace formula with orginal formula
+    sumTxt<-gsub('mformula',mformula,sumTxt)
+    
+    
+    lrtest_pval=NA
+    #lrt test if AER flood 
+  
+    mformula_reduced= "DailyED ~ reRankSVI_T1 * EvacPeriod + reRankSVI_T2 * EvacPeriod + reRankSVI_T3 * EvacPeriod + reRankSVI_T4 * EvacPeriod + year + month + weekday +  RACE_other + RACE_black + SEX_CODE_F + PAT_AGE_YEARS + ETHNICITY_Hispanic + op" # + hvyRainDur'
+    model_reduced=glm(data=grpEdEvac, formula=as.formula(mformula_reduced),family = poisson(),
+                      offset = log(grpEdEvac$Population))
+    res=lrtest(model,model_reduced)
+    lrtest_pval=res$`Pr(>Chisq)`[2]
+    sumTxt<-paste0(sumTxt,paste0(capture.output(res),collapse='\n'),'\n')
+    
+    resTab$lrtest_pval<-lrtest_pval
+    
+    #add to all output stored df and str
+    if(all(is.na(allRes))) allRes<-resTab else allRes<-rbind(allRes,resTab)
+    allSum<-paste0(allSum,sumTxt,sep=paste0(rep('=',100),collapse=''))
+    
+    print(mformula)
+  }
+resTab$outcome<-'TotalED'
+write.xlsx(allRes, file=paste0(outputDir,'GroupedEdSVIthemes_MaxEvacSimul.xlsx'), sheetName = "Sheet1",col.names = TRUE, row.names = TRUE, append = FALSE)
+cat(allSum,file = paste0(outputDir,'GroupedEdSVIthemes_MaxEvacSimul.txt'))
+
+
 #================================================== -
 #==================EOF======================= ----
 #================================================== -
@@ -445,60 +625,3 @@ write.csv(allCrosTabs,file = paste0(outputDir,'baseModelAER.csv'))
 
 
 
-
-
-#### ----- temp codes for future ------
-for(outcome in c("Dehydration","InsetBite", "Chest_pain", "Intestinal_infectious_diseases", "Pregnancy_complic")){
-  formula= as.formula(paste0(outcome,' ~ evacRateSumCat * EvacPeriod + year + month + weekday + op  + RACE + SEX_CODE + PAT_AGE_YEARS + ETHNICITY')) # + hvyRainDur')
-  
-  #gee model
-  #model1=geeglm(data=EdEvac, formula=formula,family = poisson(),offset = log(EdEvac$TotalVisits),id = EdEvac$PAT_ADDR_CENSUS_TRACT)
-  
-  #glm model
-  model.glm=glm(data=EdEvac, formula=formula,family = poisson(),offset = log(EdEvac$TotalVisits))
-  print(paste0(outcome, '======================================'))
-  print(summary(model.glm))
-  model.glm %>% confint.default %>% exp %>% print
-}
-
-#categorise evacRateSum into quantiles
-EdEvac = EdEvac %>% mutate(evacRateSumCat=cut(evacRateSum, breaks=quantile(evacDfMax$evacRateSum,seq(0,1,1/3)),include.lowest = T,
-                                              labels=c("low","mid","high")))
-for(outcome in c("Dehydration","InsetBite", "Chest_pain", "Intestinal_infectious_diseases", "Pregnancy_complic")){
-formula= as.formula(paste0(outcome,' ~ evacRateSumCat * EvacPeriod + year + month + weekday + op  + RACE + SEX_CODE + PAT_AGE_YEARS + ETHNICITY')) # + hvyRainDur')
-
-#gee model
-#model1=geeglm(data=EdEvac, formula=formula,family = poisson(),offset = log(EdEvac$TotalVisits),id = EdEvac$PAT_ADDR_CENSUS_TRACT)
-
-#glm model
-model.glm=glm(data=EdEvac, formula=formula,family = poisson(),offset = log(EdEvac$TotalVisits))
-print(paste0(outcome, '======================================'))
-print(summary(model.glm))
-model.glm %>% confint.default %>% exp %>% print
-}
-
-#try lme4 model
-formula.mixed=as.formula(paste0(paste0(format(formula),collapse = ''),'+ (1 | PAT_ADDR_CENSUS_TRACT)'))
-model.mixed = glmer(data=EdEvac, formula=formula.mixed,family = poisson(),offset = log(EdEvac$TotalVisits),verbose=2,control = glmerControl(boundary.tol = 1e-1))
-summary(model.mixed)
-
-###
-#OK the problem with ITCS is that when we try a three way interaction model the interaction between evacuation Post flood and evacuation variable (say total rain) is totally correlational to evaluation post flood period. This is because valuation post flood period Is 0 everywhere except during post flood and similarly the interaction term is also zero elsewhere and reaches maximum value during post flood. The other challenge with ITC S is that it's hard to separate the control and treatment then we consider the evacuation variable as a continuous.
-#also discuss about control being beofre and after
-# totRain EvacPeriod_evacuation EvacPeriod_flood EvacPeriod_PostFlood1 EvacPeriod_evacuation_t
-# totRain                  1.00000000           -0.03827734      0.274771531            0.93821622             0.023635426
-# EvacPeriod_evacuation   -0.03827734            1.00000000     -0.017236938           -0.05883692             0.459734481
-# EvacPeriod_flood         0.27477153           -0.01723694      1.000000000           -0.06294225            -0.007924415
-# EvacPeriod_PostFlood1    0.93821622           -0.05883692     -0.062942248            1.00000000            -0.027049361
-# EvacPeriod_evacuation_t  0.02363543            0.45973448     -0.007924415           -0.02704936             1.000000000
-# EvacPeriod_flood_t       0.27560764           -0.01720066      0.997895264           -0.06280977            -0.007907736
-# EvacPeriod_PostFlood1_t  0.94069551           -0.05868893     -0.062783935            0.99748480            -0.026981327
-# EvacPeriod_flood_t EvacPeriod_PostFlood1_t
-# totRain                        0.275607643              0.94069551
-# EvacPeriod_evacuation         -0.017200659             -0.05868893
-# EvacPeriod_flood               0.997895264             -0.06278394
-# EvacPeriod_PostFlood1         -0.062809771              0.99748480
-# EvacPeriod_evacuation_t       -0.007907736             -0.02698133
-# EvacPeriod_flood_t             1.000000000             -0.06265179
-# EvacPeriod_PostFlood1_t       -0.062651791              1.00000000
-###
