@@ -21,7 +21,7 @@ After removeing missing data: 7,813,866 and 1,233,600 OP and IP ED visit records
 """
 import pandas as pd
 import numpy as np
-import geopandas
+
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
 from datetime import timedelta, date,datetime
@@ -59,32 +59,23 @@ del op,ip
 
 
 #read op/ip outcomes df
-sp_outcomes=pd.read_csv(INPUT_IPOP_DIR+'\\op_outcomes.csv')
+sp_outcomes=pd.read_csv(INPUT_IPOP_DIR+'\\ip_op_outcomes.csv')
 
 #read flood ratio data
-flood_data=geopandas.read_file(r'Z:/Balaji/indundation_harvey/FloodRatioJoinedAll_v1/FloodInund_AllJoined_v1.gpkg').drop('geometry',axis=1)
+flood_data=pd.read_csv(r'Z:/Balaji/indundation_harvey/FloodRatioJoinedAll_v1/FloodInund_AllJoined_v1.csv')
 
-#read zip code flood ratio data
-flood_data_zip=geopandas.read_file(r"Z:/Balaji/indundation_harvey/FloodInund_Zip_v1/FloodInund_Zip_v1.shp").loc[:,['ZCTA5CE10','DFO_R200']]
-flood_data_zip.rename(columns={'ZCTA5CE10':'GEOID'},inplace=True)
 
 #read svi data
-SVI_df_raw=geopandas.read_file(r'Z:/Balaji/SVI_Raw/TEXAS.shp').drop('geometry',axis=1)
+SVI_df_raw=pd.read_csv(r'Z:/Balaji/SVI_Raw/TEXAS.csv')
 SVI_df_raw.FIPS=pd.to_numeric(SVI_df_raw.FIPS)
 
 #read population data
 demos=pd.read_csv(r'Z:/Balaji/Census_data_texas/population/ACS_17_5YR_DP05_with_ann.csv',low_memory=False,skiprows=1)
 demos.Id2=demos.Id2.astype("Int64")
 
-#read household income data 
-income=pd.read_csv(r'Z:/Balaji/Census_data_texas/population/ACSST5Y2017.S1903_data_with_overlays_2020-10-14T202327.csv',low_memory=False,skiprows=1)
-income.id=pd.to_numeric(income.id.str.replace("1400000US",'')).astype("Int64")
-
 #read study area counties
 #county_to_filter=pd.read_csv('Z:/Balaji/counties_evacu_order.csv').GEOID.to_list()
 county_to_filter=pd.read_csv('Z:\Balaji\DSHS ED visit data(PII)\contiesInStudyArea.csv').County_FIPS.to_list()
-
-zip_to_filter=pd.read_csv('Z:/Balaji/DSHS ED visit data(PII)/AllZip_codes_in_study_area.csv').ZCTA5CE10.to_list()
 
 #%%read the categories file
 outcome_cats=pd.read_csv('Z:/Balaji/GRAScripts/dhs_scripts/categories.csv')
@@ -96,9 +87,9 @@ nullAsZero="True" #null flood ratios are changed to 0
 floodZeroSep="True" # zeros are considered as seperate class
 flood_data_zip=None
 
-interv_dates=[20170825, 20170913, 20171014] #lower bound excluded
+interv_dates=[20170825, 20170913, 20171014,20180701,20181001] #lower bound excluded
 washout_period=[20170819,20170825] #including the dates specified
-interv_dates_cats=['flood','PostFlood1','PostFlood2']
+interv_dates_cats=['flood','PostFlood1','PostFlood2','NextYear1','NextYear2']
 Dis_cat="ALL"
 
 #%%cleaing for age, gender and race and create census tract
@@ -130,14 +121,8 @@ sp=sp[sp.PAT_AGE_YEARS<119]
 sp.loc[:,'PAT_ADDR_CENSUS_TRACT']=(sp.PAT_ADDR_CENSUS_BLOCK_GROUP//10)
     
 #%%filter records for counties in study area or from zip codes
-if flood_data_zip is None:
-    sp=sp[(sp.PAT_ADDR_CENSUS_TRACT//1000000).isin(county_to_filter)].copy()
-else:
-    zip_codes=sp.PAT_ZIP
-    zip_codes=zip_codes.astype(str).str[:5]
-    sp.PAT_ZIP=pd.to_numeric(zip_codes,errors="coerce").astype('Int64')
-    sp=sp[sp.PAT_ZIP.isin(zip_to_filter)]
-    
+sp=sp[(sp.PAT_ADDR_CENSUS_TRACT//1000000).isin(county_to_filter)].copy()
+
 #%%keep only the dates we requested for
 
 #remove records before 2016
@@ -155,11 +140,6 @@ demos_subset.columns=["PAT_ADDR_CENSUS_TRACT","Population"]
 sp=sp.merge(demos_subset,on="PAT_ADDR_CENSUS_TRACT",how='left')
 sp=sp.loc[sp.Population>0,]
 
-# economy_subset=income.loc[:,['id','Estimate!!Median income (dollars)!!HOUSEHOLD INCOME BY RACE AND HISPANIC OR LATINO ORIGIN OF HOUSEHOLDER!!Households']]
-# economy_subset.columns=["PAT_ADDR_CENSUS_TRACT","Median_H_Income"]
-# sp=sp.merge(economy_subset,on="PAT_ADDR_CENSUS_TRACT",how='left')
-# sp.loc[sp.Median_H_Income=='250,000+',"Median_H_Income"]=250000
-# sp.Median_H_Income=pd.to_numeric(sp.Median_H_Income,errors='coerce')
 #%% merge SVI after recategorization
 svi=recalculateSVI(SVI_df_raw[SVI_df_raw.FIPS.isin(sp.PAT_ADDR_CENSUS_TRACT.unique())]).loc[:,["FIPS",'SVI','RPL_THEMES_1',"RPL_THEMES_2","RPL_THEMES_3","RPL_THEMES_4"]]
 sp=sp.merge(svi,left_on="PAT_ADDR_CENSUS_TRACT",right_on="FIPS",how='left').drop("FIPS",axis=1)
@@ -211,9 +191,6 @@ vists_per_tract=sp.groupby(['PAT_ADDR_CENSUS_TRACT','STMT_PERIOD_FROM'])\
                   .size().reset_index().rename(columns={0:'TotalVisits'})
 sp=sp.merge(vists_per_tract,on=['PAT_ADDR_CENSUS_TRACT','STMT_PERIOD_FROM'],how='left')
 
-#%%creating day from start for CITS
-day_from_start=pd.DataFrame({'STMT_PERIOD_FROM':pd.date_range('2016-07-01', '2018-12-31', freq='d').astype('str').str.replace('-','').astype('int64')}).reset_index().rename(columns={'index':'DayFromStart'})
-sp=sp.merge(day_from_start,on='STMT_PERIOD_FROM',how='left')
 #%%pat age categoriy based on SVI theme  2  <=17,18-64,>=65
 sp['AGE_cat']=pd.cut(sp.PAT_AGE_YEARS,bins=[-1,5,12,17,45,64,200],labels=['lte5','6-12','13-17','18-45','46-64','gt64']).cat.reorder_categories(['lte5','6-12','13-17','18-45','46-64','gt64'])
 
@@ -225,19 +202,13 @@ def run():
     if Dis_cat=="DEATH":df.loc[:,'Outcome']=filter_mortality(sp)
     if Dis_cat=="ALL":df.loc[:,'Outcome']=1
     if Dis_cat in outcome_cats.category.to_list():df.loc[:,'Outcome']=get_sp_outcomes(sp, Dis_cat)
-    
-    #%%for filtering flooded or non flooded alone
-    #df=df[df.floodr_cat=="FLood_1"].copy()
-    #df=df[df.SEX_CODE==FIL_COL].copy()
-    #df=df[df.AGE_cat==FIL_COL].copy()
-    #df=df[df[SVI_COL]==FIL_COL].copy()
-    #df=df[df.RACE==FIL_COL].copy()
+
     #%% bringing in intervention
     df.loc[:,'Time']=pd.cut(df.STMT_PERIOD_FROM,\
                                         bins=[0]+interv_dates+[20190101],\
                                         labels=['control']+[str(i) for i in interv_dates_cats]).cat.as_unordered()
     #set after 2018 as control
-    df.loc[df.STMT_PERIOD_FROM>20180100,'Time']="control" #if Dis_cat!="Psychiatric" else np.nan
+    #df.loc[df.STMT_PERIOD_FROM>20180100,'Time']="control" #if Dis_cat!="Psychiatric" else np.nan
     df=df.loc[~pd.isna(df.Time),]
     
     #take only control period
@@ -247,59 +218,27 @@ def run():
     df['month']=(df.STMT_PERIOD_FROM.astype('int32')//1e2%100).astype('category')
     df['weekday']=pd.to_datetime(df.STMT_PERIOD_FROM.astype('str'),format='%Y%m%d').dt.dayofweek.astype('category')
     
-    #%%stratified model for each period
-    #df=df.loc[df.Time.isin(['control', 'flood']),]
-    #df.Time.cat.remove_unused_categories(inplace=True)
     
     #%% save cross tab
      #counts_outcome=pd.DataFrame(df.Outcome.value_counts())
     outcomes_recs=df.loc[(df.Outcome>0)&(~pd.isna(df.loc[:,['floodr_cat','Time','year','month','weekday' ,'PAT_AGE_YEARS', 
                                                           'SEX_CODE','RACE','ETHNICITY','SVI_Cat']]).any(axis=1)),]
     counts_outcome=pd.crosstab(outcomes_recs.floodr_cat,outcomes_recs.Time)
-    #counts_outcome.to_csv(Dis_cat+"_aux"+".csv")
+    counts_outcome.to_csv(Dis_cat+"_aux"+".csv")
     print(counts_outcome)
     del outcomes_recs
     
-    #%%for total ED visits using grouped / coutns
-    if Dis_cat=="ALL":
-        grouped_tracts=df.loc[:,['STMT_PERIOD_FROM','PAT_AGE_YEARS','PAT_ADDR_CENSUS_TRACT','Outcome']]
-        grouped_tracts=pd.concat([grouped_tracts]+[pd.get_dummies(df[i],prefix=i) for i in ['SEX_CODE','RACE','ETHNICITY','op','AGE_cat']],axis=1)
-        
-        grouped_tracts=grouped_tracts.groupby(['STMT_PERIOD_FROM', 'PAT_ADDR_CENSUS_TRACT']).agg({'Outcome':'sum',
-                                                                                      'PAT_AGE_YEARS':'mean',
-                                                                                      'SEX_CODE_M':'sum','SEX_CODE_F':'sum', 
-                                                                                      'RACE_white':'sum','RACE_black':'sum','RACE_other':'sum',
-                                                                                      'ETHNICITY_Non_Hispanic':'sum','ETHNICITY_Hispanic':'sum', 
-                                                                                      'op_False':'sum','op_True':'sum',
-                                                                                      'AGE_cat_lte5':'sum','AGE_cat_6-12':'sum', 'AGE_cat_13-17':'sum','AGE_cat_18-45':'sum', 'AGE_cat_46-64':'sum', 'AGE_cat_gt64':'sum'
-                                                                                      #'AGE_cat_lte1':'sum', 'AGE_cat_2-5':'sum', 'AGE_cat_6-12':'sum', 'AGE_cat_13-17':'sum','AGE_cat_18-45':'sum', 'AGE_cat_46-64':'sum', 'AGE_cat_gt64':'sum'
-                                                                                      }).reset_index()
-                         
-        grouped_tracts=grouped_tracts.merge(df.drop_duplicates(['STMT_PERIOD_FROM','PAT_ADDR_CENSUS_TRACT']).loc[:,['STMT_PERIOD_FROM','PAT_ADDR_CENSUS_TRACT','floodr_cat','Population','Time','year','month','weekday','SVI_Cat','RPL_THEMES_1','RPL_THEMES_2','RPL_THEMES_3','RPL_THEMES_4','floodr']],how='left',on=["PAT_ADDR_CENSUS_TRACT",'STMT_PERIOD_FROM'])
-        dummy_cols=['SEX_CODE_M', 'SEX_CODE_F', 'RACE_white', 'RACE_black', 'RACE_other','ETHNICITY_Non_Hispanic', 'ETHNICITY_Hispanic',
-                    'op_False', 'op_True',
-                    'AGE_cat_lte5', 'AGE_cat_6-12', 'AGE_cat_13-17','AGE_cat_18-45', 'AGE_cat_46-64', 'AGE_cat_gt64']
-                    #'AGE_cat_lte1', 'AGE_cat_2-5', 'AGE_cat_6-12', 'AGE_cat_13-17','AGE_cat_18-45', 'AGE_cat_46-64', 'AGE_cat_gt64']
-        grouped_tracts.loc[:,dummy_cols]=grouped_tracts.loc[:,dummy_cols].divide(grouped_tracts.Outcome,axis=0)
-        del df
-        df=grouped_tracts
-    
-    
+       
     #%%running the model
     if Dis_cat!="ALL":offset=np.log(df.TotalVisits)
     #offset=None
-    if Dis_cat=="ALL":offset=np.log(df.Population)
+    #if Dis_cat=="ALL":offset=np.log(df.Population)
     
     #change floodr into 0-100
     df.floodr=df.floodr*100
     formula='Outcome'+' ~ '+' floodr_cat * Time '+' + year + month + weekday' + '  + RACE + SEX_CODE + PAT_AGE_YEARS + ETHNICITY'#'  + op '
-    if Dis_cat=='ALL': formula='Outcome'+' ~ '+' floodr_cat * Time * SVI_Cat'+' + year + month + weekday + '+' + '.join(['SEX_CODE_M','op_True','PAT_AGE_YEARS','RACE_white', 'RACE_black','ETHNICITY_Non_Hispanic'])
-    #if Dis_cat=='ALL': formula='Outcome'+' ~ '+' floodr_cat * Time'+' + year + month + weekday + '+' + '.join(['SEX_CODE_M','op_True','RACE_white', 'RACE_black','ETHNICITY_Non_Hispanic','PAT_AGE_YEARS'])
-    #formula=formula+' + Median_H_Income'
-    
+   
     model = smf.gee(formula=formula,groups=df[flood_join_field], data=df,offset=offset,missing='drop',family=sm.families.Poisson(link=sm.families.links.log()))
-    #model = smf.logit(formula=formula, data=df,missing='drop')
-    #model = smf.glm(formula=formula, data=df,missing='drop',family=sm.families.Binomial(sm.families.links.logit()))
     
     results=model.fit()
     print(results.summary())
