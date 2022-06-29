@@ -157,7 +157,7 @@ grpEdEvac = EdEvac %>% select(c("STMT_PERIOD_FROM","PAT_ADDR_CENSUS_TRACT",
                     "Population","Time","month","year","weekday",
                     "AERfRatio", "AERMaxfRatio",
                     "EvacPeriod","DayFromStart",
-                    evacDfCols,paste0(evacDfCols,"Sum"))) %>% filter(!duplicated(.)) %>%
+                    evacDfCols,paste0(evacDfCols,"Sum"))) %>% filter(!duplicated(select(.,STMT_PERIOD_FROM,PAT_ADDR_CENSUS_TRACT))) %>%
                     inner_join(grpEdEvac,by = c("STMT_PERIOD_FROM","PAT_ADDR_CENSUS_TRACT"))
 
 #categorize AER max variable
@@ -576,7 +576,7 @@ evacVarType = 'linear'
     aic = AIC(model)
     
     #broom results
-    resTab = tidy(model, exponentiate = T)
+    resTab = tidy(model, exponentiate = F)
     resTab = bind_cols(resTab , confint.default(model) %>% exp %>% as_tibble)
     resTab<-resTab[,c("term", "estimate","2.5 %",  "97.5 %","p.value", "std.error")]
     #insert exposure,outcome and formula and Aic
