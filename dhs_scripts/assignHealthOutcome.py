@@ -76,7 +76,7 @@ def filter_from_icds_1(sp,outcome_cats,Dis_cat):
     return result
     
 #%%read op or ip as sp
-INPUT_IPOP_DIR=r'Z:\Balaji\DSHS ED visit data(PII)\CleanedMergedJoined'
+INPUT_IPOP_DIR=r'Z:\DSHS ED visit data(PII)\CleanedMergedJoined'
 
 op=pd.read_pickle(INPUT_IPOP_DIR+'\\op')
 op['op']=True
@@ -91,19 +91,21 @@ del op,ip
 
 
 #read categories
-outcome_cats=pd.read_csv('Z:/Balaji/GRAScripts/dhs_scripts/categories.csv')
+outcome_cats=pd.read_csv('Z:/GRAScripts/dhs_scripts/categories.csv')
 outcome_cats.fillna('',inplace=True)
 print(outcome_cats.category.to_list())
 
 #cats=outcome_cats.category.to_list()
-cats=['DrugOverdoseAbuse']
+cats=['Opi_Methadone', 'Opi_Illicit', 'Opi_Synthetic', 'Opi_Natural_SemiSynth', 'Opi_Other', 'Opi_Use_Abuse_Depend', 'Opi_psychosimul']
 
 #load teh previous output file of outocmes
 df=pd.read_csv(INPUT_IPOP_DIR+'\\ip_op_outcomes.csv')
 #df=pd.DataFrame(sp.RECORD_ID)
+df.index=sp.index
+(df.RECORD_ID==sp.RECORD_ID).value_counts()
 for Dis_cat in cats:
      print(Dis_cat+'\n'+'-'*30)
      xx=filter_from_icds(sp, outcome_cats, Dis_cat)
-     df.index=sp.index
      df[Dis_cat]=xx
+df["Opi_Any"] = df.loc[:,['Opi_Methadone', 'Opi_Illicit', 'Opi_Synthetic', 'Opi_Natural_SemiSynth', 'Opi_Other', 'Opi_Use_Abuse_Depend', 'Opi_psychosimul']].any(1).astype('int')
 df.to_csv(INPUT_IPOP_DIR+'\\ip_op_outcomes.csv',index=False)

@@ -24,11 +24,8 @@ import numpy as np
 
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
-from datetime import timedelta, date,datetime
-from dateutil import parser
-import glob
 import sys
-sys.path.insert(1, r'Z:\Balaji\GRAScripts\dhs_scripts')
+sys.path.insert(1, r'Z:\GRAScripts\dhs_scripts')
 from recalculate_svi import recalculateSVI
 
 #%%functions
@@ -42,7 +39,7 @@ def get_sp_outcomes(sp,Dis_cat):
     return sp.merge(sp_outcomes.loc[:,['RECORD_ID','op',Dis_cat]],on=['RECORD_ID','op'],how='left')[Dis_cat].values
 
 #%%read ip op data
-INPUT_IPOP_DIR=r'Z:\Balaji\DSHS ED visit data(PII)\CleanedMergedJoined'
+INPUT_IPOP_DIR=r'Z:\DSHS ED visit data(PII)\CleanedMergedJoined'
 #read_op
 op=pd.read_pickle(INPUT_IPOP_DIR+'\\op')
 op=op.loc[:,['RECORD_ID','STMT_PERIOD_FROM','PAT_ADDR_CENSUS_BLOCK_GROUP','PAT_AGE_YEARS','SEX_CODE','RACE','PAT_STATUS','ETHNICITY','PAT_ZIP','LCODE']]
@@ -62,34 +59,42 @@ del op,ip
 sp_outcomes=pd.read_csv(INPUT_IPOP_DIR+'\\ip_op_outcomes.csv')
 
 #read flood ratio data
-flood_data=pd.read_csv(r'Z:/Balaji/indundation_harvey/FloodRatioJoinedAll_v1/FloodInund_AllJoined_v1.csv')
+flood_data=pd.read_csv(r'Z:/indundation_harvey/FloodRatioJoinedAll_v1/FloodInund_AllJoined_v1.csv')
+#flood_data=pd.read_csv(r'Z:/indundation_harvey/censusTractsFloodScan_MFED/AER_fRatio_CTs.csv')
 
 
 #read svi data
-SVI_df_raw=pd.read_csv(r'Z:/Balaji/SVI_Raw/TEXAS.csv')
+SVI_df_raw=pd.read_csv(r'Z:/SVI_Raw/TEXAS.csv')
 SVI_df_raw.FIPS=pd.to_numeric(SVI_df_raw.FIPS)
 
 #read population data
-demos=pd.read_csv(r'Z:/Balaji/Census_data_texas/population/ACS_17_5YR_DP05_with_ann.csv',low_memory=False,skiprows=1)
+demos=pd.read_csv(r'Z:/Census_data_texas/population/ACS_17_5YR_DP05_with_ann.csv',low_memory=False,skiprows=1)
 demos.Id2=demos.Id2.astype("Int64")
 
 #read study area counties
-#county_to_filter=pd.read_csv('Z:/Balaji/counties_evacu_order.csv').GEOID.to_list()
-county_to_filter=pd.read_csv('Z:\Balaji\DSHS ED visit data(PII)\contiesInStudyArea.csv').County_FIPS.to_list()
+#county_to_filter=pd.read_csv('Z:/counties_evacu_order.csv').GEOID.to_list()
+county_to_filter=pd.read_csv('Z:\DSHS ED visit data(PII)\contiesInStudyArea.csv').County_FIPS.to_list()
 
 #%%read the categories file
-outcome_cats=pd.read_csv('Z:/Balaji/GRAScripts/dhs_scripts/categories.csv')
+outcome_cats=pd.read_csv('Z:/GRAScripts/dhs_scripts/categories.csv')
 outcome_cats.fillna('',inplace=True)
 #%%predefine variable 
-flood_cats_in=1
 floodr_use="DFO_R200" #['DFO_R200','DFO_R100','LIST_R20','DFO_R20','DFOuLIST_R20']
+#floodr_use="AERfRatio" #for AER product
+
 nullAsZero="True" #null flood ratios are changed to 0
 floodZeroSep="True" # zeros are considered as seperate class
 flood_data_zip=None
 
+#interv_dates=[20170825, 20170913, 20171014,20180701,20181001] #lower bound excluded
 interv_dates=[20170825, 20170913, 20171014,20180701,20181001] #lower bound excluded
+
+
 washout_period=[20170819,20170825] #including the dates specified
+
 interv_dates_cats=['flood','PostFlood1','PostFlood2','NextYear1','NextYear2']
+#interv_dates_cats=['flood','PostFlood1','PostFlood2','NextYear1','NextYear2']
+
 Dis_cat="ALL"
 
 #%%cleaing for age, gender and race and create census tract
@@ -156,11 +161,13 @@ flood_join_field='PAT_ADDR_CENSUS_TRACT'
 if flood_data_zip is not None: 
     flood_data=flood_data_zip
     flood_join_field='PAT_ZIP'
-FLOOD_QUANTILES=["NO","FLood_1"]
+FLOOD_QUANTILES=["NO","FLood_1","Flood_2"]
 floodr=flood_data.copy()
 floodr.GEOID=pd.to_numeric(floodr.GEOID).astype("Int64")
 floodr=floodr.loc[:,['GEOID']+[floodr_use]]
 floodr.columns=['GEOID','floodr']
+
+sp=sp.drop(columns='floodr')  if 'floodr' in sp.columns else sp  #drop before merging
 sp=sp.merge(floodr,left_on=flood_join_field,right_on='GEOID',how='left')
 
 #make tracts with null as zero flooding
@@ -194,31 +201,33 @@ sp=sp.merge(vists_per_tract,on=['PAT_ADDR_CENSUS_TRACT','STMT_PERIOD_FROM'],how=
 #%%pat age categoriy based on SVI theme  2  <=17,18-64,>=65
 sp['AGE_cat']=pd.cut(sp.PAT_AGE_YEARS,bins=[-1,5,12,17,45,64,200],labels=['lte5','6-12','13-17','18-45','46-64','gt64']).cat.reorder_categories(['lte5','6-12','13-17','18-45','46-64','gt64'])
 
+#%% bringing in intervention
+sp.loc[:,'Time']=pd.cut(sp.STMT_PERIOD_FROM,\
+                                    bins=[0]+interv_dates+[20190101],\
+                                    labels=['control']+[str(i) for i in interv_dates_cats]).cat.as_unordered()
+#set after 2018 as control
+#sp.loc[sp.STMT_PERIOD_FROM>20180100,'Time']="control" #if Dis_cat!="Psychiatric" else np.nan
+sp=sp.loc[~pd.isna(sp.Time),]
+
+#take only control period
+#sp=sp[sp.Time=='control']
+#%%controling for year month and week of the day
+sp['year']=(sp.STMT_PERIOD_FROM.astype('int32')//1e4).astype('category')
+sp['month']=(sp.STMT_PERIOD_FROM.astype('int32')//1e2%100).astype('category')
+sp['weekday']=pd.to_datetime(sp.STMT_PERIOD_FROM.astype('str'),format='%Y%m%d').dt.dayofweek.astype('category')
+    
+#%%
+Dis_cat="Opi_Any"
 #sp['AGE_cat']=pd.cut(sp.PAT_AGE_YEARS,bins=[-1,1,5,12,17,45,64,200],labels=['lte1','2-5','6-12','13-17','18-45','46-64','gt64']).cat.reorder_categories(['lte1','2-5','6-12','13-17','18-45','46-64','gt64'])
 #%%function for looping
-def run():   
+def run(Dis_cat):   
     #%%filter records for specific outcome
+    print(Dis_cat)
     df=sp#[sp.SVI_Cat=='SVI_filter']  #--------------Edit here for stratified model
     if Dis_cat=="DEATH":df.loc[:,'Outcome']=filter_mortality(sp)
     if Dis_cat=="ALL":df.loc[:,'Outcome']=1
-    if Dis_cat in outcome_cats.category.to_list():df.loc[:,'Outcome']=get_sp_outcomes(sp, Dis_cat)
-
-    #%% bringing in intervention
-    df.loc[:,'Time']=pd.cut(df.STMT_PERIOD_FROM,\
-                                        bins=[0]+interv_dates+[20190101],\
-                                        labels=['control']+[str(i) for i in interv_dates_cats]).cat.as_unordered()
-    #set after 2018 as control
-    #df.loc[df.STMT_PERIOD_FROM>20180100,'Time']="control" #if Dis_cat!="Psychiatric" else np.nan
-    df=df.loc[~pd.isna(df.Time),]
-    
-    #take only control period
-    #df=df[df.Time=='control']
-    #%%controling for year month and week of the day
-    df['year']=(df.STMT_PERIOD_FROM.astype('int32')//1e4).astype('category')
-    df['month']=(df.STMT_PERIOD_FROM.astype('int32')//1e2%100).astype('category')
-    df['weekday']=pd.to_datetime(df.STMT_PERIOD_FROM.astype('str'),format='%Y%m%d').dt.dayofweek.astype('category')
-    
-    
+    if Dis_cat in outcome_cats.category.to_list()+['Opi_Any']:df.loc[:,'Outcome']=get_sp_outcomes(sp, Dis_cat)
+   
     #%% save cross tab
      #counts_outcome=pd.DataFrame(df.Outcome.value_counts())
     outcomes_recs=df.loc[(df.Outcome>0)&(~pd.isna(df.loc[:,['floodr_cat','Time','year','month','weekday' ,'PAT_AGE_YEARS', 
@@ -233,6 +242,8 @@ def run():
     if Dis_cat!="ALL":offset=np.log(df.TotalVisits)
     #offset=None
     #if Dis_cat=="ALL":offset=np.log(df.Population)
+    
+    offset=np.log(df.Population) #keeping offset as population for subsequent analysis
     
     #change floodr into 0-100
     df.floodr=df.floodr*100
@@ -267,4 +278,13 @@ def run():
     #return reg_table
     #%%write the output
     reg_table.to_csv(Dis_cat+"_reg"+".csv")
-    #reg_table_dev.to_csv(Dis_cat+"_dev"+".csv")
+    reg_table_dev.to_csv(Dis_cat+"_dev"+".csv")
+    
+#%% looping 
+['DrugOverdoseAbuse','Opi_Illicit','Opi_Synthetic','Opi_Natural_SemiSynth','Opi_Methadone', 'Opi_Other','Opi_Use_Abuse_Depend','Opi_psychosimul','Opi_Any']
+
+Dis_cats = ['DrugOverdoseAbuse','Opi_Illicit','Opi_Synthetic','Opi_Natural_SemiSynth',  #'Opi_Methadone',
+'Opi_Other','Opi_Use_Abuse_Depend','Opi_psychosimul','Opi_Any']
+for x in Dis_cats:
+    run(x)
+    
