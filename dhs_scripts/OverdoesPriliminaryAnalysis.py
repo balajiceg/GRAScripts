@@ -161,7 +161,7 @@ flood_join_field='PAT_ADDR_CENSUS_TRACT'
 if flood_data_zip is not None: 
     flood_data=flood_data_zip
     flood_join_field='PAT_ZIP'
-FLOOD_QUANTILES=["NO","FLood_1","Flood_2"]
+FLOOD_QUANTILES=["NO","FLood_1"]
 floodr=flood_data.copy()
 floodr.GEOID=pd.to_numeric(floodr.GEOID).astype("Int64")
 floodr=floodr.loc[:,['GEOID']+[floodr_use]]
@@ -247,7 +247,7 @@ def run(Dis_cat):
     
     #change floodr into 0-100
     df.floodr=df.floodr*100
-    formula='Outcome'+' ~ '+' floodr_cat * Time '+' + year + month + weekday' + '  + RACE + SEX_CODE + PAT_AGE_YEARS + ETHNICITY'#'  + op '
+    formula='Outcome'+' ~ '+' floodr_cat * Time * SVI_Cat'+' + year + month + weekday' + '  + RACE + SEX_CODE + PAT_AGE_YEARS + ETHNICITY'#'  + op '
    
     model = smf.gee(formula=formula,groups=df[flood_join_field], data=df,offset=offset,missing='drop',family=sm.families.Poisson(link=sm.families.links.log()))
     
