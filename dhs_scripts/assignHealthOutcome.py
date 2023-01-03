@@ -96,7 +96,7 @@ outcome_cats.fillna('',inplace=True)
 print(outcome_cats.category.to_list())
 
 #cats=outcome_cats.category.to_list()
-cats=['Opi_Methadone', 'Opi_Illicit', 'Opi_Synthetic', 'Opi_Natural_SemiSynth', 'Opi_Other', 'Opi_Use_Abuse_Depend', 'Opi_psychosimul']
+cats=["Alcohol","Cannabis"]
 
 #load teh previous output file of outocmes
 df=pd.read_csv(INPUT_IPOP_DIR+'\\ip_op_outcomes.csv')
@@ -107,5 +107,5 @@ for Dis_cat in cats:
      print(Dis_cat+'\n'+'-'*30)
      xx=filter_from_icds(sp, outcome_cats, Dis_cat)
      df[Dis_cat]=xx
-df["Opi_Any"] = df.loc[:,['Opi_Methadone', 'Opi_Illicit', 'Opi_Synthetic', 'Opi_Natural_SemiSynth', 'Opi_Other', 'Opi_Use_Abuse_Depend', 'Opi_psychosimul']].any(1).astype('int')
+df["Opi_Any_NonIllicit"] = df.loc[:,['Opi_Methadone', 'Opi_Synthetic', 'Opi_Natural_SemiSynth', 'Opi_Other', 'Opi_Use_Abuse_Depend']].any(1).astype('int')
 df.to_csv(INPUT_IPOP_DIR+'\\ip_op_outcomes.csv',index=False)

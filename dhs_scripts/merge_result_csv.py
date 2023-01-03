@@ -29,7 +29,7 @@ merge_df['covar']=merge_df['covar'].str.replace("\[T.",'_').str.replace('\]','')
 #merge_df['folder']='SVI_Cat_T4'
 
 #% outupt
-merge_df.to_excel(first_dir+r'\merged_flood_pop_aer.xlsx',index=False)  
+merge_df.to_excel(first_dir+r'\merged_flood_pop_aer_floodcats.xlsx',index=False)  
 #%%writ pivot table
 pmerge_df=merge_df.loc[merge_df.covar.isin(['floodr_cat_FLood_1:Time_flood',
        'floodr_cat_FLood_1:Time_PostFlood1',

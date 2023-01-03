@@ -161,7 +161,7 @@ flood_join_field='PAT_ADDR_CENSUS_TRACT'
 if flood_data_zip is not None: 
     flood_data=flood_data_zip
     flood_join_field='PAT_ZIP'
-FLOOD_QUANTILES=["NO","FLood_1"]
+FLOOD_QUANTILES=["NO","Flood_1"]
 floodr=flood_data.copy()
 floodr.GEOID=pd.to_numeric(floodr.GEOID).astype("Int64")
 floodr=floodr.loc[:,['GEOID']+[floodr_use]]
@@ -223,16 +223,18 @@ Dis_cat="Opi_Any"
 def run(Dis_cat):   
     #%%filter records for specific outcome
     print(Dis_cat)
+    print('===========================')
     df=sp#[sp.SVI_Cat=='SVI_filter']  #--------------Edit here for stratified model
     if Dis_cat=="DEATH":df.loc[:,'Outcome']=filter_mortality(sp)
     if Dis_cat=="ALL":df.loc[:,'Outcome']=1
-    if Dis_cat in outcome_cats.category.to_list()+['Opi_Any']:df.loc[:,'Outcome']=get_sp_outcomes(sp, Dis_cat)
+    df.loc[:,'Outcome']=get_sp_outcomes(sp, Dis_cat)
    
     #%% save cross tab
      #counts_outcome=pd.DataFrame(df.Outcome.value_counts())
     outcomes_recs=df.loc[(df.Outcome>0)&(~pd.isna(df.loc[:,['floodr_cat','Time','year','month','weekday' ,'PAT_AGE_YEARS', 
                                                           'SEX_CODE','RACE','ETHNICITY','SVI_Cat']]).any(axis=1)),]
-    counts_outcome=pd.crosstab(outcomes_recs.floodr_cat,outcomes_recs.Time)
+    counts_outcome=pd.crosstab(outcomes_recs.Time,outcomes_recs.floodr_cat)
+    #counts_outcome=pd.crosstab([outcomes_recs.Time,outcomes_recs.floodr_cat],outcomes_recs.SVI_Cat)
     counts_outcome.to_csv(Dis_cat+"_aux"+".csv")
     print(counts_outcome)
     del outcomes_recs
@@ -241,13 +243,13 @@ def run(Dis_cat):
     #%%running the model
     if Dis_cat!="ALL":offset=np.log(df.TotalVisits)
     #offset=None
-    #if Dis_cat=="ALL":offset=np.log(df.Population)
+    if Dis_cat=="ALL":offset=np.log(df.Population)
     
-    offset=np.log(df.Population) #keeping offset as population for subsequent analysis
+    #offset=np.log(df.Population) #keeping offset as population for subsequent analysis
     
     #change floodr into 0-100
     df.floodr=df.floodr*100
-    formula='Outcome'+' ~ '+' floodr_cat * Time * SVI_Cat'+' + year + month + weekday' + '  + RACE + SEX_CODE + PAT_AGE_YEARS + ETHNICITY'#'  + op '
+    formula='Outcome'+' ~ '+' floodr_cat * Time'+' + year + month + weekday' + '  + RACE + SEX_CODE + PAT_AGE_YEARS + ETHNICITY'#'  + op '
    
     model = smf.gee(formula=formula,groups=df[flood_join_field], data=df,offset=offset,missing='drop',family=sm.families.Poisson(link=sm.families.links.log()))
     
@@ -281,10 +283,10 @@ def run(Dis_cat):
     reg_table_dev.to_csv(Dis_cat+"_dev"+".csv")
     
 #%% looping 
-['DrugOverdoseAbuse','Opi_Illicit','Opi_Synthetic','Opi_Natural_SemiSynth','Opi_Methadone', 'Opi_Other','Opi_Use_Abuse_Depend','Opi_psychosimul','Opi_Any']
+#["Alcohol","Cannabis",'DrugOverdoseAbuse','Opi_Illicit','Opi_Synthetic','Opi_Natural_SemiSynth','Opi_Methadone', 'Opi_Other','Opi_Use_Abuse_Depend','Opi_psychosimul','Opi_Any']
 
-Dis_cats = ['DrugOverdoseAbuse','Opi_Illicit','Opi_Synthetic','Opi_Natural_SemiSynth',  #'Opi_Methadone',
-'Opi_Other','Opi_Use_Abuse_Depend','Opi_psychosimul','Opi_Any']
+Dis_cats = ['Opi_Any_NonIllicit']
 for x in Dis_cats:
     run(x)
+    
     
