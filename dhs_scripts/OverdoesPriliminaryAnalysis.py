@@ -38,7 +38,7 @@ def get_sp_outcomes(sp,Dis_cat):
     global sp_outcomes
     return sp.merge(sp_outcomes.loc[:,['RECORD_ID','op',Dis_cat]],on=['RECORD_ID','op'],how='left')[Dis_cat].values
 
-#%%read ip op data
+#%%read ip op data  ---- constant ----
 INPUT_IPOP_DIR=r'Z:\DSHS ED visit data(PII)\CleanedMergedJoined'
 #read_op
 op=pd.read_pickle(INPUT_IPOP_DIR+'\\op')
@@ -66,47 +66,16 @@ demos=pd.read_csv(r'Z:/Census_data_texas/population/ACS_17_5YR_DP05_with_ann.csv
 demos.Id2=demos.Id2.astype("Int64")
 
 
-#%%read the categories file
-outcome_cats=pd.read_csv('Z:/GRAScripts/dhs_scripts/categories.csv')
-outcome_cats.fillna('',inplace=True)
-#%%predefine variable 
-
-
-#expsoure level ct or bg (ct-census tract; bg- blockgroup)
-EXPOSURE_LEVEL = 'ct' 
-#exposure product dfo or aer
-EXPOSURE_PRODUCT = 'aer'
-#type of flooding fRatio or fldResRatio (fRatio - overall flood ratio; fldResRatio - residential flooding ratio) 
-FLOOD_TYPE = 'fRatio'
-
 #read flood ratio data
 flood_data_ct= pd.read_csv('Z:\indundation_harvey\censusTracts_AER_DFO_flood\censusTracts_AER_DFO_flood.csv')
 flood_data_bg= pd.read_csv('Z:\indundation_harvey\censusBlkGrp_AER_DFO_flood\censusBlkGrp_AER_DFO_flood.csv')
 
 
-#read study area counties
-#county_to_filter=pd.read_csv('Z:\DSHS ED visit data(PII)\contiesInStudyArea.csv').County_FIPS.to_list()
-tracts_to_filter= flood_data_ct.GEOID[~pd.isna(flood_data_ct['within_'+"aer"])]
-tract_bg_to_filter= flood_data_bg.GEOID[~pd.isna(flood_data_bg['within_'+"aer"])]
+#read the categories file
+outcome_cats=pd.read_csv('Z:/GRAScripts/dhs_scripts/categories.csv')
+outcome_cats.fillna('',inplace=True)
 
-floodr_use= EXPOSURE_PRODUCT.upper() + FLOOD_TYPE
-
-nullAsZero="True" #null flood ratios are changed to 0
-floodZeroSep="True" # zeros are considered as seperate class
-flood_data_zip=None
-
-#interv_dates=[20170825, 20170913, 20171014,20180701,20181001] #lower bound excluded
-interv_dates=[20170825, 20170913, 20171014,20180701,20181001] #lower bound excluded
-
-
-washout_period=[20170819,20170825] #including the dates specified
-
-interv_dates_cats=['flood','PostFlood1','PostFlood2','NextYear1','NextYear2']
-#interv_dates_cats=['flood','PostFlood1','PostFlood2','NextYear1','NextYear2']
-
-Dis_cat="ALL"
-
-#%%cleaing for age, gender and race and create census tract
+#%%cleaing for age, gender and race and create census tract ---- constant ----
 #age
 sp.loc[:,'PAT_AGE_YEARS']=pd.to_numeric(sp.PAT_AGE_YEARS,errors="coerce")
 sp.loc[:,'PAT_AGE_YEARS']=sp.loc[:,'PAT_AGE_YEARS'].astype('float')
@@ -135,8 +104,9 @@ sp=sp[sp.PAT_AGE_YEARS<119]
 sp.loc[:,'PAT_ADDR_CENSUS_TRACT']=(sp.PAT_ADDR_CENSUS_BLOCK_GROUP//10)
     
 
-#%%keep only the dates we requested for
+#%%keep only the dates we requested for ---- constant ----
 
+washout_period=[20170819,20170825] #including the dates specified
 #remove records before 2016
 sp=sp.loc[(~pd.isna(sp.STMT_PERIOD_FROM))&(~pd.isna(sp.PAT_ADDR_CENSUS_BLOCK_GROUP))] 
 
@@ -147,21 +117,7 @@ sp=sp[((sp.STMT_PERIOD_FROM > 20160700) & (sp.STMT_PERIOD_FROM< 20161232))\
 #remove data in washout period
 sp= sp[~((sp.STMT_PERIOD_FROM >= washout_period[0]) & (sp.STMT_PERIOD_FROM <= washout_period[1]))]
 
-#%%filter records for counties in study area or from zip codes
-if EXPOSURE_LEVEL == 'ct' :
-    sp.PAT_ADDR_CENSUS_TRACT.isin(tracts_to_filter).value_counts()
-elif EXPOSURE_LEVEL == 'bg':
-    sp.PAT_ADDR_CENSUS_BLOCK_GROUP.isin(tract_bg_to_filter).value_counts()
-
-#sp=sp[(sp.PAT_ADDR_CENSUS_TRACT//1000000).isin(county_to_filter)].copy()
-
-#%% merge population and economy
-demos_subset=demos.iloc[:,[1,3]]
-demos_subset.columns=["PAT_ADDR_CENSUS_TRACT","Population"]
-sp=sp.merge(demos_subset,on="PAT_ADDR_CENSUS_TRACT",how='left')
-sp=sp.loc[sp.Population>0,]
-
-#%% merge SVI after recategorization
+#%% merge SVI after recategorization ---- constant ----
 svi=recalculateSVI(SVI_df_raw[SVI_df_raw.FIPS.isin(sp.PAT_ADDR_CENSUS_TRACT.unique())]).loc[:,["FIPS",'SVI','RPL_THEMES_1',"RPL_THEMES_2","RPL_THEMES_3","RPL_THEMES_4"]]
 sp=sp.merge(svi,left_on="PAT_ADDR_CENSUS_TRACT",right_on="FIPS",how='left').drop("FIPS",axis=1)
 sp['SVI_Cat']=pd.cut(sp.SVI,bins=np.arange(0,1.1,1/4),include_lowest=True,labels=[1,2,3,4])
@@ -170,15 +126,92 @@ sp['SVI_Cat']=pd.cut(sp.SVI,bins=np.arange(0,1.1,1/4),include_lowest=True,labels
 for i in ['1','2','3','4']:
     sp['SVI_Cat_T'+i]=pd.cut(sp['RPL_THEMES_'+i],bins=np.arange(0,1.1,1/4),include_lowest=True,labels=[1,2,3,4])
 
-#%%filter SVI cat for stratified analysis
-#sp=sp[sp.SVI_Cat==4]
+#%%controling for year month and week of the day ---- constant ----
+sp['year']=(sp.STMT_PERIOD_FROM.astype('int32')//1e4).astype('category')
+sp['month']=(sp.STMT_PERIOD_FROM.astype('int32')//1e2%100).astype('category')
+sp['weekday']=pd.to_datetime(sp.STMT_PERIOD_FROM.astype('str'),format='%Y%m%d').dt.dayofweek.astype('category')
+
+#%%calculating total visits for offset ---- constant ----
+vists_per_tract=sp.groupby(['PAT_ADDR_CENSUS_TRACT','STMT_PERIOD_FROM'])\
+                  .size().reset_index().rename(columns={0:'TotalVisits'})
+#%%predefine variable 
+
+#expsoure level ct or bg (ct-census tract; bg- blockgroup)
+EXPOSURE_LEVEL = 'ct' 
+#exposure product dfo or aer
+EXPOSURE_PRODUCT = 'aer'
+#type of flooding fRatio or fldResRatio (fRatio - overall flood ratio; fldResRatio - residential flooding ratio) 
+FLOOD_TYPE = 'fRatio'
+#extent of cenus tracts defined using which flood product extent : dfo or aer
+EXTENT_ANALYSIS = 'aer'
+
+tracts_to_filter= flood_data_ct.GEOID[~pd.isna(flood_data_ct['within_'+EXTENT_ANALYSIS])]
+tract_bg_to_filter= flood_data_bg.GEOID[~pd.isna(flood_data_bg['within_'+EXTENT_ANALYSIS])]
+
+floodr_use= EXPOSURE_PRODUCT.upper() + FLOOD_TYPE
+
+nullAsZero="True" #null flood ratios are changed to 0
+floodZeroSep="True" # zeros are considered as seperate class
+flood_data_zip=None
+
+#interv_dates=[20170825, 20170913, 20171014,20180701,20181001] #lower bound excluded - for additional post flood in 2018
+interv_dates=[20170825, 20170913, 20171014] #lower bound excluded
+
+interv_dates_cats=['flood','PostFlood1','PostFlood2'] 
+#interv_dates_cats=['flood','PostFlood1','PostFlood2','NextYear1','NextYear2']# - for additional post flood in 2018
+
+Dis_cat="ALL"
+
+
+
+#%%pat age categoriy based on SVI theme  2  <=17,18-64,>=65
+#sp['AGE_cat']=pd.cut(sp.PAT_AGE_YEARS,bins=[-1,5,12,17,45,64,200],labels=['lte5','6-12','13-17','18-45','46-64','gt64']).cat.reorder_categories(['lte5','6-12','13-17','18-45','46-64','gt64'])
+sp_bkp = sp.copy()
+sp = sp_bkp
+#%%filter records for counties in study area or from zip codes
+if EXPOSURE_LEVEL == 'ct' :
+    sp=sp[sp.PAT_ADDR_CENSUS_TRACT.isin(tracts_to_filter)]
+elif EXPOSURE_LEVEL == 'bg':
+    sp=sp[sp.PAT_ADDR_CENSUS_BLOCK_GROUP.isin(tract_bg_to_filter)]
+    
+#sp=sp[(sp.PAT_ADDR_CENSUS_TRACT//1000000).isin(county_to_filter)].copy()
+#%% merge population and total visits for offset
+demos_subset=demos.iloc[:,[1,3]]
+demos_subset.columns=["PAT_ADDR_CENSUS_TRACT","Population"]
+sp=sp.drop(columns='Population')  if 'Population' in sp.columns else sp  #drop before merging
+sp=sp.merge(demos_subset,on="PAT_ADDR_CENSUS_TRACT",how='left')
+sp=sp.loc[sp.Population>0,]
+
+
+#merges total visits per tract or per bg
+sp=sp.drop(columns='TotalVisits')  if 'TotalVisits' in sp.columns else sp  #drop before merging
+sp=sp.merge(vists_per_tract,on=['PAT_ADDR_CENSUS_TRACT','STMT_PERIOD_FROM'],how='left')
+
+#%% bringing in intervention
+sp.loc[:,'Time']=pd.cut(sp.STMT_PERIOD_FROM,\
+                                    bins=[0]+interv_dates+[20190101],\
+                                    labels=['control']+[str(i) for i in interv_dates_cats]).cat.as_unordered()
+#set after 2018 as control
+sp.loc[sp.STMT_PERIOD_FROM>20180100,'Time']="control" #if Dis_cat!="Psychiatric" else np.nan
+sp=sp.loc[~pd.isna(sp.Time),]
+
+#take only control period
+#sp=sp[sp.Time=='control']
 #%%merge flood ratio
-flood_join_field='PAT_ADDR_CENSUS_TRACT'
-if flood_data_zip is not None: 
-    flood_data=flood_data_zip
-    flood_join_field='PAT_ZIP'
+
+if EXPOSURE_LEVEL == 'ct' :
+    flood_join_field='PAT_ADDR_CENSUS_TRACT'
+    floodr=flood_data_ct.copy()
+elif EXPOSURE_LEVEL == 'bg':
+    flood_join_field='PAT_ADDR_CENSUS_BLOCK_GROUP'
+    floodr=flood_data_ct.copy()
+
+# if flood_data_zip is not None: 
+#     flood_data=flood_data_zip
+#     flood_join_field='PAT_ZIP'
+
 FLOOD_QUANTILES=["NO","Flood_1"]
-floodr=flood_data.copy()
+
 floodr.GEOID=pd.to_numeric(floodr.GEOID).astype("Int64")
 floodr=floodr.loc[:,['GEOID']+[floodr_use]]
 floodr.columns=['GEOID','floodr']
@@ -209,31 +242,9 @@ for i in range(1,len(FLOOD_QUANTILES)):
 sp['floodr_cat']=pd.cut(sp.floodr,bins=flood_bins,right=True,include_lowest=True,labels=FLOOD_QUANTILES)
 sp=sp.drop("GEOID",axis=1)
     
-#%%calculating total visits for offset
-vists_per_tract=sp.groupby(['PAT_ADDR_CENSUS_TRACT','STMT_PERIOD_FROM'])\
-                  .size().reset_index().rename(columns={0:'TotalVisits'})
-sp=sp.merge(vists_per_tract,on=['PAT_ADDR_CENSUS_TRACT','STMT_PERIOD_FROM'],how='left')
-
-#%%pat age categoriy based on SVI theme  2  <=17,18-64,>=65
-sp['AGE_cat']=pd.cut(sp.PAT_AGE_YEARS,bins=[-1,5,12,17,45,64,200],labels=['lte5','6-12','13-17','18-45','46-64','gt64']).cat.reorder_categories(['lte5','6-12','13-17','18-45','46-64','gt64'])
-
-#%% bringing in intervention
-sp.loc[:,'Time']=pd.cut(sp.STMT_PERIOD_FROM,\
-                                    bins=[0]+interv_dates+[20190101],\
-                                    labels=['control']+[str(i) for i in interv_dates_cats]).cat.as_unordered()
-#set after 2018 as control
-#sp.loc[sp.STMT_PERIOD_FROM>20180100,'Time']="control" #if Dis_cat!="Psychiatric" else np.nan
-sp=sp.loc[~pd.isna(sp.Time),]
-
-#take only control period
-#sp=sp[sp.Time=='control']
-#%%controling for year month and week of the day
-sp['year']=(sp.STMT_PERIOD_FROM.astype('int32')//1e4).astype('category')
-sp['month']=(sp.STMT_PERIOD_FROM.astype('int32')//1e2%100).astype('category')
-sp['weekday']=pd.to_datetime(sp.STMT_PERIOD_FROM.astype('str'),format='%Y%m%d').dt.dayofweek.astype('category')
-    
+print("flood bins:" , flood_bins)
 #%%
-Dis_cat="Opi_Any"
+Dis_cat="Dehydration"
 #sp['AGE_cat']=pd.cut(sp.PAT_AGE_YEARS,bins=[-1,1,5,12,17,45,64,200],labels=['lte1','2-5','6-12','13-17','18-45','46-64','gt64']).cat.reorder_categories(['lte1','2-5','6-12','13-17','18-45','46-64','gt64'])
 #%%function for looping
 def run(Dis_cat):   
@@ -248,7 +259,7 @@ def run(Dis_cat):
     #%% save cross tab
      #counts_outcome=pd.DataFrame(df.Outcome.value_counts())
     outcomes_recs=df.loc[(df.Outcome>0)&(~pd.isna(df.loc[:,['floodr_cat','Time','year','month','weekday' ,'PAT_AGE_YEARS', 
-                                                          'SEX_CODE','RACE','ETHNICITY','SVI_Cat']]).any(axis=1)),]
+                                                          'SEX_CODE','RACE','ETHNICITY']]).any(axis=1)),]
     counts_outcome=pd.crosstab(outcomes_recs.Time,outcomes_recs.floodr_cat)
     #counts_outcome=pd.crosstab([outcomes_recs.Time,outcomes_recs.floodr_cat],outcomes_recs.SVI_Cat)
     counts_outcome.to_csv(Dis_cat+"_aux"+".csv")
@@ -265,7 +276,7 @@ def run(Dis_cat):
     
     #change floodr into 0-100
     df.floodr=df.floodr*100
-    formula='Outcome'+' ~ '+' floodr_cat * Time'+' + year + month + weekday' + '  + RACE + SEX_CODE + PAT_AGE_YEARS + ETHNICITY'#'  + op '
+    formula='Outcome'+' ~ '+' floodr_cat * Time'+' + year + month + weekday' + '  + RACE + SEX_CODE + PAT_AGE_YEARS + ETHNICITY  + op '
    
     model = smf.gee(formula=formula,groups=df[flood_join_field], data=df,offset=offset,missing='drop',family=sm.families.Poisson(link=sm.families.links.log()))
     
@@ -301,7 +312,7 @@ def run(Dis_cat):
 #%% looping 
 #["Alcohol","Cannabis",'DrugOverdoseAbuse','Opi_Illicit','Opi_Synthetic','Opi_Natural_SemiSynth','Opi_Methadone', 'Opi_Other','Opi_Use_Abuse_Depend','Opi_psychosimul','Opi_Any']
 
-Dis_cats = ['Opi_Any_NonIllicit']
+Dis_cats = ['Dehydration']
 for x in Dis_cats:
     run(x)
     
