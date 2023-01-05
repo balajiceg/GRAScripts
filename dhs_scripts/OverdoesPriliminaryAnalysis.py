@@ -133,13 +133,17 @@ sp['year']=(sp.STMT_PERIOD_FROM.astype('int32')//1e4).astype('category')
 sp['month']=(sp.STMT_PERIOD_FROM.astype('int32')//1e2%100).astype('category')
 sp['weekday']=pd.to_datetime(sp.STMT_PERIOD_FROM.astype('str'),format='%Y%m%d').dt.dayofweek.astype('category')
 
-#%%calculating total visits for offset ---- constant ----
-vists_per_tract=sp.groupby(['PAT_ADDR_CENSUS_TRACT','STMT_PERIOD_FROM'])\
-                  .size().reset_index().rename(columns={0:'TotalVisits'})
-                  
 #%%filter sp to greater boundary of counties which whill all cts and bgs will lie for dfo or are extent
 sp=sp[(sp.PAT_ADDR_CENSUS_TRACT//1000000).isin(county_to_filter)]
+                 
+#%%calculating total visits for offset ---- constant ----
+vists_per_ct=sp.groupby(['PAT_ADDR_CENSUS_TRACT','STMT_PERIOD_FROM'])\
+                  .size().reset_index().rename(columns={0:'TotalVisits'})
                   
+vists_per_bg = sp.groupby(['PAT_ADDR_CENSUS_BLOCK_GROUP','STMT_PERIOD_FROM'])\
+                  .size().reset_index().rename(columns={0:'TotalVisits'})
+                  
+
 #%% backup the orig df after subsetting counties  --- WARRRRRNNNNINNNGGGG -----
 sp_bkp = sp.copy()
 
@@ -148,9 +152,9 @@ sp_bkp = sp.copy()
 #expsoure level ct or bg (ct-census tract; bg- blockgroup)
 EXPOSURE_LEVEL = 'ct' 
 #exposure product dfo or aer
-EXPOSURE_PRODUCT = 'aer'
+EXPOSURE_PRODUCT = 'dfo'
 #type of flooding fRatio or fldResRatio (fRatio - overall flood ratio; fldResRatio - residential flooding ratio) 
-FLOOD_TYPE = 'fRatio'
+FLOOD_TYPE = 'fldResRatio'
 #extent of cenus tracts defined using which flood product extent : dfo or aer
 EXTENT_ANALYSIS = 'dfo'
 
@@ -192,7 +196,7 @@ sp=sp.loc[sp.Population>0,]
 
 #merges total visits per tract or per bg
 sp=sp.drop(columns='TotalVisits')  if 'TotalVisits' in sp.columns else sp  #drop before merging
-sp=sp.merge(vists_per_tract,on=['PAT_ADDR_CENSUS_TRACT','STMT_PERIOD_FROM'],how='left')
+sp=sp.merge(vists_per_ct,on=['PAT_ADDR_CENSUS_TRACT','STMT_PERIOD_FROM'],how='left')
 
 #%% bringing in intervention
 sp.loc[:,'Time']=pd.cut(sp.STMT_PERIOD_FROM,\
