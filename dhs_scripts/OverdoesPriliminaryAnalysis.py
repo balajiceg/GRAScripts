@@ -62,9 +62,13 @@ SVI_df_raw=pd.read_csv(r'Z:/SVI_Raw/TEXAS.csv')
 SVI_df_raw.FIPS=pd.to_numeric(SVI_df_raw.FIPS)
 
 #read population data
-demos=pd.read_csv(r'Z:/Census_data_texas/population/ACS_17_5YR_DP05_with_ann.csv',low_memory=False,skiprows=1)
-demos.Id2=demos.Id2.astype("Int64")
+demos_ct=pd.read_csv(r'Z:/Census_data_texas/population/ACS_17_5YR_DP05_with_ann.csv',low_memory=False,skiprows=1).iloc[:,[1,3]]
+demos_ct.Id2=demos_ct.Id2.astype("Int64")
+demos_ct.columns=["PAT_ADDR_CENSUS_TRACT","Population"]
 
+demos_bg= pd.read_csv(r'Z:\Census_data_texas\population\block_grp_level\ACSDT5Y2017.B01003-Data.csv',low_memory=False,skiprows=1).iloc[:,[0,2]]
+demos_bg.Geography=demos_bg.Geography.str.replace("1500000US","").astype("Int64")
+demos_bg.columns=["PAT_ADDR_CENSUS_BLOCK_GROUP","Population"]
 
 #read flood ratio data
 flood_data_ct= pd.read_csv('Z:\indundation_harvey\censusTracts_AER_DFO_flood\censusTracts_AER_DFO_flood.csv')
@@ -187,14 +191,18 @@ elif EXPOSURE_LEVEL == 'bg':
     sp=sp[sp.PAT_ADDR_CENSUS_BLOCK_GROUP.isin(tract_bg_to_filter)]
     
 #%% merge population and total visits for offset
-demos_subset=demos.iloc[:,[1,3]]
-demos_subset.columns=["PAT_ADDR_CENSUS_TRACT","Population"]
+
 sp=sp.drop(columns='Population')  if 'Population' in sp.columns else sp  #drop before merging
-sp=sp.merge(demos_subset,on="PAT_ADDR_CENSUS_TRACT",how='left')
+if EXPOSURE_LEVEL=='ct':
+    sp=sp.merge(demos_ct,on='PAT_ADDR_CENSUS_TRACT',how='left')
+elif EXPOSURE_LEVEL=='bg':
+    sp=sp.merge(demos_bg,on='PAT_ADDR_CENSUS_BLOCK_GROUP',how='left')
+    
+
 sp=sp.loc[sp.Population>0,]
 
 
-#merges total visits per tract or per bg
+#merges total visits per tract or per bg 
 sp=sp.drop(columns='TotalVisits')  if 'TotalVisits' in sp.columns else sp  #drop before merging
 if EXPOSURE_LEVEL=='ct':
     sp=sp.merge(vists_per_ct,on=['PAT_ADDR_CENSUS_TRACT','STMT_PERIOD_FROM'],how='left')
