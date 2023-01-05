@@ -150,11 +150,11 @@ sp_bkp = sp.copy()
 #%%predefine variable 
 
 #expsoure level ct or bg (ct-census tract; bg- blockgroup)
-EXPOSURE_LEVEL = 'ct' 
+EXPOSURE_LEVEL = 'bg' 
 #exposure product dfo or aer
 EXPOSURE_PRODUCT = 'dfo'
 #type of flooding fRatio or fldResRatio (fRatio - overall flood ratio; fldResRatio - residential flooding ratio) 
-FLOOD_TYPE = 'fldResRatio'
+FLOOD_TYPE = 'fRatio'
 #extent of cenus tracts defined using which flood product extent : dfo or aer
 EXTENT_ANALYSIS = 'dfo'
 
@@ -196,7 +196,10 @@ sp=sp.loc[sp.Population>0,]
 
 #merges total visits per tract or per bg
 sp=sp.drop(columns='TotalVisits')  if 'TotalVisits' in sp.columns else sp  #drop before merging
-sp=sp.merge(vists_per_ct,on=['PAT_ADDR_CENSUS_TRACT','STMT_PERIOD_FROM'],how='left')
+if EXPOSURE_LEVEL=='ct':
+    sp=sp.merge(vists_per_ct,on=['PAT_ADDR_CENSUS_TRACT','STMT_PERIOD_FROM'],how='left')
+elif EXPOSURE_LEVEL=='bg':
+    sp=sp.merge(vists_per_bg,on=['PAT_ADDR_CENSUS_BLOCK_GROUP','STMT_PERIOD_FROM'],how='left')
 
 #%% bringing in intervention
 sp.loc[:,'Time']=pd.cut(sp.STMT_PERIOD_FROM,\
@@ -215,7 +218,7 @@ if EXPOSURE_LEVEL == 'ct' :
     floodr=flood_data_ct.copy()
 elif EXPOSURE_LEVEL == 'bg':
     flood_join_field='PAT_ADDR_CENSUS_BLOCK_GROUP'
-    floodr=flood_data_ct.copy()
+    floodr=flood_data_bg.copy()
 
 # if flood_data_zip is not None: 
 #     flood_data=flood_data_zip
@@ -263,7 +266,6 @@ def run(Dis_cat):
     print(Dis_cat)
     print('===========================')
     df=sp#[sp.SVI_Cat=='SVI_filter']  #--------------Edit here for stratified model
-    if Dis_cat=="DEATH":df.loc[:,'Outcome']=filter_mortality(sp)
     if Dis_cat=="ALL":df.loc[:,'Outcome']=1
     df.loc[:,'Outcome']=get_sp_outcomes(sp, Dis_cat)
    
