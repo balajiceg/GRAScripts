@@ -137,6 +137,9 @@ sp['weekday']=pd.to_datetime(sp.STMT_PERIOD_FROM.astype('str'),format='%Y%m%d').
 vists_per_tract=sp.groupby(['PAT_ADDR_CENSUS_TRACT','STMT_PERIOD_FROM'])\
                   .size().reset_index().rename(columns={0:'TotalVisits'})
                   
+#%%filter sp to greater boundary of counties which whill all cts and bgs will lie for dfo or are extent
+sp=sp[(sp.PAT_ADDR_CENSUS_TRACT//1000000).isin(county_to_filter)]
+                  
 #%% backup the orig df after subsetting counties  --- WARRRRRNNNNINNNGGGG -----
 sp_bkp = sp.copy()
 
@@ -149,7 +152,7 @@ EXPOSURE_PRODUCT = 'dfo'
 #type of flooding fRatio or fldResRatio (fRatio - overall flood ratio; fldResRatio - residential flooding ratio) 
 FLOOD_TYPE = 'fRatio'
 #extent of cenus tracts defined using which flood product extent : dfo or aer
-EXTENT_ANALYSIS = 'aer'
+EXTENT_ANALYSIS = 'dfo'
 
 tracts_to_filter= flood_data_ct.GEOID[~pd.isna(flood_data_ct['within_'+EXTENT_ANALYSIS])]
 tract_bg_to_filter= flood_data_bg.GEOID[~pd.isna(flood_data_bg['within_'+EXTENT_ANALYSIS])]
@@ -179,7 +182,6 @@ if EXPOSURE_LEVEL == 'ct' :
 elif EXPOSURE_LEVEL == 'bg':
     sp=sp[sp.PAT_ADDR_CENSUS_BLOCK_GROUP.isin(tract_bg_to_filter)]
     
-#sp=sp[(sp.PAT_ADDR_CENSUS_TRACT//1000000).isin(county_to_filter)].copy()
 #%% merge population and total visits for offset
 demos_subset=demos.iloc[:,[1,3]]
 demos_subset.columns=["PAT_ADDR_CENSUS_TRACT","Population"]
