@@ -74,6 +74,15 @@ demos_bg.columns=["PAT_ADDR_CENSUS_BLOCK_GROUP","Population"]
 flood_data_ct= pd.read_csv('Z:\indundation_harvey\censusTracts_AER_DFO_flood\censusTracts_AER_DFO_flood.csv')
 flood_data_bg= pd.read_csv('Z:\indundation_harvey\censusBlkGrp_AER_DFO_flood\censusBlkGrp_AER_DFO_flood.csv')
 
+#update flood data to fill aer measure with DFO in the extent where there is no aer data available
+idx = flood_data_ct.within_dfo==1 & flood_data_ct.within_aer.isna()
+flood_data_ct.loc[idx,'AERfRatio'] = flood_data_ct.loc[idx,'DFOfRatio']
+flood_data_ct.loc[idx,'AERfldResRatio'] = flood_data_ct.loc[idx,'DFOfldResRatio']
+
+idx = flood_data_bg.within_dfo==1 & flood_data_bg.within_aer.isna()
+flood_data_bg.loc[idx,'AERfRatio'] = flood_data_bg.loc[idx,'DFOfRatio']
+flood_data_bg.loc[idx,'AERfldResRatio'] = flood_data_bg.loc[idx,'DFOfldResRatio']
+
 
 #read the categories file
 outcome_cats=pd.read_csv('Z:/GRAScripts/dhs_scripts/categories.csv')
@@ -148,15 +157,15 @@ vists_per_bg = sp.groupby(['PAT_ADDR_CENSUS_BLOCK_GROUP','STMT_PERIOD_FROM'])\
                   .size().reset_index().rename(columns={0:'TotalVisits'})
                   
 
-#%% backup the orig df after subsetting counties  --- WARRRRRNNNNINNNGGGG -----
+#%% backup the orig df after subsetting counties  --- WARRRRRNNNNINNNGGGG ----- constant ----------
 sp_bkp = sp.copy()
 
 #%%predefine variable 
 
 #expsoure level ct or bg (ct-census tract; bg- blockgroup)
-EXPOSURE_LEVEL = 'bg' 
+EXPOSURE_LEVEL = 'ct' 
 #exposure product dfo or aer
-EXPOSURE_PRODUCT = 'dfo'
+EXPOSURE_PRODUCT = 'aer'
 #type of flooding fRatio or fldResRatio (fRatio - overall flood ratio; fldResRatio - residential flooding ratio) 
 FLOOD_TYPE = 'fRatio'
 #extent of cenus tracts defined using which flood product extent : dfo or aer
