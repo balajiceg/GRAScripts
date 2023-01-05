@@ -54,14 +54,8 @@ op=pd.concat([op,ip])
 sp=op
 del op,ip
 
-
 #read op/ip outcomes df
 sp_outcomes=pd.read_csv(INPUT_IPOP_DIR+'\\ip_op_outcomes.csv')
-
-#read flood ratio data
-flood_data=pd.read_csv(r'Z:/indundation_harvey/FloodRatioJoinedAll_v1/FloodInund_AllJoined_v1.csv')
-#flood_data=pd.read_csv(r'Z:/indundation_harvey/censusTractsFloodScan_MFED/AER_fRatio_CTs.csv')
-
 
 #read svi data
 SVI_df_raw=pd.read_csv(r'Z:/SVI_Raw/TEXAS.csv')
@@ -71,16 +65,31 @@ SVI_df_raw.FIPS=pd.to_numeric(SVI_df_raw.FIPS)
 demos=pd.read_csv(r'Z:/Census_data_texas/population/ACS_17_5YR_DP05_with_ann.csv',low_memory=False,skiprows=1)
 demos.Id2=demos.Id2.astype("Int64")
 
-#read study area counties
-#county_to_filter=pd.read_csv('Z:/counties_evacu_order.csv').GEOID.to_list()
-county_to_filter=pd.read_csv('Z:\DSHS ED visit data(PII)\contiesInStudyArea.csv').County_FIPS.to_list()
 
 #%%read the categories file
 outcome_cats=pd.read_csv('Z:/GRAScripts/dhs_scripts/categories.csv')
 outcome_cats.fillna('',inplace=True)
 #%%predefine variable 
-floodr_use="DFO_R200" #['DFO_R200','DFO_R100','LIST_R20','DFO_R20','DFOuLIST_R20']
-#floodr_use="AERfRatio" #for AER product
+
+
+#expsoure level ct or bg (ct-census tract; bg- blockgroup)
+EXPOSURE_LEVEL = 'ct' 
+#exposure product dfo or aer
+EXPOSURE_PRODUCT = 'aer'
+#type of flooding fRatio or fldResRatio (fRatio - overall flood ratio; fldResRatio - residential flooding ratio) 
+FLOOD_TYPE = 'fRatio'
+
+#read flood ratio data
+flood_data_ct= pd.read_csv('Z:\indundation_harvey\censusTracts_AER_DFO_flood\censusTracts_AER_DFO_flood.csv')
+flood_data_bg= pd.read_csv('Z:\indundation_harvey\censusBlkGrp_AER_DFO_flood\censusBlkGrp_AER_DFO_flood.csv')
+
+
+#read study area counties
+#county_to_filter=pd.read_csv('Z:\DSHS ED visit data(PII)\contiesInStudyArea.csv').County_FIPS.to_list()
+tracts_to_filter= flood_data_ct.GEOID[~pd.isna(flood_data_ct['within_'+"aer"])]
+tract_bg_to_filter= flood_data_bg.GEOID[~pd.isna(flood_data_bg['within_'+"aer"])]
+
+floodr_use= EXPOSURE_PRODUCT.upper() + FLOOD_TYPE
 
 nullAsZero="True" #null flood ratios are changed to 0
 floodZeroSep="True" # zeros are considered as seperate class
@@ -125,8 +134,6 @@ sp=sp[sp.PAT_AGE_YEARS<119]
 #create tract id from block group id
 sp.loc[:,'PAT_ADDR_CENSUS_TRACT']=(sp.PAT_ADDR_CENSUS_BLOCK_GROUP//10)
     
-#%%filter records for counties in study area or from zip codes
-sp=sp[(sp.PAT_ADDR_CENSUS_TRACT//1000000).isin(county_to_filter)].copy()
 
 #%%keep only the dates we requested for
 
@@ -139,6 +146,15 @@ sp=sp[((sp.STMT_PERIOD_FROM > 20160700) & (sp.STMT_PERIOD_FROM< 20161232))\
 
 #remove data in washout period
 sp= sp[~((sp.STMT_PERIOD_FROM >= washout_period[0]) & (sp.STMT_PERIOD_FROM <= washout_period[1]))]
+
+#%%filter records for counties in study area or from zip codes
+if EXPOSURE_LEVEL == 'ct' :
+    sp.PAT_ADDR_CENSUS_TRACT.isin(tracts_to_filter).value_counts()
+elif EXPOSURE_LEVEL == 'bg':
+    sp.PAT_ADDR_CENSUS_BLOCK_GROUP.isin(tract_bg_to_filter).value_counts()
+
+#sp=sp[(sp.PAT_ADDR_CENSUS_TRACT//1000000).isin(county_to_filter)].copy()
+
 #%% merge population and economy
 demos_subset=demos.iloc[:,[1,3]]
 demos_subset.columns=["PAT_ADDR_CENSUS_TRACT","Population"]
