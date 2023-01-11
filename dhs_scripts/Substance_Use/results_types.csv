@@ -1,0 +1,8 @@
+Iteration, Level of analysis, Flooding measure, Extent, Flood Product, Design, Flood cats
+1, ct, overall%, AER, AER, Pre-post control,2 (1 - 0s| 2- others)
+2, ct, overall%, AER, DFO, Pre-post control,2 (1 - 0s| 2- others)
+3, ct, overall%, DFO, AER, Pre-post control,2 (1 - 0s| 2- others)
+4, ct, overall%, DFO, DFO, Pre-post control,2 (1 - 0s| 2- others)
+5, ct, builtup%, DFO, DFO, Pre-post control,2 (1 - 0s| 2- others)
+6, bg, overall%, DFO, DFO, Pre-post control,2 (1 - 0s| 2- others)
+7, bg, builtup%, DFO, DFO, Pre-post control,2 (1 - 0s| 2- others)
