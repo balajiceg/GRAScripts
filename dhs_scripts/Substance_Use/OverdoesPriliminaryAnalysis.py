@@ -67,7 +67,7 @@ demos_ct.Id2=demos_ct.Id2.astype("Int64")
 demos_ct.columns=["PAT_ADDR_CENSUS_TRACT","Population"]
 
 demos_bg= pd.read_csv(r'Z:\Census_data_texas\population\block_grp_level\ACSDT5Y2017.B01003-Data.csv',low_memory=False,skiprows=1).iloc[:,[0,2]]
-demos_bg.Geography=demos_bg.Geography.str.replace("1500000US","").astype("Int64")
+demos_bg.Geography=pd.to_numeric(demos_bg.Geography.str.replace("1500000US","")).astype("Int64")
 demos_bg.columns=["PAT_ADDR_CENSUS_BLOCK_GROUP","Population"]
 
 #read flood ratio data
@@ -163,7 +163,7 @@ sp_bkp = sp.copy()
 #%%predefine variable 
 
 #expsoure level ct or bg (ct-census tract; bg- blockgroup)
-EXPOSURE_LEVEL = 'ct' 
+EXPOSURE_LEVEL = 'bg' 
 #exposure product dfo or aer
 EXPOSURE_PRODUCT = 'dfo'
 #type of flooding fRatio or fldResRatio (fRatio - overall flood ratio; fldResRatio - residential flooding ratio) 
