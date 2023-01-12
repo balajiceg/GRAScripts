@@ -12,3 +12,4 @@ Iteration, Level of analysis, Flooding measure, Extent, Flood Product, Design, F
 11,ct, builtup%, DFO,AER, Pre-post control,2 (1 - 0s| 2- others),Population
 12,ct,overall%, DFO,AER, Pre-post control,2 (1 - 0s| 2- others),Population
 13,bg,overall%, DFO,AER, Pre-post control,2 (1 - 0s| 2- others),Population
+14,bg, builtup%, DFO,AER, Pre-post control,2 (1 - 0s| 2- others),Population
