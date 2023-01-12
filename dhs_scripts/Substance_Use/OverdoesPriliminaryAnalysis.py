@@ -292,8 +292,8 @@ def run(Dis_cat):
                                                           'SEX_CODE','RACE','ETHNICITY']]).any(axis=1)),]
     counts_outcome=pd.crosstab(outcomes_recs.Time,outcomes_recs.floodr_cat)
     #counts_outcome=pd.crosstab([outcomes_recs.Time,outcomes_recs.floodr_cat],outcomes_recs.SVI_Cat)
-    counts_outcome.to_csv(Dis_cat+"_aux"+".csv")
     print(counts_outcome)
+    counts_outcome.to_csv(Dis_cat+"_aux"+".csv")
     del outcomes_recs
     
        
@@ -311,8 +311,8 @@ def run(Dis_cat):
     model = smf.gee(formula=formula,groups=df[flood_join_field], data=df,offset=offset,missing='drop',family=sm.families.Poisson(link=sm.families.links.log()))
     
     results=model.fit()
-    print(results.summary())
-    print(np.exp(results.params))
+    #print(results.summary())
+    #print(np.exp(results.params))
     # print(np.exp(results.conf_int())) 
     
     
