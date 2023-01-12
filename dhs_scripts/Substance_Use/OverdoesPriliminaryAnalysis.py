@@ -167,7 +167,7 @@ EXPOSURE_LEVEL = 'ct'
 #exposure product dfo or aer
 EXPOSURE_PRODUCT = 'aer'
 #type of flooding fRatio or fldResRatio (fRatio - overall flood ratio; fldResRatio - residential flooding ratio) 
-FLOOD_TYPE = 'fldResRatio'
+FLOOD_TYPE = 'fRatio'
 #extent of cenus tracts defined using which flood product extent : dfo or aer
 EXTENT_ANALYSIS = 'dfo'
 
