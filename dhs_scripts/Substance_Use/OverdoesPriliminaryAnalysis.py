@@ -180,11 +180,11 @@ nullAsZero="True" #null flood ratios are changed to 0
 floodZeroSep="True" # zeros are considered as seperate class
 flood_data_zip=None
 
-#interv_dates=[20170825, 20170913, 20171014,20180701,20181001] #lower bound excluded - for additional post flood in 2018
-interv_dates=[20170825, 20170913, 20171014] #lower bound excluded
+interv_dates=[20170825, 20170913, 20171014,20180701,20181001] #lower bound excluded - for additional post flood in 2018
+#interv_dates=[20170825, 20170913, 20171014] #lower bound excluded
 
-interv_dates_cats=['flood','PostFlood1','PostFlood2'] 
-#interv_dates_cats=['flood','PostFlood1','PostFlood2','NextYear1','NextYear2']# - for additional post flood in 2018
+#interv_dates_cats=['flood','PostFlood1','PostFlood2'] 
+interv_dates_cats=['flood','PostFlood1','PostFlood2','JulToSep2018','OctToDec2018']# - for additional post flood in 2018
 
 Dis_cat="ALL"
 
@@ -223,7 +223,7 @@ sp.loc[:,'Time']=pd.cut(sp.STMT_PERIOD_FROM,\
                                     bins=[0]+interv_dates+[20190101],\
                                     labels=['control']+[str(i) for i in interv_dates_cats]).cat.as_unordered()
 #set after 2018 as control
-sp.loc[sp.STMT_PERIOD_FROM>20180100,'Time']="control" #if Dis_cat!="Psychiatric" else np.nan
+#sp.loc[sp.STMT_PERIOD_FROM>20180100,'Time']="control" #if Dis_cat!="Psychiatric" else np.nan
 sp=sp.loc[~pd.isna(sp.Time),]
 
 #take only control period
