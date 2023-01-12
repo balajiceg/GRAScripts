@@ -163,7 +163,7 @@ sp_bkp = sp.copy()
 #%%predefine variable 
 
 #expsoure level ct or bg (ct-census tract; bg- blockgroup)
-EXPOSURE_LEVEL = 'ct' 
+EXPOSURE_LEVEL = 'bg' 
 #exposure product dfo or aer
 EXPOSURE_PRODUCT = 'aer'
 #type of flooding fRatio or fldResRatio (fRatio - overall flood ratio; fldResRatio - residential flooding ratio) 
