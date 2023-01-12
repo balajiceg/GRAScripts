@@ -167,7 +167,7 @@ EXPOSURE_LEVEL = 'bg'
 #exposure product dfo or aer
 EXPOSURE_PRODUCT = 'aer'
 #type of flooding fRatio or fldResRatio (fRatio - overall flood ratio; fldResRatio - residential flooding ratio) 
-FLOOD_TYPE = 'fRatio'
+FLOOD_TYPE = 'fldResRatio'
 #extent of cenus tracts defined using which flood product extent : dfo or aer
 EXTENT_ANALYSIS = 'dfo'
 
@@ -342,7 +342,7 @@ def run(Dis_cat):
 #%% looping 
 #["Alcohol","Cannabis",'DrugOverdoseAbuse','Opi_Illicit','Opi_Synthetic','Opi_Natural_SemiSynth','Opi_Methadone', 'Opi_Other','Opi_Use_Abuse_Depend','Opi_psychosimul','Opi_Any']
 
-Dis_cats = ['Intestinal_infectious_diseases', 'Pregnancy_complic', 'Bite-Insect','Opi_Illicit','Opi_Any_NonIllicit',"Alcohol","Cannabis"]#'Dehydration', 
+Dis_cats = ['Intestinal_infectious_diseases', 'Pregnancy_complic', 'Bite-Insect','Opi_Illicit','Opi_Any_NonIllicit',"Alcohol","Cannabis",'Dehydration']
 for x in Dis_cats:
     run(x)
     
