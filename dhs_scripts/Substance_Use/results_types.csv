@@ -1,0 +1,19 @@
+Iteration, Level of analysis, Flooding measure, Extent, Flood Product, Design, Flood cats,offset
+1, ct, overall%, AER, AER, Pre-post control,2 (1 - 0s| 2- others),Total daily visits
+2, ct, overall%, AER, DFO, Pre-post control,2 (1 - 0s| 2- others),Total daily visits
+3, ct, overall%, DFO, AER, Pre-post control,2 (1 - 0s| 2- others),Total daily visits
+4, ct, overall%, DFO, DFO, Pre-post control,2 (1 - 0s| 2- others),Total daily visits
+5, ct, builtup%, DFO, DFO, Pre-post control,2 (1 - 0s| 2- others),Total daily visits
+6, bg, overall%, DFO, DFO, Pre-post control,2 (1 - 0s| 2- others),Total daily visits
+7, bg, builtup%, DFO, DFO, Pre-post control,2 (1 - 0s| 2- others),Total daily visits
+8, bg,overall%, DFO,AER, Pre-post control,2 (1 - 0s| 2- others),Total daily visits
+9, bg, builtup%, DFO,AER, Pre-post control,2 (1 - 0s| 2- others),Total daily visits
+10,ct, builtup%, DFO,AER, Pre-post control,2 (1 - 0s| 2- others),Total daily visits
+11,ct, builtup%, DFO,AER, Pre-post control,2 (1 - 0s| 2- others),Total daily visits
+12,ct,overall%, DFO,AER, Pre-post control,2 (1 - 0s| 2- others),Total daily visits
+13,bg,overall%, DFO,AER, Pre-post control,2 (1 - 0s| 2- others),Total daily visits
+14,bg, builtup%, DFO,AER, Pre-post control,2 (1 - 0s| 2- others),Total daily visits
+15,ct, builtup%, DFO,DFO, Pre-post control,2 (1 - 0s| 2- others),Total daily visits
+16,ct,overall%, DFO,DFO, Pre-post control,2 (1 - 0s| 2- others),Total daily visits
+17,bg,overall%, DFO,DFO, Pre-post control,2 (1 - 0s| 2- others),Total daily visits
+18,bg, builtup%, DFO,DFO, Pre-post control,2 (1 - 0s| 2- others),Total daily visits

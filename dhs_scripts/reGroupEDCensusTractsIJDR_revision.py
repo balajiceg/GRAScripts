@@ -31,16 +31,6 @@ import sys
 sys.path.insert(1, r'Z:\Balaji\GRAScripts\dhs_scripts')
 from recalculate_svi import recalculateSVI
 
-#%%functions
-def filter_mortality(df):
-    pat_sta=df.PAT_STATUS.copy()
-    pat_sta=pd.to_numeric(pat_sta,errors="coerce")
-    return pat_sta.isin([20,40,41,42]).astype('int') #status code for died
-
-def get_sp_outcomes(sp,Dis_cat):
-    global sp_outcomes
-    return sp.merge(sp_outcomes.loc[:,['RECORD_ID','op',Dis_cat]],on=['RECORD_ID','op'],how='left')[Dis_cat].values
-
 #%%read ip op data
 INPUT_IPOP_DIR=r'Z:\Balaji\DSHS ED visit data(PII)\CleanedMergedJoined'
 #read_op
@@ -56,10 +46,6 @@ ip['op']=False
 op=pd.concat([op,ip])
 sp=op
 del op,ip
-
-
-#read op/ip outcomes df
-sp_outcomes=pd.read_csv(INPUT_IPOP_DIR+'\\op_outcomes.csv')
 
 #read flood ratio data
 flood_data=geopandas.read_file(r'Z:/Balaji/indundation_harvey/FloodRatioJoinedAll_v1/FloodInund_AllJoined_v1.gpkg').drop('geometry',axis=1)
@@ -211,121 +197,87 @@ vists_per_tract=sp.groupby(['PAT_ADDR_CENSUS_TRACT','STMT_PERIOD_FROM'])\
                   .size().reset_index().rename(columns={0:'TotalVisits'})
 sp=sp.merge(vists_per_tract,on=['PAT_ADDR_CENSUS_TRACT','STMT_PERIOD_FROM'],how='left')
 
-#%%creating day from start for CITS
-day_from_start=pd.DataFrame({'STMT_PERIOD_FROM':pd.date_range('2016-07-01', '2018-12-31', freq='d').astype('str').str.replace('-','').astype('int64')}).reset_index().rename(columns={'index':'DayFromStart'})
-sp=sp.merge(day_from_start,on='STMT_PERIOD_FROM',how='left')
+
 #%%pat age categoriy based on SVI theme  2  <=17,18-64,>=65
 sp['AGE_cat']=pd.cut(sp.PAT_AGE_YEARS,bins=[-1,5,12,17,45,64,200],labels=['lte5','6-12','13-17','18-45','46-64','gt64']).cat.reorder_categories(['lte5','6-12','13-17','18-45','46-64','gt64'])
 
 #sp['AGE_cat']=pd.cut(sp.PAT_AGE_YEARS,bins=[-1,1,5,12,17,45,64,200],labels=['lte1','2-5','6-12','13-17','18-45','46-64','gt64']).cat.reorder_categories(['lte1','2-5','6-12','13-17','18-45','46-64','gt64'])
 #%%function for looping
-def run():   
     #%%filter records for specific outcome
-    df=sp#[sp.SVI_Cat=='SVI_filter']  #--------------Edit here for stratified model
-    if Dis_cat=="DEATH":df.loc[:,'Outcome']=filter_mortality(sp)
-    if Dis_cat=="ALL":df.loc[:,'Outcome']=1
-    if Dis_cat in outcome_cats.category.to_list():df.loc[:,'Outcome']=get_sp_outcomes(sp, Dis_cat)
-    
-    #%%for filtering flooded or non flooded alone
-    #df=df[df.floodr_cat=="FLood_1"].copy()
-    #df=df[df.SEX_CODE==FIL_COL].copy()
-    #df=df[df.AGE_cat==FIL_COL].copy()
-    #df=df[df[SVI_COL]==FIL_COL].copy()
-    #df=df[df.RACE==FIL_COL].copy()
-    #%% bringing in intervention
-    df.loc[:,'Time']=pd.cut(df.STMT_PERIOD_FROM,\
-                                        bins=[0]+interv_dates+[20190101],\
-                                        labels=['control']+[str(i) for i in interv_dates_cats]).cat.as_unordered()
-    #set after 2018 as control
-    df.loc[df.STMT_PERIOD_FROM>20180100,'Time']="control" #if Dis_cat!="Psychiatric" else np.nan
-    df=df.loc[~pd.isna(df.Time),]
-    
-    #take only control period
-    #df=df[df.Time=='control']
-    #%%controling for year month and week of the day
-    df['year']=(df.STMT_PERIOD_FROM.astype('int32')//1e4).astype('category')
-    df['month']=(df.STMT_PERIOD_FROM.astype('int32')//1e2%100).astype('category')
-    df['weekday']=pd.to_datetime(df.STMT_PERIOD_FROM.astype('str'),format='%Y%m%d').dt.dayofweek.astype('category')
-    
-    #%%stratified model for each period
-    #df=df.loc[df.Time.isin(['control', 'flood']),]
-    #df.Time.cat.remove_unused_categories(inplace=True)
-    
-    #%% save cross tab
-     #counts_outcome=pd.DataFrame(df.Outcome.value_counts())
-    outcomes_recs=df.loc[(df.Outcome>0)&(~pd.isna(df.loc[:,['floodr_cat','Time','year','month','weekday' ,'PAT_AGE_YEARS', 
-                                                          'SEX_CODE','RACE','ETHNICITY','SVI_Cat']]).any(axis=1)),]
-    counts_outcome=pd.crosstab(outcomes_recs.floodr_cat,outcomes_recs.Time)
-    #counts_outcome.to_csv(Dis_cat+"_aux"+".csv")
-    print(counts_outcome)
-    del outcomes_recs
-    
-    #%%for total ED visits using grouped / coutns
-    if Dis_cat=="ALL":
-        grouped_tracts=df.loc[:,['STMT_PERIOD_FROM','PAT_AGE_YEARS','PAT_ADDR_CENSUS_TRACT','Outcome']]
-        grouped_tracts=pd.concat([grouped_tracts]+[pd.get_dummies(df[i],prefix=i) for i in ['SEX_CODE','RACE','ETHNICITY','op','AGE_cat']],axis=1)
-        
-        grouped_tracts=grouped_tracts.groupby(['STMT_PERIOD_FROM', 'PAT_ADDR_CENSUS_TRACT']).agg({'Outcome':'sum',
-                                                                                      'PAT_AGE_YEARS':'mean',
-                                                                                      'SEX_CODE_M':'sum','SEX_CODE_F':'sum', 
-                                                                                      'RACE_white':'sum','RACE_black':'sum','RACE_other':'sum',
-                                                                                      'ETHNICITY_Non_Hispanic':'sum','ETHNICITY_Hispanic':'sum', 
-                                                                                      'op_False':'sum','op_True':'sum',
-                                                                                      'AGE_cat_lte5':'sum','AGE_cat_6-12':'sum', 'AGE_cat_13-17':'sum','AGE_cat_18-45':'sum', 'AGE_cat_46-64':'sum', 'AGE_cat_gt64':'sum'
-                                                                                      #'AGE_cat_lte1':'sum', 'AGE_cat_2-5':'sum', 'AGE_cat_6-12':'sum', 'AGE_cat_13-17':'sum','AGE_cat_18-45':'sum', 'AGE_cat_46-64':'sum', 'AGE_cat_gt64':'sum'
-                                                                                      }).reset_index()
-                         
-        grouped_tracts=grouped_tracts.merge(df.drop_duplicates(['STMT_PERIOD_FROM','PAT_ADDR_CENSUS_TRACT']).loc[:,['STMT_PERIOD_FROM','PAT_ADDR_CENSUS_TRACT','floodr_cat','Population','Time','year','month','weekday','SVI_Cat','RPL_THEMES_1','RPL_THEMES_2','RPL_THEMES_3','RPL_THEMES_4','floodr']],how='left',on=["PAT_ADDR_CENSUS_TRACT",'STMT_PERIOD_FROM'])
-        dummy_cols=['SEX_CODE_M', 'SEX_CODE_F', 'RACE_white', 'RACE_black', 'RACE_other','ETHNICITY_Non_Hispanic', 'ETHNICITY_Hispanic',
-                    'op_False', 'op_True',
-                    'AGE_cat_lte5', 'AGE_cat_6-12', 'AGE_cat_13-17','AGE_cat_18-45', 'AGE_cat_46-64', 'AGE_cat_gt64']
-                    #'AGE_cat_lte1', 'AGE_cat_2-5', 'AGE_cat_6-12', 'AGE_cat_13-17','AGE_cat_18-45', 'AGE_cat_46-64', 'AGE_cat_gt64']
-        grouped_tracts.loc[:,dummy_cols]=grouped_tracts.loc[:,dummy_cols].divide(grouped_tracts.Outcome,axis=0)
-        del df
-        df=grouped_tracts
-    
-    
-    #%%running the model
-    if Dis_cat!="ALL":offset=np.log(df.TotalVisits)
-    #offset=None
-    if Dis_cat=="ALL":offset=np.log(df.Population)
-    
-    #change floodr into 0-100
-    df.floodr=df.floodr*100
-    formula='Outcome'+' ~ '+' floodr_cat * Time '+' + year + month + weekday' + '  + RACE + SEX_CODE + PAT_AGE_YEARS + ETHNICITY'#'  + op '
-    if Dis_cat=='ALL': formula='Outcome'+' ~ '+' floodr_cat * Time * SVI_Cat'+' + year + month + weekday + '+' + '.join(['SEX_CODE_M','op_True','PAT_AGE_YEARS','RACE_white', 'RACE_black','ETHNICITY_Non_Hispanic'])
-    #if Dis_cat=='ALL': formula='Outcome'+' ~ '+' floodr_cat * Time'+' + year + month + weekday + '+' + '.join(['SEX_CODE_M','op_True','RACE_white', 'RACE_black','ETHNICITY_Non_Hispanic','PAT_AGE_YEARS'])
-    #formula=formula+' + Median_H_Income'
-    
-    model = smf.gee(formula=formula,groups=df[flood_join_field], data=df,offset=offset,missing='drop',family=sm.families.Poisson(link=sm.families.links.log()))
-    #model = smf.logit(formula=formula, data=df,missing='drop')
-    #model = smf.glm(formula=formula, data=df,missing='drop',family=sm.families.Binomial(sm.families.links.logit()))
-    
-    results=model.fit()
-    print(results.summary())
-    print(np.exp(results.params))
-    # print(np.exp(results.conf_int())) 
-    
-    
-    #%% creating result dataframe tables
-    results_as_html = results.summary().tables[1].as_html()
-    reg_table=pd.read_html(results_as_html, header=0, index_col=0)[0].reset_index()
-    reg_table.loc[:,'coef']=np.exp(reg_table.coef)
-    reg_table.loc[:,['[0.025', '0.975]']]=np.exp(reg_table.loc[:,['[0.025', '0.975]']])
-    reg_table=reg_table.loc[~(reg_table['index'].str.contains('month') 
-                              | reg_table['index'].str.contains('weekday')
-                              #| reg_table['index'].str.contains('year')
-                              #| reg_table['index'].str.contains('PAT_AGE_YEARS'))
-                              
-                              ),]
-    reg_table['index']=reg_table['index'].str.replace("\[T.",'_').str.replace('\]','')
-    reg_table['model']='base'
-    
-    reg_table_dev=pd.read_html(results.summary().tables[0].as_html())[0]
-    
-   
-    # counts_outcome.loc["flood_bins",'Outcome']=str(flood_bins)
-    #return reg_table
-    #%%write the output
-    reg_table.to_csv(Dis_cat+"_reg"+".csv")
-    #reg_table_dev.to_csv(Dis_cat+"_dev"+".csv")
+df=sp#[sp.SVI_Cat=='SVI_filter']  #--------------Edit here for stratified model
+if Dis_cat=="ALL":df.loc[:,'Outcome']=1
+#%% bringing in intervention
+df.loc[:,'Time']=pd.cut(df.STMT_PERIOD_FROM,\
+                                    bins=[0]+interv_dates+[20190101],\
+                                    labels=['control']+[str(i) for i in interv_dates_cats]).cat.as_unordered()
+#set after 2018 as control
+df.loc[df.STMT_PERIOD_FROM>20180100,'Time']="control" if Dis_cat!="Psychiatric" else np.nan
+df=df.loc[~pd.isna(df.Time),]
+
+#take only control period
+#df=df[df.Time=='control']
+#%%controling for year month and week of the day
+df['year']=(df.STMT_PERIOD_FROM.astype('int32')//1e4).astype('category')
+df['month']=(df.STMT_PERIOD_FROM.astype('int32')//1e2%100).astype('category')
+df['weekday']=pd.to_datetime(df.STMT_PERIOD_FROM.astype('str'),format='%Y%m%d').dt.dayofweek.astype('category')
+df['weekOfYear']=(df.STMT_PERIOD_FROM.astype('int32')//1e4) * 1000+ \
+    pd.to_datetime(df.STMT_PERIOD_FROM.astype('str'),format='%Y%m%d').dt.week
+#%%stratified model for each period
+#df=df.loc[df.Time.isin(['control', 'flood']),]
+#df.Time.cat.remove_unused_categories(inplace=True)
+
+#%% save cross tab
+ #counts_outcome=pd.DataFrame(df.Outcome.value_counts())
+df=df.loc[(df.Outcome>0)&(~pd.isna(df.loc[:,['floodr_cat','Time','year','month','weekday' ,'PAT_AGE_YEARS', 
+                                                      'SEX_CODE','RACE','ETHNICITY','SVI_Cat']]).any(axis=1)),]
+counts_outcome=pd.crosstab(df.floodr_cat,df.Time)
+#counts_outcome.to_csv(Dis_cat+"_aux"+".csv")
+print(counts_outcome)
+#del outcomes_recs
+
+#%%for total ED visits using grouped / coutns
+date_group_col ='weekOfYear'
+grouped_tracts=df.loc[:,[date_group_col,'PAT_AGE_YEARS','PAT_ADDR_CENSUS_TRACT','Outcome']]
+grouped_tracts=pd.concat([grouped_tracts]+[pd.get_dummies(df[i],prefix=i) for i in ['SEX_CODE','RACE','ETHNICITY','op']],axis=1)
+
+grouped_tracts=grouped_tracts.groupby([date_group_col, 'PAT_ADDR_CENSUS_TRACT']).agg({'Outcome':'sum',
+                                                                              'PAT_AGE_YEARS':'mean',
+                                                                              'SEX_CODE_M':'sum','SEX_CODE_F':'sum', 
+                                                                              'RACE_white':'sum','RACE_black':'sum','RACE_other':'sum',
+                                                                              'ETHNICITY_Non_Hispanic':'sum','ETHNICITY_Hispanic':'sum', 
+                                                                              'op_False':'sum','op_True':'sum'
+                                                                              }).reset_index()
+                 
+grouped_tracts=grouped_tracts.merge(df.sort_values('STMT_PERIOD_FROM').drop_duplicates([date_group_col,'PAT_ADDR_CENSUS_TRACT']).loc[:,[date_group_col,'PAT_ADDR_CENSUS_TRACT','floodr_cat','Population','Time','year','month','weekday','SVI_Cat','RPL_THEMES_1','RPL_THEMES_2','RPL_THEMES_3','RPL_THEMES_4','floodr']],how='left',on=["PAT_ADDR_CENSUS_TRACT",date_group_col])
+dummy_cols=['SEX_CODE_M', 'RACE_white', 'RACE_black', 'ETHNICITY_Hispanic',#'RACE_other','ETHNICITY_Non_Hispanic', 
+            'op_True']
+           
+grouped_tracts.loc[:,dummy_cols]=grouped_tracts.loc[:,dummy_cols].divide(grouped_tracts.Outcome,axis=0)
+
+if(date_group_col =='weekOfYear'):
+    grouped_tracts.loc[grouped_tracts.weekOfYear==2017037,'Time']='PostFlood1'
+
+#%%write to file
+grouped_tracts.to_csv(r'Z:\Balaji\DSHS ED visit data(PII)\groupdED visits_IJDRrevision\allEDgroupdByWeek.csv',index=False)
+
+#%%for total ED visits using grouped / coutns by time period
+date_group_col ='Time'
+grouped_tracts=df.loc[:,[date_group_col,'PAT_AGE_YEARS','PAT_ADDR_CENSUS_TRACT','Outcome']] 
+grouped_tracts=pd.concat([grouped_tracts]+[pd.get_dummies(df[i],prefix=i) for i in ['SEX_CODE','RACE','ETHNICITY','op']],axis=1)
+
+grouped_tracts=grouped_tracts.groupby([date_group_col, 'PAT_ADDR_CENSUS_TRACT']).agg({'Outcome':'sum',
+                                                                              'PAT_AGE_YEARS':'mean',
+                                                                              'SEX_CODE_M':'sum','SEX_CODE_F':'sum', 
+                                                                              'RACE_white':'sum','RACE_black':'sum','RACE_other':'sum',
+                                                                              'ETHNICITY_Non_Hispanic':'sum','ETHNICITY_Hispanic':'sum', 
+                                                                              'op_False':'sum','op_True':'sum'
+                                                                              }).reset_index()
+                 
+grouped_tracts=grouped_tracts.merge(df.drop_duplicates([date_group_col,'PAT_ADDR_CENSUS_TRACT']).loc[:,[date_group_col,'PAT_ADDR_CENSUS_TRACT','floodr_cat','Population','SVI_Cat','RPL_THEMES_1','RPL_THEMES_2','RPL_THEMES_3','RPL_THEMES_4','floodr']],how='left',on=["PAT_ADDR_CENSUS_TRACT",date_group_col])
+dummy_cols=['SEX_CODE_M', 'RACE_white', 'RACE_black', 'ETHNICITY_Hispanic',#'RACE_other','ETHNICITY_Non_Hispanic', 
+            'op_True']
+           
+grouped_tracts.loc[:,dummy_cols]=grouped_tracts.loc[:,dummy_cols].divide(grouped_tracts.Outcome,axis=0)
+
+#%%write to file
+grouped_tracts.to_csv(r'Z:\Balaji\DSHS ED visit data(PII)\groupdED visits_IJDRrevision\allEDgroupdByPeriod.csv',index=False)

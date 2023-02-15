@@ -143,9 +143,9 @@ print(reg_table)
 #%%looping for automatic saving 
 
 
-floodr_use="DFO_R200" #['DFO_R200','DFO_R100','LIST_R20','DFO_R20','DFOuLIST_R20']
-nullAsZero="True" #null flood ratios are changed to 0
-floodZeroSep="True" # zeros are considered as seperate class
+#floodr_use="DFO_R200" #['DFO_R200','DFO_R100','LIST_R20','DFO_R20','DFOuLIST_R20']
+#nullAsZero="True" #null flood ratios are changed to 0
+#floodZeroSep="True" # zeros are considered as seperate class
 #flood_data_zip=None
 
 #Dis_cats=["DEATH","Dehydration","Bite-Insect","Dialysis","Asthma_like","Respiratory_All","Infectious_and_parasitic"]
@@ -153,20 +153,32 @@ Dis_cats=[ 'ALL',
            #'Psychiatric',
             'Intestinal_infectious_diseases',
               'ARI',
-              'Bite-Insect',
-            'DEATH',
+             'Bite-Insect',
+            #'DEATH',
            # #'Flood_Storms',
-             'CO_Exposure',
-             'Drowning',
-            'Heat_Related_But_Not_dehydration',
-             'Hypothermia',
+             #'CO_Exposure',
+             #'Drowning',
+            #'Heat_Related_But_Not_dehydration',
+            # 'Hypothermia',
            # #'Dialysis',
            # #'Medication_Refill',
-             'Asthma',
+            # 'Asthma',
               'Pregnancy_complic',
               'Chest_pain',
              'Dehydration',
          ]
+
+for exposure in ['triCloseProxDur',
+       'triDistMiles', 'hvyRainDur', 'totRainfall']:
+    print(exposure)
+    for Dis_cat in Dis_cats:
+                try:
+                    print(Dis_cat)
+                    print("-"*50)
+                    run()
+                except Exception as e: print(e)
+            
+#%%
 SVI_COLS=['SVI_Cat','SVI_Cat_T1', 'SVI_Cat_T2', 'SVI_Cat_T3', 'SVI_Cat_T4']
 import os
 for SVI_COL in SVI_COLS:
