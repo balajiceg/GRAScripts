@@ -16,9 +16,13 @@ library(geepack)
 library(car)
 library(openxlsx)
 library(sf)
+library(caret)
+library(spdep)
+library(pubh)
+library(MASS)
 
 #output file location
-outputDir<-"K:\\Projects\\FY2020-018_HHR_Outcomes\\EoFloodHealth\\Output\\Draft\\analysisOutput07012022\\"
+outputDir<-"K:\\Projects\\FY2020-018_HHR_Outcomes\\EoFloodHealth\\Output\\Draft\\analysisOutput02062023\\"
 
 #functions
 mQIC<-function (x){as.numeric(QIC(x)['QIC'])}
@@ -34,7 +38,11 @@ interstCols<-c("X","Y","SurveyResponseID","GeoID10","tractID10","DOB","Male","Ra
                "LeaveHome","LoseIncome","VehicleDamaged",
                "Hospital","Illness","Injury","NoSymptoms","Concentrate","Headaches","RunnyNose","ShortBreath","SkinRash",
                "DFO_R200","dfoInundDist","fScanInundDist","fScanDepth","fScanNdays","fScanMaxFloodRatio",
-               "reRankSVI", "reRankSVI_T1", "reRankSVI_T2", "reRankSVI_T3", "reRankSVI_T4")
+               "reRankSVI", "reRankSVI_T1", "reRankSVI_T2", "reRankSVI_T3", "reRankSVI_T4", "WaterLevel","HomeFlooded_Days3")
+#subset data that were geocodable
+all_df<-subset(all_df,NGC!=1)
+
+
 #subset data with geocoding-> removes -------------- N=19762
 all_df<-subset(all_df,Geocoded==1)
 
@@ -81,7 +89,7 @@ subDf<-subDf[!is.na(subDf$reRankSVI),]
 ####-------- change variables to factors -----
 subDf$Male<-factor(subDf$Male,levels=c(1,0))
 levels(subDf$Male)<-c('Male','Female')
-
+subDf = subDf %>% mutate(Male = relevel(Male, 'Female'))
 subDf$Hispanic<-factor(subDf$Hispanic,levels=c(0,1))
 levels(subDf$Hispanic)<-c('Non_Hispanic','Hispanic')
 
@@ -149,20 +157,43 @@ subDf[,c('X','Y')]<-st_coordinates(sfPoints)
 
 
 #summary(subDf)
-remove(all_df)
+#remove(all_df)
 #---------------------  data cleaning ends here N=18922 without removing responses from same point---------
 #xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
+
+## check concordance and discordance between flood map and self reported
+with(subDf, table(fScanFlooded, HomeFlooded))
+#accuracy using home flooded as the truth
+confusionMatrix(data= as.factor(subDf$fScanFlooded), reference=as.factor(subDf$HomeFlooded))
+
+#create agreement disagree variable
+subDf$matchSelfAndFlood <- subDf$fScanFlooded == subDf$HomeFlooded
+
+#check water level vs fscan flooded
+with(subDf, table(WaterLevel,fScanFlooded ))
+with(subDf, table(WaterLevel,matchSelfAndFlood ))
+
+with(subDf, table(HomeFlooded_Days3,fScanFlooded ))
+with(subDf, table(HomeFlooded_Days3,matchSelfAndFlood ))
+
+
+
 ##-------------write demographic table using base mode ------
-df<-subDf[,c('fScanFlooded','cat_SVI', 
-  "HomeFlooded",'OnlyOtherHomesFlooded',"Contact_Water", "OtherHomesFlooded",
-  'AgeGrp',"Male", "RaceGroup", "Hispanic", "EducGroup","SelfAssess",
-  "Illness", "Injury","Hospital",  "Concentrate", "Headaches", "RunnyNose", "ShortBreath", "SkinRash","AnySymptoms")]
+df<-subDf[,c('fScanFlooded','cat_SVI', "matchSelfAndFlood",
+             "HomeFlooded",'OnlyOtherHomesFlooded',"Contact_Water", "OtherHomesFlooded",
+             'AgeGrp',"Male", "RaceGroup", "Hispanic", "EducGroup","SelfAssess",
+             "Illness", "Injury","Hospital",  "Concentrate", "Headaches", "RunnyNose", "ShortBreath", "SkinRash","AnySymptoms")]
 #df<-df[complete.cases(df),] #n= 19217
 
 #demograhic tables or cross table
 library(pubh)
 demoCT<-cross_tab(df,fScanFlooded~., label='fscanFlooded') 
+print(demoCT)
+write.table(demoCT, "clipboard", sep="\t")
+
+#demograhic table by disagreement
+demoCT<-cross_tab(df,matchSelfAndFlood~., label='matchSelfAndFlood') 
 print(demoCT)
 write.table(demoCT, "clipboard", sep="\t")
 
@@ -174,11 +205,28 @@ library(mice)
 miss=md.pattern(df)
 
 
+#check chi-sq and t-test for two variaables
+car.data = table(df$EducGroup, df$RaceGroup) 
+print(car.data)
+print(chisq.test(car.data))
+
+car.data = table(df$EducGroup, df$AgeGrp) 
+print(car.data)
+print(chisq.test(car.data))
+
+
+
+
 #check a few things
 #check factor references
-subDf %>% select(where(is.factor)) %>% head %>% str
+subDf %>% select(where(is.logical)) %>% head %>% str
 
-table(df$HomeFlooded,df$OnlyOtherHomesFlooded)
+table(df$HomeFlooded)
+
+# create neighbours using the X and Y coordinates provided ----
+# subDf <- subDf %>% mutate(X= as.numeric(X), Y= as.numeric(Y))
+subDf <- subDf %>% mutate(resp_id = row_number())
+hhr_nb <- knn2nb(knearneigh(subDf[,c("X","Y")] %>% as.matrix(),longlat = F), row.names = subDf$resp_id)
 
 ##--------------- intial analysis --- comparission between home flooded and other x variables withbar ,----
 # graphDF<-data.frame(percent=NA,conf25=NA,conf95=NA,p_val=NA,major_cat=NA,bar_cat=NA,comp_var=NA)
@@ -222,8 +270,8 @@ table(df$HomeFlooded,df$OnlyOtherHomesFlooded)
 #   scale_fill_manual(values=rep( c("#D55E00", "#0072B2"),10))
 # 
 # 
-
-
+subDf %>% dplyr::select(fScanDepthFt, fScanInundDist, fScanNdays) %>% summary
+df1 %>% dplyr::select(fScanDepthFt, fScanInundDist, fScanNdays) %>% summarise_if(is.numeric, sd)
 ##--------------- comparing similar columns  ------------
 # compCols<-c("Contact_Water", "HomeDamaged", "HomeFlooded", "OtherHomesFlooded", "LosePower", "TrashOnBlock", "LeaveHome",  "VehicleDamaged" )
 # compDf<-data.frame()
@@ -237,14 +285,14 @@ table(df$HomeFlooded,df$OnlyOtherHomesFlooded)
 # compDf[,c(3,4,5,6)]<-sapply(compDf[,c(3,4,5,6)],as.numeric)
 # compDf['FF_TT']<-compDf$FF+compDf$TT
 # compDf['FT_TF']<-compDf$TF+compDf$FT
-
-
+#check for % in Houston
+dim(subDf[floor(as.numeric(subDf$tractID10)/1e6) %in% c(48015, 48039, 48071, 48157, 48167, 48201, 48291, 48339, 48473),])[1] / dim(subDf)[1]
 ##------ =========== RUN GEE MODELS ================================= ------------
 ##------ 1.base model without SVI interaction and controlling for self assess ------
 
 covariates<- c('Male','AgeGrp', 'RaceGroup', 'EducGroup',"SelfAssess") #,'Hispanic'
 outcomes<- c("Illness", "Injury","Hospital",  "Concentrate", "Headaches", "RunnyNose", "ShortBreath", "SkinRash","AnySymptoms")
-exposures<-c("OnlyOtherHomesFlooded")#,"Contact_Water","OtherHomesFlooded","HomeFlooded","fScanFlooded","fScanInunDisCat","fScanNdaysCat" ,"fScanDepthCat","fScanDepthFt","fScanInundDist","fScanNdays")
+exposures<-c("OnlyOtherHomesFlooded","Contact_Water","HomeFlooded","fScanFlooded")#,"fScanInunDisCat","OtherHomesFlooded","fScanNdaysCat" ,"fScanDepthCat","fScanDepthFt","fScanInundDist","fScanNdays")
 print(paste0(c('outcomes-> ',outcomes),collapse = ', '))
 print(paste0(c('exposures-> ',exposures),collapse = ', '))
 print(paste0(c('covariates-> ',covariates),collapse = ', '))
@@ -258,67 +306,77 @@ allCrosTabs<-data.frame()
 
 for(exposure in exposures)
   for(outcome in outcomes){
-  mformula<-paste0(outcome,' ~ ', exposure, ' + ' , paste0(covariates,collapse = ' + '))
-  df<-subDf[complete.cases(subDf[,c(outcome,exposure,covariates,'tractID10')]),]
-  df['id']<-seq(dim(df)[1])
-  model<-geeglm(as.formula(mformula),
-                      id=tractID10,
-                      data = df,
-                      family =poisson(link='log'),
-                      corstr = "independence")
-
-  #update correlation structure
-  model2 <- update(model, corstr = "exch")
-  model3 <- update(model, corstr = "ar1")
-
-  ##select correlation structure based on smallest QIC
-  modelSel<-list(model,model2,model3)[which.min(unlist(lapply(list(model,model2,model3),mQIC)))][[1]]
-  remove(model,model2,model3)
-
-  ##get summary from the selected model
-  qic<- QIC(modelSel)
-  #summary(modelSel)
-
-  #broom results
-  resTab<-tidy(modelSel, conf.int = TRUE,exponentiate = T)
-  resTab[,c('estimate','p.value','conf.low','conf.high')]<-round(resTab[,c('estimate','p.value','conf.low','conf.high')],3)
-  resTab<-resTab[,c("term", "estimate","conf.low",  "conf.high","p.value", "std.error", "statistic")]
-
-  #insert exposure,outcome and formula and Qic
-  resTab$qic<-qic['QIC']
-  resTab$outcome<-outcome
-  resTab$exposure<-exposure
-  resTab$formula<-mformula
-  #correlation struture
-  resTab$corstr<-modelSel$corstr
-  resTab$Nrow<-nrow(modelSel$data)
-  resTab$id<-as.character(modelSel$call$id)
-  resTab$otherCom<-""
-  #print(resTab)
-
-  #prepare raw summary file
-  sumTxt<-paste0(c(capture.output(summary(modelSel)),
-                   '\n QIC:',capture.output(qic),
-                   'Time:',as.character(Sys.time()),'\n'),collapse = '\n')
-  #replace formula with orginal formula
-  sumTxt<-gsub('mformula',mformula,sumTxt)
-
-
-  #add to all output stored df and str
-  if(is.na(allRes)) allRes<-resTab else allRes<-rbind(allRes,resTab)
-  allSumm<-paste0(allSumm,sumTxt,sep=paste0(rep('=',100),collapse=''))
-
-  print(mformula)
-
-  #create cross table if intersection columns are factor
-  if(is.factor(df[,exposure]) | is.logical(df[,exposure])){
-    ftab<-data.frame(ftable(df[,outcome],df[,exposure],dnn=c(outcome,exposure)),stringsAsFactors = F)
-    ftab$formula<-mformula
-    ftab<-rbind(colnames(ftab),sapply(ftab,as.character))
-    colnames(ftab) <- as.character(seq(dim(ftab)[2]))
-    allCrosTabs<-rbind(allCrosTabs,ftab)
+    mformula<-paste0(outcome,' ~ ', exposure, ' + ' , paste0(covariates,collapse = ' + '))
+    df<-subDf[complete.cases(subDf[,c(outcome,exposure,covariates,'tractID10','resp_id', 'X','Y')]),]
+    df['id']<-seq(dim(df)[1])
+    model<-geeglm(as.formula(mformula),
+                  id=tractID10,
+                  data = df,
+                  family =poisson(link='log'),
+                  corstr = "independence")
+    
+    #update correlation structure
+    model2 <- update(model, corstr = "exch")
+    model3 <- update(model, corstr = "ar1")
+    
+    ##select correlation structure based on smallest QIC
+    modelSel<-list(model,model2,model3)[which.min(unlist(lapply(list(model,model2,model3),mQIC)))][[1]]
+    remove(model,model2,model3)
+    
+    ##get summary from the selected model
+    qic<- QIC(modelSel)
+    #summary(modelSel)
+    
+    print(mformula)
+    
+    #hrr_nbSub <- subset(hhr_nb, subDf$resp_id %in% df$resp_id)
+    hrr_nbSub <- knn2nb(knearneigh(as.matrix(df[,c('X','Y')]),k=5), row.names = df$resp_id)
+    moran_res <- moran.test(resid(modelSel), nb2listw(hrr_nbSub, style="W", zero.policy = T))
+    moran_res$p.value
+    
+    
+    
+    #broom results
+    resTab<-tidy(modelSel, conf.int = TRUE,exponentiate = T)
+    resTab[,c('estimate','p.value','conf.low','conf.high')]<-round(resTab[,c('estimate','p.value','conf.low','conf.high')],3)
+    resTab<-resTab[,c("term", "estimate","conf.low",  "conf.high","p.value", "std.error", "statistic")]
+    
+    #insert exposure,outcome and formula and Qic
+    resTab$qic<-qic['QIC']
+    resTab$outcome<-outcome
+    resTab$exposure<-exposure
+    resTab$formula<-mformula
+    #correlation struture
+    resTab$corstr<-modelSel$corstr
+    resTab$Nrow<-nrow(modelSel$data)
+    resTab$id<-as.character(modelSel$call$id)
+    resTab$moranIpval <- moran_res$p.value
+    resTab$otherCom<-""
+    #print(resTab)
+    
+    #prepare raw summary file
+    sumTxt<-paste0(c(capture.output(summary(modelSel)),
+                     '\n QIC:',capture.output(qic),
+                     'Time:',as.character(Sys.time()),'\n'),collapse = '\n')
+    #replace formula with orginal formula
+    sumTxt<-gsub('mformula',mformula,sumTxt)
+    
+    
+    #add to all output stored df and str
+    if(is.na(allRes)) allRes<-resTab else allRes<-rbind(allRes,resTab)
+    allSumm<-paste0(allSumm,sumTxt,sep=paste0(rep('=',100),collapse=''))
+    
+    
+    
+    #create cross table if intersection columns are factor
+    if(is.factor(df[,exposure]) | is.logical(df[,exposure])){
+      ftab<-data.frame(ftable(df[,outcome],df[,exposure],dnn=c(outcome,exposure)),stringsAsFactors = F)
+      ftab$formula<-mformula
+      ftab<-rbind(colnames(ftab),sapply(ftab,as.character))
+      colnames(ftab) <- as.character(seq(dim(ftab)[2]))
+      allCrosTabs<-rbind(allCrosTabs,ftab)
+    }
   }
-}
 
 #write output files
 allRes$model<-'baseModel'
@@ -326,6 +384,96 @@ write.xlsx(allRes, file=paste0(outputDir,'baseModel.xlsx'), sheetName = "Sheet1"
 write.csv(allCrosTabs,file = paste0(outputDir,'baseModel.csv'))
 cat(allSumm,file = paste0(outputDir,'baseModel.txt'))
 
+
+##------ 1.1 base model without SVI interaction and controlling for self assess usgin spind geeglm spatial------
+
+covariates<- c('Male','AgeGrp', 'RaceGroup', 'EducGroup',"SelfAssess") #,'Hispanic'
+outcomes<- c("Illness", "Injury","Hospital",  "Concentrate", "Headaches", "RunnyNose", "ShortBreath", "SkinRash","AnySymptoms")
+exposures<-c("OnlyOtherHomesFlooded","Contact_Water","HomeFlooded","fScanFlooded")#,"fScanInunDisCat") #,"OtherHomesFlooded","fScanNdaysCat" ,"fScanDepthCat","fScanDepthFt","fScanInundDist","fScanNdays")
+print(paste0(c('outcomes-> ',outcomes),collapse = ', '))
+print(paste0(c('exposures-> ',exposures),collapse = ', '))
+print(paste0(c('covariates-> ',covariates),collapse = ', '))
+summary(subDf[,c(covariates,exposures,outcomes)])
+
+outcome<-outcomes[1]
+exposure<- exposures[1]
+allRes<-NA
+allSumm<-''
+allCrosTabs<-data.frame()
+library(mgcv)
+for(exposure in exposures)
+  for(outcome in outcomes){
+    mformula<-paste0(outcome,' ~ ', exposure, ' + ' , paste0(covariates,collapse = ' + '),' + s(X,Y)')
+    df<-subDf[complete.cases(subDf[,c(outcome,exposure,covariates,'tractID10','resp_id', 'X','Y')]),]
+    df$X <- df$X/1000
+    df$Y <- df$Y/1000
+    df['id']<-seq(dim(df)[1])
+    
+    ##select correlation structure based on smallest QIC
+    modelSel<-gam(as.formula(mformula),
+                  data = df,
+                  family =poisson(link='log'))
+    
+    ##get summary from the selected model
+    qic<- AIC(modelSel)
+    #summary(modelSel)
+    
+    print(mformula)
+    print(summary(modelSel))
+    #run morans I
+    #hrr_nbSub <- subset(hhr_nb, subDf$resp_id %in% df$resp_id)
+    hrr_nbSub <- knn2nb(knearneigh(as.matrix(df[,c('X','Y')]),k=5), row.names = df$resp_id)
+    moran_res <- moran.test(resid(modelSel), nb2listw(hrr_nbSub, style="W", zero.policy = T))
+    print(moran_res)
+    
+    #broom results
+    # resTab<-tidy(modelSel, conf.int = TRUE,exponentiate = T)
+    # resTab[,c('estimate','p.value','conf.low','conf.high')]<-round(resTab[,c('estimate','p.value','conf.low','conf.high')],3)
+    # resTab<-resTab[,c("term", "estimate","conf.low",  "conf.high","p.value", "std.error", "statistic")]
+    # 
+    #insert exposure,outcome and formula and Qic
+    # resTab$qic<-qic['QIC']
+    # resTab$outcome<-outcome
+    # resTab$exposure<-exposure
+    # resTab$formula<-mformula
+    # #correlation struture
+    # resTab$corstr<-modelSel$corstr
+    # resTab$Nrow<-nrow(modelSel$data)
+    # resTab$id<-as.character(modelSel$call$id)
+    # resTab$otherCom<-""
+    # resTab$moranIpval <- moran_res$p.value
+    # #print(resTab)
+    
+    #prepare raw summary file
+    sumTxt<-paste0(c(capture.output(summary(modelSel)),
+                     '\n AIC:',capture.output(qic),
+                     "\n MoranI: ", capture.output(moran_res),
+                     'Time:',as.character(Sys.time()),'\n'),collapse = '\n')
+    #replace formula with orginal formula
+    sumTxt<-gsub('mformula',mformula,sumTxt)
+    
+    
+    #add to all output stored df and str
+    #if(is.na(allRes)) allRes<-resTab else allRes<-rbind(allRes,resTab)
+    allSumm<-paste0(allSumm,sumTxt,sep=paste0(rep('=',100),collapse=''))
+    
+    
+    
+    #create cross table if intersection columns are factor
+    # if(is.factor(df[,exposure]) | is.logical(df[,exposure])){
+    #   ftab<-data.frame(ftable(df[,outcome],df[,exposure],dnn=c(outcome,exposure)),stringsAsFactors = F)
+    #   ftab$formula<-mformula
+    #   ftab<-rbind(colnames(ftab),sapply(ftab,as.character))
+    #   colnames(ftab) <- as.character(seq(dim(ftab)[2]))
+    #   allCrosTabs<-rbind(allCrosTabs,ftab)
+    # }
+  }
+
+#write output files
+#allRes$model<-'baseModel_spatial'
+#write.xlsx(allRes, file=paste0(outputDir,'baseModel_spatial.xlsx'), sheetName = "Sheet1",col.names = TRUE, row.names = TRUE, append = FALSE)
+#write.csv(allCrosTabs,file = paste0(outputDir,'baseModel_spatial.csv'))
+cat(allSumm,file = paste0(outputDir,'baseModel_spatial.txt'))
 
 ##------ 1.2. reruning base model controlling for self assess to compare homeflooded, other homes flooded, fcsn flooded with same number of records ------
 
@@ -340,35 +488,29 @@ summary(subDf[,c(covariates,exposures,outcomes)])
 allRes<-NA
 allSumm<-''
 allCrosTabs<-data.frame()
-
+library(spind)
 for(exposure in exposures)
   for(outcome in outcomes){
     mformula<-paste0(outcome,' ~ ', exposure, ' + ' , paste0(covariates,collapse = ' + '))
     df<-subDf[complete.cases(subDf[,c(outcome,exposures,covariates,'tractID10')]),]
     df['id']<-seq(dim(df)[1])
-    model<-geeglm(as.formula(mformula),
-                  id=tractID10,
-                  data = df,
-                  family =poisson(link='log'),
-                  corstr = "independence")
-
-    #update correlation structure
-    model2 <- update(model, corstr = "exch")
-    model3 <- update(model, corstr = "ar1")
-
-    ##select correlation structure based on smallest QIC
-    modelSel<-list(model,model2,model3)[which.min(unlist(lapply(list(model,model2,model3),mQIC)))][[1]]
-    remove(model,model2,model3)
-
+    df$X <- as.integer(df$X)
+    df$Y <- as.integer(df$Y)
+    modelSel <- spind::GEE(as.formula(mformula),
+                    #id=tractID10,	
+                    data = df,
+                    family =poisson(link='log'),
+                    coord = df[,c("X","Y")],corstr = "exchangable",scale.fix = FALSE)
+    
     ##get summary from the selected model
     qic<- QIC(modelSel)
     #summary(modelSel)
-
+    
     #broom results
     resTab<-tidy(modelSel, conf.int = TRUE,exponentiate = T)
     resTab[,c('estimate','p.value','conf.low','conf.high')]<-round(resTab[,c('estimate','p.value','conf.low','conf.high')],3)
     resTab<-resTab[,c("term", "estimate","conf.low",  "conf.high","p.value", "std.error", "statistic")]
-
+    
     #insert exposure,outcome and formula and Qic
     resTab$qic<-qic['QIC']
     resTab$outcome<-outcome
@@ -380,21 +522,21 @@ for(exposure in exposures)
     resTab$id<-as.character(modelSel$call$id)
     resTab$otherCom<-""
     #print(resTab)
-
+    
     #prepare raw summary file
     sumTxt<-paste0(c(capture.output(summary(modelSel)),
                      '\n QIC:',capture.output(qic),
                      'Time:',as.character(Sys.time()),'\n'),collapse = '\n')
     #replace formula with orginal formula
     sumTxt<-gsub('mformula',mformula,sumTxt)
-
-
+    
+    
     #add to all output stored df and str
     if(is.na(allRes)) allRes<-resTab else allRes<-rbind(allRes,resTab)
     allSumm<-paste0(allSumm,sumTxt,sep=paste0(rep('=',100),collapse=''))
-
+    
     print(mformula)
-
+    
     #create cross table if intersection columns are not factor
     if(is.factor(df[,exposure]) | is.logical(df[,exposure])){
       ftab<-data.frame(ftable(df[,outcome],df[,exposure],dnn=c(outcome,exposure)),stringsAsFactors = F)
@@ -436,24 +578,24 @@ for(exposure in exposures)
                   data = df,
                   family =poisson(link='log'),
                   corstr = "independence")
-
+    
     #update correlation structure
     model2 <- update(model, corstr = "exch")
     model3 <- update(model, corstr = "ar1")
-
+    
     ##select correlation structure based on smallest QIC
     modelSel<-list(model,model2,model3)[which.min(unlist(lapply(list(model,model2,model3),mQIC)))][[1]]
     remove(model,model2,model3)
-
+    
     ##get summary from the selected model
     qic<- QIC(modelSel)
     #summary(modelSel)
-
+    
     #broom results
     resTab<-tidy(modelSel, conf.int = TRUE,exponentiate = T)
     resTab[,c('estimate','p.value','conf.low','conf.high')]<-round(resTab[,c('estimate','p.value','conf.low','conf.high')],3)
     resTab<-resTab[,c("term", "estimate","conf.low",  "conf.high","p.value", "std.error", "statistic")]
-
+    
     #insert exposure,outcome and formula and Qic
     resTab$qic<-qic['QIC']
     resTab$outcome<-outcome
@@ -465,21 +607,21 @@ for(exposure in exposures)
     resTab$id<-as.character(modelSel$call$id)
     resTab$otherCom<-""
     #print(resTab)
-
+    
     #prepare raw summary file
     sumTxt<-paste0(c(capture.output(summary(modelSel)),
                      '\n QIC:',capture.output(qic),
                      'Time:',as.character(Sys.time()),'\n'),collapse = '\n')
     #replace formula with orginal formula
     sumTxt<-gsub('mformula',mformula,sumTxt)
-
-
+    
+    
     #add to all output stored df and str
     if(is.na(allRes)) allRes<-resTab else allRes<-rbind(allRes,resTab)
     allSumm<-paste0(allSumm,sumTxt,sep=paste0(rep('=',100),collapse=''))
-
+    
     print(mformula)
-
+    
     #create cross table if intersection columns are not factor
     if(is.factor(df[,exposure]) | is.logical(df[,exposure])){
       ftab<-data.frame(ftable(df[,outcome],df[,exposure],dnn=c(outcome,exposure)),stringsAsFactors = F)
@@ -514,31 +656,39 @@ allCrosTabs<-data.frame()
 for(exposure in exposures)
   for(outcome in outcomes){
     mformula<-paste0(outcome,' ~ ', exposure, ' + ' , paste0(covariates,collapse = ' + '))
-    df<-subDf[complete.cases(subDf[,c(outcome,exposure,covariates,'tractID10')]),]
+    df<-subDf[complete.cases(subDf[,c(outcome,exposure,covariates,'tractID10','resp_id')]),]
     df['id']<-seq(dim(df)[1])
     model<-geeglm(as.formula(mformula),
                   id=tractID10,
                   data = df,
                   family =poisson(link='log'),
                   corstr = "independence")
-
+    
     #update correlation structure
     model2 <- update(model, corstr = "exch")
     model3 <- update(model, corstr = "ar1")
-
+    
     ##select correlation structure based on smallest QIC
     modelSel<-list(model,model2,model3)[which.min(unlist(lapply(list(model,model2,model3),mQIC)))][[1]]
     remove(model,model2,model3)
-
+    
     ##get summary from the selected model
     qic<- QIC(modelSel)
     #summary(modelSel)
-
+    
+    print(mformula)
+    
+    
+    #run morans I
+    hrr_nbSub <- subset(hhr_nb, subDf$resp_id %in% df$resp_id)
+    moran_res <- moran.test(resid(modelSel), nb2listw(hrr_nbSub, style="W"))
+    print(moran_res)
+    
     #broom results
     resTab<-tidy(modelSel, conf.int = TRUE,exponentiate = T)
     resTab[,c('estimate','p.value','conf.low','conf.high')]<-round(resTab[,c('estimate','p.value','conf.low','conf.high')],3)
     resTab<-resTab[,c("term", "estimate","conf.low",  "conf.high","p.value", "std.error", "statistic")]
-
+    
     #insert exposure,outcome and formula and Qic
     resTab$qic<-qic['QIC']
     resTab$outcome<-outcome
@@ -550,21 +700,20 @@ for(exposure in exposures)
     resTab$id<-as.character(modelSel$call$id)
     resTab$otherCom<-""
     #print(resTab)
-
+    
     #prepare raw summary file
     sumTxt<-paste0(c(capture.output(summary(modelSel)),
                      '\n QIC:',capture.output(qic),
                      'Time:',as.character(Sys.time()),'\n'),collapse = '\n')
     #replace formula with orginal formula
     sumTxt<-gsub('mformula',mformula,sumTxt)
-
-
+    
+    
     #add to all output stored df and str
     if(is.na(allRes)) allRes<-resTab else allRes<-rbind(allRes,resTab)
     allSumm<-paste0(allSumm,sumTxt,sep=paste0(rep('=',100),collapse=''))
-
-    print(mformula)
-
+    
+    
     #create cross table if intersection columns are not factor
     if(is.factor(df[,exposure]) | is.logical(df[,exposure])){
       ftab<-data.frame(ftable(df[,outcome],df[,exposure],dnn=c(outcome,exposure)),stringsAsFactors = F)
@@ -605,26 +754,26 @@ for(exposure in exposures)
                   data = df,
                   family =poisson(link='log'),
                   corstr = "independence")
-
+    
     #update correlation structure
     model2 <- update(model, corstr = "exch")
     model3 <- update(model, corstr = "ar1")
-
-
-
+    
+    
+    
     ##select correlation structure based on smallest QIC
     modelSel<-list(model,model2,model3)[which.min(unlist(lapply(list(model,model2,model3),mQIC)))][[1]]
     remove(model,model2,model3)
-
+    
     ##get summary from the selected model
     qic<- QIC(modelSel)
     #summary(modelSel)
-
+    
     #broom results
     resTab<-tidy(modelSel, conf.int = TRUE,exponentiate = T)
     resTab[,c('estimate','p.value','conf.low','conf.high')]<-round(resTab[,c('estimate','p.value','conf.low','conf.high')],3)
     resTab<-resTab[,c("term", "estimate","conf.low",  "conf.high","p.value", "std.error", "statistic")]
-
+    
     #insert exposure,outcome and formula and Qic
     resTab$qic<-qic['QIC']
     resTab$outcome<-outcome
@@ -636,21 +785,21 @@ for(exposure in exposures)
     resTab$id<-as.character(modelSel$call$id)
     resTab$otherCom<-""
     #print(resTab)
-
+    
     #prepare raw summary file
     sumTxt<-paste0(c(capture.output(summary(modelSel)),
                      '\n QIC:',capture.output(qic),
                      'Time:',as.character(Sys.time()),'\n'),collapse = '\n')
     #replace formula with orginal formula
     sumTxt<-gsub('mformula',mformula,sumTxt)
-
-
+    
+    
     #add to all output stored df and str
     if(is.na(allRes)) allRes<-resTab else allRes<-rbind(allRes,resTab)
     allSumm<-paste0(allSumm,sumTxt,sep=paste0(rep('=',100),collapse=''))
-
+    
     print(mformula)
-
+    
     #create cross table if intersection columns are not factor
     if(is.factor(df[,exposure]) | is.logical(df[,exposure])){
       ftab<-data.frame(ftable(df[,outcome],df[,exposure],dnn=c(outcome,exposure)),stringsAsFactors = F)
@@ -689,26 +838,26 @@ for(exposure in exposures)
                   data = df,
                   family =poisson(link='log'),
                   corstr = "independence")
-
+    
     #update correlation structure
     model2 <- update(model, corstr = "exch")
     model3 <- update(model, corstr = "ar1")
-
-
-
+    
+    
+    
     ##select correlation structure based on smallest QIC
     modelSel<-list(model,model2,model3)[which.min(unlist(lapply(list(model,model2,model3),mQIC)))][[1]]
     remove(model,model2,model3)
-
+    
     ##get summary from the selected model
     qic<- QIC(modelSel)
     #summary(modelSel)
-
+    
     #broom results
     resTab<-tidy(modelSel, conf.int = TRUE,exponentiate = T)
     resTab[,c('estimate','p.value','conf.low','conf.high')]<-round(resTab[,c('estimate','p.value','conf.low','conf.high')],3)
     resTab<-resTab[,c("term", "estimate","conf.low",  "conf.high","p.value", "std.error", "statistic")]
-
+    
     #insert exposure,outcome and formula and Qic
     resTab$qic<-qic['QIC']
     resTab$outcome<-outcome
@@ -720,21 +869,21 @@ for(exposure in exposures)
     resTab$id<-as.character(modelSel$call$id)
     resTab$otherCom<-""
     #print(resTab)
-
+    
     #prepare raw summary file
     sumTxt<-paste0(c(capture.output(summary(modelSel)),
                      '\n QIC:',capture.output(qic),
                      'Time:',as.character(Sys.time()),'\n'),collapse = '\n')
     #replace formula with orginal formula
     sumTxt<-gsub('mformula',mformula,sumTxt)
-
-
+    
+    
     #add to all output stored df and str
     if(is.na(allRes)) allRes<-resTab else allRes<-rbind(allRes,resTab)
     allSumm<-paste0(allSumm,sumTxt,sep=paste0(rep('=',100),collapse=''))
-
+    
     print(mformula)
-
+    
     #create cross table if intersection columns are not factor
     if(is.factor(df[,exposure]) | is.logical(df[,exposure])){
       ftab<-data.frame(ftable(df[,outcome],df[,exposure],dnn=c(outcome,exposure)),stringsAsFactors = F)
@@ -752,11 +901,13 @@ write.csv(allCrosTabs,file = paste0(outputDir,'baseModelNotCntrlAnything.csv'))
 cat(allSumm,file = paste0(outputDir,'baseModelNotCntrlAnything.txt'))
 
 ##------ 4.base model with interaction for individual level characteristic and controlling for self assess ------
-
+inter='RaceGroup'
+exposure='OnlyOtherHomesFlooded'
+outcome='Illness'
 covariates<- c('Male','AgeGrp', 'RaceGroup', 'EducGroup',"SelfAssess") #,'Hispanic'
-outcomes<- c("Illness", "Injury","Hospital",  "Concentrate", "Headaches", "RunnyNose", "ShortBreath", "SkinRash","AnySymptoms")
-exposures<-c("OnlyOtherHomesFlooded","OtherHomesFlooded","HomeFlooded","fScanFlooded","Contact_Water")#,"fScanInunDisCat","fScanNdaysCat" ,"fScanDepthCat")
-inters<-c('RaceGroup','Male','AgeGrp',  'EducGroup')
+outcomes<- c( "Concentrate")#, "Illness", "Injury","Hospital",  "Headaches", "RunnyNose", "ShortBreath", "SkinRash","AnySymptoms")
+exposures<-c("HomeFlooded","fScanFlooded")#"OnlyOtherHomesFlooded","OtherHomesFlooded","Contact_Water","fScanInunDisCat","fScanNdaysCat" ,"fScanDepthCat")
+inters<-c('Male')#,'RaceGroup','AgeGrp',  'EducGroup')
 print(paste0(c('outcomes-> ',outcomes),collapse = ', '))
 print(paste0(c('exposures-> ',exposures),collapse = ', '))
 print(paste0(c('covariates-> ',covariates),collapse = ', '))
@@ -781,37 +932,37 @@ for(inter in inters){
         ftab1<-rbind(colnames(ftab),sapply(ftab,as.character))
         colnames(ftab1) <- as.character(seq(dim(ftab1)[2]))
         allCrosTabs<-rbind(allCrosTabs,ftab1)
-
+        
         #if any of the counts is 0 skip this loop
         if(any(ftab$Freq==0)){
           allSumm<-paste0(allSumm,'\n',mformula,'\n skipped due to not enought records count in each category bin \n',sep=paste0(rep('=',100),collapse=''))
           next()}
       }
-
+      
       df['id']<-seq(dim(df)[1])
       model<-geeglm(as.formula(mformula),
                     id=tractID10,
                     data = df,
                     family =poisson(link='log'),
                     corstr = "independence")
-
+      
       #update correlation structure
       model2 <- update(model, corstr = "exch")
       model3 <- update(model, corstr = "ar1")
-
+      
       ##select correlation structure based on smallest QIC
       modelSel<-list(model,model2,model3)[which.min(unlist(lapply(list(model,model2,model3),mQIC)))][[1]]
       remove(model,model2,model3)
-
+      
       ##get summary from the selected model
       qic<- QIC(modelSel)
       #summary(modelSel)
-
+      
       #broom results
       resTab<-tidy(modelSel, conf.int = TRUE,exponentiate = T)
       resTab[,c('estimate','p.value','conf.low','conf.high')]<-round(resTab[,c('estimate','p.value','conf.low','conf.high')],3)
       resTab<-resTab[,c("term", "estimate","conf.low",  "conf.high","p.value", "std.error", "statistic")]
-
+      
       #insert exposure,outcome and formula and Qic
       resTab$qic<-qic['QIC']
       resTab$outcome<-outcome
@@ -823,22 +974,22 @@ for(inter in inters){
       resTab$id<-as.character(modelSel$call$id)
       resTab$otherCom<-paste0('interaction term ',inter)
       #print(resTab)
-
+      
       #prepare raw summary file
       sumTxt<-paste0(c(capture.output(summary(modelSel)),
                        '\n QIC:',capture.output(qic),
                        'Time:',as.character(Sys.time()),'\n'),collapse = '\n')
       #replace formula with orginal formula
       sumTxt<-gsub('mformula',mformula,sumTxt)
-
-
+      
+      
       #add to all output stored df and str
       if(is.na(allRes)) allRes<-resTab else allRes<-rbind(allRes,resTab)
       allSumm<-paste0(allSumm,sumTxt,sep=paste0(rep('=',100),collapse=''))
-
+      
       #print(ftab)
       print(mformula)
-
+      
     }
   cat(allSumm,file = paste0(outputDir,'demogInteractionModel.txt'),append = T)
   allSumm<-''
@@ -867,77 +1018,77 @@ allSumm<-''
 allCrosTabs<-data.frame()
 
 for(inter in inters){
-for(exposure in exposures)
-  for(outcome in outcomes){
-    mformula<-paste0(outcome,' ~ ', exposure,' * ',inter,' + ' , paste0(covariates,collapse = ' + '))
-    df<-subDf[complete.cases(subDf[,c(outcome,exposure,covariates,inter,'tractID10')]),]
-
-    #create cross table if intersection columns are not factor
-    if (is.factor(df[,inter])){
-      ftab<-data.frame(ftable(df[,outcome],df[,exposure],df[,inter],dnn=c(outcome,exposure,inter)),stringsAsFactors = F)
-      ftab$formula<-mformula
-      ftab1<-rbind(colnames(ftab),sapply(ftab,as.character))
-      colnames(ftab1) <- as.character(seq(dim(ftab1)[2]))
-      allCrosTabs<-rbind(allCrosTabs,ftab1)
-
-      #if any of the counts is 0 skip this loop
-      if(any(ftab$Freq==0)){
-        allSumm<-paste0(allSumm,'\n',mformula,'\n skipped due to not enought records count in each category bin \n',sep=paste0(rep('=',100),collapse=''))
-        next()}
+  for(exposure in exposures)
+    for(outcome in outcomes){
+      mformula<-paste0(outcome,' ~ ', exposure,' * ',inter,' + ' , paste0(covariates,collapse = ' + '))
+      df<-subDf[complete.cases(subDf[,c(outcome,exposure,covariates,inter,'tractID10')]),]
+      
+      #create cross table if intersection columns are not factor
+      if (is.factor(df[,inter])){
+        ftab<-data.frame(ftable(df[,outcome],df[,exposure],df[,inter],dnn=c(outcome,exposure,inter)),stringsAsFactors = F)
+        ftab$formula<-mformula
+        ftab1<-rbind(colnames(ftab),sapply(ftab,as.character))
+        colnames(ftab1) <- as.character(seq(dim(ftab1)[2]))
+        allCrosTabs<-rbind(allCrosTabs,ftab1)
+        
+        #if any of the counts is 0 skip this loop
+        if(any(ftab$Freq==0)){
+          allSumm<-paste0(allSumm,'\n',mformula,'\n skipped due to not enought records count in each category bin \n',sep=paste0(rep('=',100),collapse=''))
+          next()}
+      }
+      
+      
+      df['id']<-seq(dim(df)[1])
+      model<-geeglm(as.formula(mformula),
+                    id=tractID10,
+                    data = df,
+                    family =poisson(link='log'),
+                    corstr = "independence")
+      
+      #update correlation structure
+      model2 <- update(model, corstr = "exch")
+      model3 <- update(model, corstr = "ar1")
+      
+      ##select correlation structure based on smallest QIC
+      modelSel<-list(model,model2,model3)[which.min(unlist(lapply(list(model,model2,model3),mQIC)))][[1]]
+      remove(model,model2,model3)
+      
+      ##get summary from the selected model
+      qic<- QIC(modelSel)
+      #summary(modelSel)
+      
+      #broom results
+      resTab<-tidy(modelSel, conf.int = TRUE,exponentiate = T)
+      resTab[,c('estimate','p.value','conf.low','conf.high')]<-round(resTab[,c('estimate','p.value','conf.low','conf.high')],3)
+      resTab<-resTab[,c("term", "estimate","conf.low",  "conf.high","p.value", "std.error", "statistic")]
+      
+      #insert exposure,outcome and formula and Qic
+      resTab$qic<-qic['QIC']
+      resTab$outcome<-outcome
+      resTab$exposure<-exposure
+      resTab$formula<-mformula
+      #correlation struture
+      resTab$corstr<-modelSel$corstr
+      resTab$Nrow<-nrow(modelSel$data)
+      resTab$id<-as.character(modelSel$call$id)
+      resTab$otherCom<-paste0('interaction term ',inter)
+      #print(resTab)
+      
+      #prepare raw summary file
+      sumTxt<-paste0(c(capture.output(summary(modelSel)),
+                       '\n QIC:',capture.output(qic),
+                       'Time:',as.character(Sys.time()),'\n'),collapse = '\n')
+      #replace formula with orginal formula
+      sumTxt<-gsub('mformula',mformula,sumTxt)
+      
+      
+      #add to all output stored df and str
+      if(is.na(allRes)) allRes<-resTab else allRes<-rbind(allRes,resTab)
+      allSumm<-paste0(allSumm,sumTxt,sep=paste0(rep('=',100),collapse=''))
+      
+      #print(ftab)
+      print(mformula)
     }
-
-
-    df['id']<-seq(dim(df)[1])
-    model<-geeglm(as.formula(mformula),
-                  id=tractID10,
-                  data = df,
-                  family =poisson(link='log'),
-                  corstr = "independence")
-
-    #update correlation structure
-    model2 <- update(model, corstr = "exch")
-    model3 <- update(model, corstr = "ar1")
-
-    ##select correlation structure based on smallest QIC
-    modelSel<-list(model,model2,model3)[which.min(unlist(lapply(list(model,model2,model3),mQIC)))][[1]]
-    remove(model,model2,model3)
-
-    ##get summary from the selected model
-    qic<- QIC(modelSel)
-    #summary(modelSel)
-
-    #broom results
-    resTab<-tidy(modelSel, conf.int = TRUE,exponentiate = T)
-    resTab[,c('estimate','p.value','conf.low','conf.high')]<-round(resTab[,c('estimate','p.value','conf.low','conf.high')],3)
-    resTab<-resTab[,c("term", "estimate","conf.low",  "conf.high","p.value", "std.error", "statistic")]
-
-    #insert exposure,outcome and formula and Qic
-    resTab$qic<-qic['QIC']
-    resTab$outcome<-outcome
-    resTab$exposure<-exposure
-    resTab$formula<-mformula
-    #correlation struture
-    resTab$corstr<-modelSel$corstr
-    resTab$Nrow<-nrow(modelSel$data)
-    resTab$id<-as.character(modelSel$call$id)
-    resTab$otherCom<-paste0('interaction term ',inter)
-    #print(resTab)
-
-    #prepare raw summary file
-    sumTxt<-paste0(c(capture.output(summary(modelSel)),
-                     '\n QIC:',capture.output(qic),
-                     'Time:',as.character(Sys.time()),'\n'),collapse = '\n')
-    #replace formula with orginal formula
-    sumTxt<-gsub('mformula',mformula,sumTxt)
-
-
-    #add to all output stored df and str
-    if(is.na(allRes)) allRes<-resTab else allRes<-rbind(allRes,resTab)
-    allSumm<-paste0(allSumm,sumTxt,sep=paste0(rep('=',100),collapse=''))
-
-    #print(ftab)
-    print(mformula)
-  }
   #write some outputs to clear memorty
   cat(allSumm,file = paste0(outputDir,'sviInteractionModel.txt'),append = T)
   allSumm<-''

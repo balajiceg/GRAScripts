@@ -8,7 +8,7 @@ library(ggplot2)
 library(dplyr)
 library(stringr)
 
-setwd("D:/NASAProjectFiles/BlitzerFiles/Analysis_HHR/working_files/HHR/Graphs")
+setwd("C:/Users/ramesh.154/OneDrive - The Ohio State University/HHR_manuscript/Analysis_HHR/working_files/HHR/Graphs")
 
 AXIS_Y_SIZE = 12
 LEGEND_SIZE = 14
@@ -28,7 +28,7 @@ DODGE_WIDTH = 0.7
 AXIS_X_SIZE = 12
 
 #read excel
-allDf = read.xlsx("D:/NASAProjectFiles/BlitzerFiles/Analysis_HHR/working_files/HHR/mergedOutputs/mergedOutputsAll.xlsx")
+allDf = read.xlsx("C:/Users/ramesh.154/OneDrive - The Ohio State University/HHR_manuscript/Analysis_HHR/working_files/HHR/mergedOutputs/mergedOutputsAll.xlsx",sheet = 'junk results from models')
 
 #strings define
 Shortness.of.breath = 'Shortness of breath'
@@ -38,6 +38,7 @@ Runny.Nose = 'Runny Nose'
 Skin.Rash = "Skin Rash"
 
 OtherHomesFlooded = 'Other homes in\nblock flooded'
+OnlyOtherHomesFlooded= 'Only Other Homes \nin block flooded'
 Contact_Water = 'Reported \nwater contact'
 fScanFlooded = 'Flood map\nbased flooding'
 HomeFlooded = 'Reported\nhome flooding'
@@ -51,7 +52,7 @@ fScanNdays = "Inundation peiod (days)"
 baseModel = filter(allDf,model=='baseModel') %>% as_tibble()
 
 #subset requried terms
-req_terms = c( "HomeFloodedTRUE", "OtherHomesFloodedTRUE",
+req_terms = c( "HomeFloodedTRUE", "OtherHomesFloodedTRUE", 'OnlyOtherHomesFloodedTRUE',
                "fScanFloodedTRUE", "Contact_WaterTRUE",
                "fScanInunDisCatlte1100", "fScanInunDisCatlte400", "fScanInunDisCatFlooded", 
                "fScanDepthCatlte1Dot5ft", "fScanDepthCatlte3ft", "fScanDepthCatgt3ft",
@@ -86,6 +87,7 @@ baseModel$outcome = gsub('RunnyNose',Runny.Nose,baseModel$outcome)
 baseModel$exposure = gsub('fScanInunDisCat','Distance',baseModel$exposure)
 baseModel$exposure = gsub('fScanNdaysCat','Days',baseModel$exposure)
 baseModel$exposure = gsub('fScanDepthCat','Depth',baseModel$exposure)
+baseModel$exposure = gsub('OnlyOtherHomesFlooded',OnlyOtherHomesFlooded,baseModel$exposure)
 baseModel$exposure = gsub('OtherHomesFlooded',OtherHomesFlooded,baseModel$exposure)
 baseModel$exposure = gsub('Contact_Water',Contact_Water,baseModel$exposure)
 baseModel$exposure = gsub('fScanFlooded',fScanFlooded,baseModel$exposure)
@@ -94,13 +96,15 @@ baseModel$exposure = gsub('fScanDepthFt',fScanDepthFt,baseModel$exposure)
 baseModel$exposure = gsub('fScanNdays',fScanNdays,baseModel$exposure)
 baseModel$exposure = gsub('fScanInundDist',fScanInundDist,baseModel$exposure)
 
-baseModel$exposue = factor(baseModel$exposure,levels=c(Contact_Water, HomeFlooded, OtherHomesFlooded, fScanFlooded,
+baseModel$exposure = factor(baseModel$exposure,levels=c(Contact_Water, HomeFlooded, OtherHomesFlooded, OnlyOtherHomesFlooded, fScanFlooded,
                                     "Distance", "Days", "Depth",
                                     fScanDepthFt, fScanNdays, fScanInundDist))
 
 #---- dichotomous plot  ----
-dichRecs = filter(baseModel,exposure %in% c(Contact_Water,HomeFlooded,OtherHomesFlooded,fScanFlooded)) %>%
-            mutate(exposure=factor(exposure,levels=c(Contact_Water, HomeFlooded, OtherHomesFlooded, fScanFlooded)))
+dichRecs = filter(baseModel,exposure %in% c(Contact_Water,HomeFlooded,OnlyOtherHomesFlooded,fScanFlooded)) %>%
+            mutate(exposure=factor(exposure,levels=c(Contact_Water, HomeFlooded,OnlyOtherHomesFlooded, fScanFlooded))) %>%
+            #filter out Any outcomes
+            filter(outcome!=Any.Symptoms)
 
 AXIS_Y_SIZE = 12
 LEGEND_SIZE = 13
@@ -144,8 +148,8 @@ dichGraph = ggplot(dichRecs, aes(y = estimate, x = exposure,color=exposure,shape
         panel.spacing.x = unit(0,'cm'),panel.border = element_rect(size=STRIP_LINES,linetype = 'solid'),
         axis.line = element_line(linetype = 'solid',size=LINE_WIDTH),strip.background = element_rect(colour="black", fill="gray95",size = LINE_WIDTH),)
 
-ggsave("confintGraphDichon.pdf",plot = dichGraph, width = unit(7.5,'cm'),height=unit(6.5,'cm'))
-ggsave("confintGraphDichon.png",plot = dichGraph, width = unit(7.5,'cm'),height=unit(6.5,'cm'))
+#ggsave("confintGraphDichon3.pdf",plot = dichGraph, width = unit(7.5,'cm'),height=unit(6.5,'cm'))
+#ggsave("confintGraphDichon3.png",plot = dichGraph, width = unit(7.5,'cm'),height=unit(6.5,'cm'))
 
 #---- Linear models plot  ----
 linRecs = filter(baseModel,exposure %in% c(fScanDepthFt, fScanNdays, fScanInundDist)) %>%
@@ -195,22 +199,25 @@ linGraph = ggplot(linRecs, aes(y = estimate, x = exposure,color=exposure, shape=
         panel.spacing.x = unit(0,'cm'),panel.border = element_rect(size=STRIP_LINES,linetype = 'solid'),
         axis.line = element_line(linetype = 'solid',size=LINE_WIDTH),strip.background = element_rect(colour="black", fill="gray95",size = LINE_WIDTH),)
 
-ggsave("confintGraphLinear.pdf",plot = linGraph, width = unit(7.5,'cm'),height=unit(5.5,'cm'))
-ggsave("confintGraphLinear.png",plot = linGraph, width = unit(7.5,'cm'),height=unit(5.5,'cm'))
+#ggsave("confintGraphLinear.pdf",plot = linGraph, width = unit(7.5,'cm'),height=unit(5.5,'cm'))
+#ggsave("confintGraphLinear.png",plot = linGraph, width = unit(7.5,'cm'),height=unit(5.5,'cm'))
 
 
 
 #--------categorical plot----------------
 
 catRecs = filter(baseModel,exposure %in% c(  'Depth', 'Days','Distance')) %>%
-  mutate(exposure=factor(exposure,levels=c( 'Depth', 'Days','Distance')))
+  mutate(exposure=factor(exposure,levels=c( 'Depth', 'Days','Distance'))) %>%
+  filter(outcome!=Any.Symptoms & outcome!='Hospital')
+
+catRecs$exposure <- recode(catRecs$exposure, 'Distance'='Distance\n(Inverse)')
 
 catRecs$term <- recode(catRecs$term, 
                        'Flooded upto 1Day' = 'Flooded upto 1 day',
                        'Flooded upto 2-3Days' = 'Flooded upto 2-3 days',
                        'Flooded upto 4-14Days' = 'Flooded > 3 days',
-                       'Distance <=400' = 'Closer to flood (<400m)',
-                       'Distance <=1100' = 'Away from flood (400 - 1100m)',
+                       'Distance <=400' = 'Closer to flood (>0 to <400m)',
+                       'Distance <=1100' = 'Away from flood (400 to <1100m)',
                        'Distance Flooded' = 'Flooded',
                        'Depth <=1.5ft' = 'Flood Depth < 1.5 ft',
                        'Depth <=3ft' = 'Flood Depth 1.5-3 ft',
@@ -218,7 +225,7 @@ catRecs$term <- recode(catRecs$term,
                        )
 catRecs$term <- factor(catRecs$term, levels= c('Flood Depth < 1.5 ft','Flood Depth 1.5-3 ft','Flood Depth > 3 ft',
                                                'Flooded upto 1 day','Flooded upto 2-3 days','Flooded > 3 days',
-                                               'Away from flood (400 - 1100m)','Closer to flood (<400m)','Flooded'))
+                                               'Away from flood (400 to <1100m)','Closer to flood (>0 to <400m)','Flooded'))
 
 AXIS_Y_SIZE = 12
 LEGEND_SIZE = 10
@@ -243,8 +250,8 @@ catGraph = ggplot(catRecs, aes(y = estimate, x = exposure,color=term, shape=expo
   geom_errorbar(aes(ymax = conf.high, ymin = conf.low), size = LINE_WIDTH, width =
                   ERROR_BAR_TOP,position = position_dodge(width = DODGE_WIDTH)) +
   geom_point(size = POINT_WIDTH,position = position_dodge(width = DODGE_WIDTH)) +
-  scale_shape_manual(values=c(15,17,16,18,8,16,17,15,18,8,9),guide='none')+
-  scale_color_manual(values=c( "#009E73","#D55E00","#0072B2","#CC79A7","#E69F00","#999999","#000000","#E69F00","#009E73","#F0E442"))+
+  scale_shape_manual(name = "Legend", values=c(15,17,18),guide='none')+#18,8,16,17,15,18))+#,8,9))+
+  scale_color_manual(name = "Legend", values=c( "#009E73","#D55E00","#0072B2","#CC79A7","#E69F00","#999999","#000000","#E69F00","#009E73"))+#,"#F0E442"))+
   geom_hline(aes(yintercept = 1), size = DASH_WIDTH, linetype = "dashed")+
   scale_y_log10(breaks = trans_breaks("log10", function(x) 10^x),
                 labels = trans_format("log10", function(x) round(10^x,2)))+
@@ -261,8 +268,8 @@ catGraph = ggplot(catRecs, aes(y = estimate, x = exposure,color=term, shape=expo
         panel.spacing.x = unit(0,'cm'),panel.border = element_rect(size=STRIP_LINES,linetype = 'solid'),
         axis.line = element_line(linetype = 'solid',size=LINE_WIDTH),strip.background = element_rect(colour="black", fill="gray95",size = LINE_WIDTH),)
 catGraph
-ggsave("confintGraphCat.pdf",plot = catGraph, width = unit(9,'cm'),height=unit(7,'cm'))
-ggsave("confintGraphCat.png",plot = catGraph, width = unit(9,'cm'),height=unit(7,'cm'))
+ggsave("confintGraphCat3.pdf",plot = catGraph, width = unit(9,'cm'),height=unit(6.5,'cm'))
+ggsave("confintGraphCat3.png",plot = catGraph, width = unit(9,'cm'),height=unit(6.5,'cm'))
 
 #----- for interaction with SVI -----
 #subet base model alone
